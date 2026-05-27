@@ -1,0 +1,75 @@
+/**
+ * Service layer — editorial and commerce integrations.
+ */
+export { supabase } from '@/services/supabase';
+export {
+  ensureAuthSession,
+  getSession,
+  signInWithEmail,
+  signUpWithEmail,
+  signOut,
+  isAnonymousUser,
+} from '@/services/auth';
+export {
+  fetchWardrobeItems,
+  fetchWardrobeItemById,
+  createWardrobeItemFromLocalImage,
+  invokeWardrobeBackgroundRemoval,
+  deleteWardrobeItem,
+  syncLocalWardrobeToRemote,
+} from '@/services/wardrobe-db';
+export {
+  uploadWardrobeOriginal,
+  getWardrobeStoragePublicUrl,
+  WARDROBE_ORIGINALS_BUCKET,
+  WARDROBE_CLEANED_BUCKET,
+} from '@/services/wardrobe-storage';
+export { fetchProfile, upsertProfile, syncLocalProfileToRemote } from '@/services/profile-db';
+export { getTodaysAura, inferWardrobeTone } from '@/lib/aura-engine';
+export { computeLuxuryScores, type LuxuryScores } from '@/lib/luxury-scores';
+export { inferEventContext, getVenueMoodBias, type EventContext } from '@/lib/event-intelligence';
+export {
+  buildEditorialReasoning,
+  suggestMissingPieces,
+  type EditorialReasoning,
+  type MissingPiece,
+} from '@/lib/editorial-reasoning';
+export {
+  EMPTY_STYLE_MEMORY,
+  recordLookGenerated,
+  recordLookSaved,
+  recordWardrobeItem,
+  getSignatureFromMemory,
+  type StyleMemory,
+} from '@/lib/style-memory';
+export {
+  PREMIUM_PRIVILEGES,
+  getPrivilegeRecommendations,
+  getFragranceRecommendations,
+  getVenueRecommendations,
+  getShoppingRecommendations,
+  type PremiumPrivilegeId,
+} from '@/lib/premium-privileges';
+
+export {
+  purchaseWeekly,
+  purchaseMonthly,
+  restorePurchases,
+  type PurchasePlan,
+  type PurchaseResult,
+} from '@/services/payments';
+
+/** Future: connect fragrance affiliate / catalog API. */
+export async function fetchFragranceCatalog(_locale: string): Promise<null> {
+  return null;
+}
+
+/** Future: connect venue intelligence API. */
+export async function fetchVenueGuidance(_destination: string): Promise<null> {
+  return null;
+}
+
+/** Future: connect luxury shopping affiliate API. */
+export async function fetchShoppingSelections(_lookId: string): Promise<null> {
+  return null;
+}
