@@ -7,13 +7,20 @@ import {
   readScopedLooks,
   writeScopedLooks,
 } from '@/lib/user-scoped-storage';
+import {
+  createSavedOutfit,
+  deleteSavedOutfit,
+  fetchSavedOutfits,
+  updateSavedOutfitCategory,
+} from '@/services/saved-outfits';
 
 type LooksContextValue = {
   looks: CuratedLook[];
   currentLook: CuratedLook | null;
   setCurrentLook: (look: CuratedLook | null) => void;
-  saveLook: (look: CuratedLook) => void;
-  removeLook: (id: string) => void;
+  saveLook: (look: CuratedLook) => Promise<CuratedLook>;
+  removeLook: (id: string) => Promise<void>;
+  updateLookCategory: (id: string, category: string) => Promise<void>;
   savedLooks: CuratedLook[];
   ready: boolean;
 };
@@ -28,14 +35,6 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
 
   const storageScope = isRegistered && userId ? userId : GUEST_STORAGE_SCOPE;
 
-  const persist = useCallback(
-    async (next: CuratedLook[]) => {
-      setLooks(next);
-      await writeScopedLooks(storageScope, next);
-    },
-    [storageScope],
-  );
-
   useEffect(() => {
     if (!authReady) return;
 
@@ -44,8 +43,20 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
     setLooks([]);
     setCurrentLookState(null);
 
-    if (isRegistered) {
-      setReady(true);
+    if (isRegistered && userId) {
+      void fetchSavedOutfits(userId)
+        .then((stored) => {
+          if (cancelled) return;
+          setLooks(stored);
+          setCurrentLookState(stored[0] ?? null);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setLooks([]);
+        })
+        .finally(() => {
+          if (!cancelled) setReady(true);
+        });
       return () => {
         cancelled = true;
       };
@@ -62,7 +73,7 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [authReady, storageScope, isRegistered]);
+  }, [authReady, storageScope, isRegistered, userId]);
 
   const setCurrentLook = useCallback(
     (look: CuratedLook | null) => {
@@ -70,37 +81,71 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
       if (look) {
         setLooks((prev) => {
           const next = [look, ...prev.filter((l) => l.id !== look.id)];
-          void writeScopedLooks(storageScope, next);
+          if (!isRegistered) void writeScopedLooks(storageScope, next);
           return next;
         });
       }
     },
-    [storageScope],
+    [isRegistered, storageScope],
   );
 
   const saveLook = useCallback(
-    (look: CuratedLook) => {
+    async (look: CuratedLook) => {
+      if (isRegistered && userId) {
+        const saved = await createSavedOutfit(userId, look);
+        const refreshed = await fetchSavedOutfits(userId);
+        const nextCurrent = refreshed.find((stored) => stored.id === saved.id) ?? saved;
+
+        setLooks(refreshed);
+        setCurrentLookState(nextCurrent);
+        return nextCurrent;
+      }
+
       const saved = { ...look, saved: true };
       setLooks((prev) => {
-        const next = [saved, ...prev.filter((l) => l.id !== look.id)];
+        const next = [saved, ...prev.filter((l) => l.id !== look.id && l.id !== saved.id)];
         void writeScopedLooks(storageScope, next);
         return next;
       });
       setCurrentLookState(saved);
+      return saved;
     },
-    [storageScope],
+    [isRegistered, storageScope, userId],
   );
 
   const removeLook = useCallback(
-    (id: string) => {
+    async (id: string) => {
+      if (isRegistered && userId) {
+        await deleteSavedOutfit(userId, id);
+      }
       setLooks((prev) => {
         const next = prev.filter((l) => l.id !== id);
-        void writeScopedLooks(storageScope, next);
+        if (!isRegistered) void writeScopedLooks(storageScope, next);
         return next;
       });
       setCurrentLookState((current) => (current?.id === id ? null : current));
     },
-    [storageScope],
+    [isRegistered, storageScope, userId],
+  );
+
+  const updateLookCategory = useCallback(
+    async (id: string, category: string) => {
+      const updated = isRegistered && userId
+        ? await updateSavedOutfitCategory(userId, id, category)
+        : undefined;
+
+      setLooks((prev) => {
+        const next = prev.map((look) =>
+          look.id === id ? (updated ?? { ...look, archiveCategory: category }) : look,
+        );
+        if (!isRegistered) void writeScopedLooks(storageScope, next);
+        return next;
+      });
+      setCurrentLookState((current) =>
+        current?.id === id ? (updated ?? { ...current, archiveCategory: category }) : current,
+      );
+    },
+    [isRegistered, storageScope, userId],
   );
 
   const savedLooks = useMemo(() => looks.filter((l) => l.saved), [looks]);
@@ -112,10 +157,11 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
       setCurrentLook,
       saveLook,
       removeLook,
+      updateLookCategory,
       savedLooks,
       ready,
     }),
-    [looks, currentLook, setCurrentLook, saveLook, removeLook, savedLooks, ready],
+    [looks, currentLook, setCurrentLook, saveLook, removeLook, updateLookCategory, savedLooks, ready],
   );
 
   return <LooksContext.Provider value={value}>{children}</LooksContext.Provider>;

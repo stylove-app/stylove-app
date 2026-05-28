@@ -1,15 +1,15 @@
 import { Image } from 'expo-image';
-import { Share, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { EditorialReasoningBlock } from '@/components/home/editorial-reasoning';
-import { LuxuryScoreCards } from '@/components/home/luxury-score-cards';
 import { MissingPieces } from '@/components/home/missing-pieces';
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { softFadeIn, softFadeInDown, softFadeInUp } from '@/constants/luxury-motion';
 import type { CuratedLook } from '@/lib/outfit-engine';
 import { hapticSuccess } from '@/lib/haptics';
-import { computeLuxuryScores } from '@/lib/luxury-scores';
 import { useTheme, StyloveShadow } from '@/contexts/theme-context';
 import { Fonts } from '@/constants/theme';
 import { useTranslation } from '@/contexts/locale-context';
@@ -24,26 +24,30 @@ type OutfitResultProps = {
   onShare?: () => void;
 };
 
-export function OutfitResult({ look, onReplace, onSave, isSaved, isSaving, aura, onShare }: OutfitResultProps) {
+export function OutfitResult({ look, onReplace, onSave, isSaved, isSaving, onShare }: OutfitResultProps) {
   const t = useTranslation();
   const { colors, isDark } = useTheme();
+  const { height, width } = useWindowDimensions();
+  const [preview, setPreview] = useState<{ uri: string; name: string } | null>(null);
+  const previewImageHeight = Math.min(height * 0.68, width * 1.25);
+  const previewPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          Math.abs(gesture.dy) > 18 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onPanResponderRelease: (_event, gesture) => {
+          if (gesture.dy > 80) setPreview(null);
+        },
+      }),
+    [],
+  );
 
-  const scores =
-    look.luxuryScores ??
-    computeLuxuryScores(look.mood, look.createdAt, undefined, look.eventContext);
-
-  const handleShare = async () => {
+  const handleShare = () => {
     if (onShare) {
       onShare();
       return;
     }
-    try {
-      await Share.share({
-        message: `${t.share.message}\n\n${look.title}\n${aura ?? look.whyThisWorks ?? ''}`,
-      });
-    } catch {
-      // User dismissed
-    }
+    router.push('/share-look');
   };
 
   return (
@@ -83,9 +87,10 @@ export function OutfitResult({ look, onReplace, onSave, isSaved, isSaving, aura,
               transition={600}
             />
             {!look.usesWardrobeImage ? <View style={styles.imageVeil} /> : null}
-            <View style={[styles.scoreWrap, { borderColor: colors.creamRich }]}>
-              <Text style={[styles.scoreLabel, { color: colors.gray }]}>{t.outfit.elegance}</Text>
-              <Text style={[styles.scoreValue, { color: colors.burgundyRich }]}>{look.eleganceScore}</Text>
+            <View style={[styles.editorialBadge, { borderColor: colors.creamRich }]}>
+              <Text style={[styles.editorialBadgeText, { color: colors.burgundyRich }]}>
+                {t.outfit.occasion}
+              </Text>
             </View>
           </View>
         </Animated.View>
@@ -99,12 +104,61 @@ export function OutfitResult({ look, onReplace, onSave, isSaved, isSaving, aura,
             ) : null}
           </Animated.View>
 
-          <LuxuryScoreCards scores={scores} />
-
           {look.weatherStyling ? (
             <Animated.View entering={softFadeInDown(400)} style={styles.block}>
               <Text style={[styles.blockLabel, { color: colors.goldSoft }]}>{t.outfit.weatherStyling}</Text>
               <Text style={[styles.blockText, { color: colors.creamText }]}>{look.weatherStyling}</Text>
+            </Animated.View>
+          ) : null}
+
+          {look.completeOutfit && look.completeOutfit.length > 0 ? (
+            <Animated.View entering={softFadeInDown(440)} style={styles.completeLookBlock}>
+              <Text style={[styles.blockLabel, { color: colors.goldSoft }]}>{t.completeLook.title}</Text>
+              <Text style={[styles.completeLookSubtitle, { color: colors.grayLight }]}>
+                {t.completeLook.subtitle}
+              </Text>
+              <View style={styles.outfitGrid}>
+                {look.completeOutfit.map((piece) => (
+                  <Pressable
+                    key={piece.id}
+                    onPress={() => setPreview({ uri: piece.item.imageUri, name: piece.item.name })}
+                    accessibilityRole="imagebutton"
+                    accessibilityLabel={piece.item.name}
+                    style={[
+                      styles.outfitPiece,
+                      {
+                        backgroundColor: colors.cardElevated,
+                        borderColor: 'rgba(196,160,98,0.16)',
+                      },
+                    ]}>
+                    <View style={styles.outfitImageWrap}>
+                      <Image source={{ uri: piece.item.imageUri }} style={styles.outfitImage} contentFit="contain" />
+                    </View>
+                    <Text style={[styles.outfitRole, { color: colors.goldMuted }]}>{piece.label}</Text>
+                    <Text style={[styles.outfitName, { color: colors.creamText }]} numberOfLines={2}>
+                      {piece.item.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Animated.View>
+          ) : null}
+
+          {look.missingOutfitPieces && look.missingOutfitPieces.length > 0 ? (
+            <Animated.View entering={softFadeInDown(470)} style={styles.block}>
+              <Text style={[styles.blockLabel, { color: colors.goldSoft }]}>
+                {t.completeLook.missingTitle}
+              </Text>
+              <Text style={[styles.completeLookSubtitle, { color: colors.grayLight }]}>
+                {t.completeLook.missingSubtitle}
+              </Text>
+              <View style={styles.missingTextList}>
+                {look.missingOutfitPieces.map((piece) => (
+                  <Text key={piece} style={[styles.missingText, { color: colors.creamText }]}>
+                    {piece}
+                  </Text>
+                ))}
+              </View>
             </Animated.View>
           ) : null}
 
@@ -153,6 +207,57 @@ export function OutfitResult({ look, onReplace, onSave, isSaved, isSaving, aura,
           </Animated.View>
         </View>
       </Animated.View>
+      <Modal
+        visible={preview !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setPreview(null)}>
+        <View style={styles.lightbox}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPreview(null)} />
+          <Animated.View
+            entering={softFadeInDown(40)}
+            style={[
+              styles.lightboxFrame,
+              {
+                borderColor: 'rgba(196,160,98,0.24)',
+                backgroundColor: isDark ? colors.cardDark : colors.cardDark,
+              },
+            ]}
+            {...previewPanResponder.panHandlers}>
+            <View style={styles.lightboxHeader}>
+              <Text style={[styles.lightboxTitle, { color: colors.creamText }]} numberOfLines={1}>
+                {preview?.name}
+              </Text>
+              <Pressable
+                onPress={() => setPreview(null)}
+                accessibilityRole="button"
+                accessibilityLabel={t.common.close}
+                style={[styles.lightboxClose, { borderColor: 'rgba(196,160,98,0.28)' }]}>
+                <Text style={[styles.lightboxCloseText, { color: colors.goldMuted }]}>×</Text>
+              </Pressable>
+            </View>
+            <ScrollView
+              style={styles.lightboxScroll}
+              contentContainerStyle={styles.lightboxScrollContent}
+              maximumZoomScale={3}
+              minimumZoomScale={1}
+              bouncesZoom
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}>
+              {preview ? (
+                <Image
+                  source={{ uri: preview.uri }}
+                  style={[styles.lightboxImage, { height: previewImageHeight }]}
+                  contentFit="contain"
+                  transition={300}
+                />
+              ) : null}
+            </ScrollView>
+            <Text style={[styles.lightboxHint, { color: colors.grayLight }]}>{t.common.close}</Text>
+          </Animated.View>
+        </View>
+      </Modal>
     </Animated.View>
   );
 }
@@ -187,7 +292,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   imageWrap: {
-    height: 360,
+    height: 390,
     position: 'relative',
   },
   imageWrapWardrobe: {
@@ -207,26 +312,21 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15,15,15,0.15)',
   },
-  scoreWrap: {
+  editorialBadge: {
     position: 'absolute',
     top: 22,
     right: 22,
     alignItems: 'center',
     backgroundColor: 'rgba(255,250,242,0.94)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 18,
     borderWidth: 1,
   },
-  scoreLabel: {
-    fontSize: 9,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  scoreValue: {
+  editorialBadgeText: {
     fontFamily: Fonts.serif,
-    fontSize: 30,
+    fontSize: 13,
+    letterSpacing: 0.2,
   },
   body: {
     padding: 26,
@@ -250,15 +350,123 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   blockLabel: {
-    fontSize: 10,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
+    fontSize: 12,
+    letterSpacing: 0.3,
+    fontWeight: '500',
   },
   blockText: {
     fontSize: 14,
     lineHeight: 22,
     fontFamily: Fonts.serif,
     opacity: 0.92,
+  },
+  completeLookBlock: {
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(196,160,98,0.12)',
+    paddingTop: 16,
+  },
+  completeLookSubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontStyle: 'italic',
+  },
+  outfitGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  outfitPiece: {
+    width: '47%',
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 10,
+    gap: 6,
+  },
+  outfitImageWrap: {
+    height: 112,
+    borderRadius: 14,
+    backgroundColor: '#F5F0E6',
+    overflow: 'hidden',
+  },
+  outfitImage: {
+    width: '100%',
+    height: '100%',
+  },
+  outfitRole: {
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  outfitName: {
+    fontFamily: Fonts.serif,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  lightbox: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    backgroundColor: 'rgba(8,7,8,0.92)',
+  },
+  lightboxFrame: {
+    borderRadius: 28,
+    borderWidth: 1,
+    overflow: 'hidden',
+    padding: 14,
+  },
+  lightboxHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingBottom: 12,
+  },
+  lightboxTitle: {
+    flex: 1,
+    fontFamily: Fonts.serif,
+    fontSize: 18,
+    letterSpacing: 0.2,
+  },
+  lightboxClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,250,242,0.06)',
+  },
+  lightboxCloseText: {
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  lightboxScroll: {
+    borderRadius: 22,
+    backgroundColor: '#F5F0E6',
+  },
+  lightboxScrollContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxImage: {
+    width: '100%',
+  },
+  lightboxHint: {
+    textAlign: 'center',
+    marginTop: 10,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  missingTextList: {
+    gap: 8,
+  },
+  missingText: {
+    fontFamily: Fonts.serif,
+    fontSize: 14,
+    lineHeight: 22,
+    fontStyle: 'italic',
   },
   vibeRow: {
     flexDirection: 'row',

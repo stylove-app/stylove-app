@@ -14,6 +14,7 @@ import type { TranslationKeys } from '@/i18n/types';
 import type { WeatherSnapshot } from '@/lib/weather';
 import { weatherMoodBoost } from '@/lib/weather';
 import { getStylingWardrobe } from '@/lib/wardrobe-utils';
+import { WARDROBE_ENGINE_CATEGORIES } from '@/lib/wardrobe-item-types';
 
 export type WardrobeProcessingStatus = 'pending' | 'processing' | 'done' | 'failed';
 
@@ -57,6 +58,26 @@ export type CuratedLook = {
   intent?: string;
   wardrobeHint?: string;
   usesWardrobeImage?: boolean;
+  completeOutfit?: OutfitPiece[];
+  missingOutfitPieces?: string[];
+  archiveCategory?: string;
+};
+
+export type OutfitPieceRole =
+  | 'top'
+  | 'bottom'
+  | 'dress'
+  | 'shoes'
+  | 'outerwear'
+  | 'bag'
+  | 'accessory'
+  | 'jewelry';
+
+export type OutfitPiece = {
+  id: string;
+  role: OutfitPieceRole;
+  label: string;
+  item: WardrobeItem;
 };
 
 export type { LuxuryScores, EditorialReasoning, MissingPiece, EventContext };
@@ -116,6 +137,171 @@ function hashSeed(input: string): number {
 
 function pick<T>(arr: T[], seed: number): T {
   return arr[seed % arr.length];
+}
+
+const NEUTRAL_TONES = new Set(['black', 'white', 'cream', 'ivory', 'beige', 'camel', 'gray', 'navy']);
+
+const TONE_PATTERNS: { tone: string; patterns: RegExp[] }[] = [
+  { tone: 'black', patterns: [/\bblack\b/i, /\bsiyah\b/i] },
+  { tone: 'white', patterns: [/\bwhite\b/i, /\bbeyaz\b/i] },
+  { tone: 'cream', patterns: [/\bcream\b/i, /\bkrem\b/i, /\bivory\b/i, /\bfildisi\b/i, /\bfildişi\b/i] },
+  { tone: 'burgundy', patterns: [/\bburgundy\b/i, /\bbordo\b/i, /\bwine\b/i, /\bşarap\b/i] },
+  { tone: 'beige', patterns: [/\bbeige\b/i, /\bbej\b/i, /\btaupe\b/i, /\bvizon\b/i] },
+  { tone: 'camel', patterns: [/\bcamel\b/i, /\bkahve\b/i, /\btaba\b/i] },
+  { tone: 'gray', patterns: [/\bgray\b/i, /\bgrey\b/i, /\bgri\b/i, /\bantrasit\b/i] },
+  { tone: 'navy', patterns: [/\bnavy\b/i, /\blacivert\b/i] },
+  { tone: 'blue', patterns: [/\bblue\b/i, /\bmavi\b/i] },
+  { tone: 'pink', patterns: [/\bpink\b/i, /\bpembe\b/i, /\bblush\b/i] },
+  { tone: 'green', patterns: [/\bgreen\b/i, /\byeşil\b/i, /\byesil\b/i] },
+  { tone: 'gold', patterns: [/\bgold\b/i, /\baltın\b/i, /\baltin\b/i] },
+  { tone: 'silver', patterns: [/\bsilver\b/i, /\bgümüş\b/i, /\bgumus\b/i] },
+];
+
+const COLD_INTENT_PATTERN =
+  /\b(cold|winter|snow|rain|rainy|evening|night|outdoor|outside|soğuk|soguk|kış|kis|kar|yağmur|yagmur|akşam|aksam|gece|dışarı|disari)\b/i;
+const COMFORT_FOOTWEAR_INTENT_PATTERN =
+  /\b(city walk|walk|travel|airport|explore|sightseeing|seyahat|yürüyüş|yuruyus|gezmek|keşif|kesif|havalimanı|havalimani)\b/i;
+
+function detectTone(item: WardrobeItem): string | null {
+  const source = `${item.name} ${item.itemType}`.trim();
+  return TONE_PATTERNS.find((entry) => entry.patterns.some((pattern) => pattern.test(source)))?.tone ?? null;
+}
+
+function toneScore(item: WardrobeItem, anchorTone: string | null): number {
+  const tone = detectTone(item);
+  if (!tone || !anchorTone) return 1;
+  if (tone === anchorTone) return 4;
+  if (NEUTRAL_TONES.has(tone) || NEUTRAL_TONES.has(anchorTone)) return 3;
+  return 0;
+}
+
+function rotateBySeed<T>(items: T[], seed: number): T[] {
+  if (items.length <= 1) return items;
+  const offset = seed % items.length;
+  return [...items.slice(offset), ...items.slice(0, offset)];
+}
+
+function choosePiece(
+  items: WardrobeItem[],
+  seed: number,
+  anchorTone: string | null,
+  preferredTypes: WardrobeItem['itemType'][] = [],
+): WardrobeItem | undefined {
+  return rotateBySeed(items, seed)
+    .map((item, index) => {
+      const typeScore = preferredTypes.includes(item.itemType) ? 3 : 0;
+      return { item, score: toneScore(item, anchorTone) + typeScore - index * 0.01 };
+    })
+    .sort((a, b) => b.score - a.score)[0]?.item;
+}
+
+function needsOuterwear(intent: string, weather: WeatherSnapshot | undefined): boolean {
+  if (!weather) return COLD_INTENT_PATTERN.test(intent);
+  if (!weather.needsOuterwear && weather.temperature >= 22 && !weather.isRainy) return false;
+  if (weather.needsOuterwear) return true;
+  if (COLD_INTENT_PATTERN.test(intent)) return true;
+  if (weather.temperature <= 18) return true;
+  return ['rain', 'drizzle', 'snow', 'fog', 'thunderstorm'].includes(weather.condition);
+}
+
+function buildCompleteOutfit(
+  t: TranslationKeys,
+  params: {
+    intent: string;
+    wardrobe: WardrobeItem[];
+    weather?: WeatherSnapshot;
+    mood: MoodId;
+    seed: number;
+  },
+): { pieces: OutfitPiece[]; missing: string[] } {
+  const byCategory = WARDROBE_ENGINE_CATEGORIES.reduce<Record<WardrobeCategoryId, WardrobeItem[]>>(
+    (acc, category) => {
+      acc[category] = params.wardrobe.filter((item) => item.category === category);
+      return acc;
+    },
+    {
+      upper: [],
+      outerwear: [],
+      bottom: [],
+      dress: [],
+      shoes: [],
+      bag: [],
+      accessory: [],
+    },
+  );
+  const pieces: OutfitPiece[] = [];
+  const missing: string[] = [];
+  const preferElegant = params.mood === 'elegant' || params.mood === 'oldMoney' || params.mood === 'seductive';
+  const preferMinimal = params.mood === 'minimal';
+
+  const top = choosePiece(
+    byCategory.upper,
+    params.seed + 1,
+    null,
+    preferElegant || preferMinimal ? ['gomlek', 'kazak'] : ['tisort', 'gomlek'],
+  );
+  const anchorTone = top ? detectTone(top) : null;
+  const bottom = choosePiece(
+    byCategory.bottom,
+    params.seed + 2,
+    anchorTone,
+    preferElegant || preferMinimal ? ['pantolon', 'etek'] : ['jean', 'pantolon'],
+  );
+  const dress = !top || !bottom ? choosePiece(byCategory.dress, params.seed + 3, anchorTone) : undefined;
+  const shoes = choosePiece(
+    byCategory.shoes,
+    params.seed + 4,
+    anchorTone,
+    COMFORT_FOOTWEAR_INTENT_PATTERN.test(params.intent)
+      ? ['ayakkabi', 'bot']
+      : preferElegant
+        ? ['topuklu', 'bot']
+        : ['ayakkabi', 'bot'],
+  );
+  const shouldLayer = needsOuterwear(params.intent, params.weather);
+  const outerwear = shouldLayer
+    ? choosePiece(byCategory.outerwear, params.seed + 5, anchorTone, ['trenchcoat', 'ceket', 'kaban', 'mont'])
+    : undefined;
+  const bag = choosePiece(byCategory.bag, params.seed + 6, anchorTone);
+  const accessoryItems = byCategory.accessory;
+  const jewelry = choosePiece(
+    accessoryItems.filter((item) => item.itemType === 'saat' || item.itemType === 'aksesuar'),
+    params.seed + 7,
+    anchorTone,
+    ['saat', 'aksesuar'],
+  );
+  const accessory = choosePiece(
+    accessoryItems.filter((item) => item.id !== jewelry?.id),
+    params.seed + 8,
+    anchorTone,
+    ['kemer', 'gozluk', 'sapka'],
+  );
+
+  if (top) pieces.push({ id: `${top.id}-top`, role: 'top', label: t.completeLook.top, item: top });
+  if (bottom) pieces.push({ id: `${bottom.id}-bottom`, role: 'bottom', label: t.completeLook.bottom, item: bottom });
+  if (!top && !bottom && dress) {
+    pieces.push({ id: `${dress.id}-dress`, role: 'dress', label: t.completeLook.dress, item: dress });
+  }
+  if (shoes) pieces.push({ id: `${shoes.id}-shoes`, role: 'shoes', label: t.completeLook.shoes, item: shoes });
+  if (outerwear) {
+    pieces.push({ id: `${outerwear.id}-outerwear`, role: 'outerwear', label: t.completeLook.outerwear, item: outerwear });
+  }
+  if (bag) pieces.push({ id: `${bag.id}-bag`, role: 'bag', label: t.completeLook.bag, item: bag });
+  if (accessory) {
+    pieces.push({ id: `${accessory.id}-accessory`, role: 'accessory', label: t.completeLook.accessories, item: accessory });
+  }
+  if (jewelry) {
+    pieces.push({ id: `${jewelry.id}-jewelry`, role: 'jewelry', label: t.completeLook.jewelry, item: jewelry });
+  }
+
+  if (!top && !dress) missing.push(t.completeLook.missingTopCompletion);
+  if (!bottom && !dress) missing.push(t.completeLook.missingBottomCompletion);
+  if (!shoes) missing.push(t.completeLook.missingShoeCompletion);
+  if (shouldLayer && !outerwear) missing.push(t.completeLook.missingOuterwearCompletion);
+  if (!bag) missing.push(t.completeLook.missingBagCompletion);
+  if (!accessory && !jewelry) missing.push(t.completeLook.missingJewelryCompletion);
+
+  return { pieces, missing };
 }
 
 function resolveStockImage(mood: MoodId, weather: WeatherSnapshot | undefined, seed: number): string {
@@ -191,17 +377,24 @@ export function generateLook(
   }
 
   const stylingWardrobe = getStylingWardrobe(wardrobe);
+  const completeOutfit = buildCompleteOutfit(t, {
+    intent,
+    wardrobe: stylingWardrobe,
+    weather,
+    mood: effectiveMood,
+    seed,
+  });
   const wardrobeHint =
     stylingWardrobe.length === 1 ? t.home.wardrobeHintSingle : undefined;
-  const itemIds = stylingWardrobe.slice(0, 4).map((item) => item.id);
+  const itemIds = completeOutfit.pieces.map((piece) => piece.item.id);
   let { image, usesWardrobeImage } = resolveLookImage(
     stylingWardrobe,
     effectiveMood,
     weather,
     seed,
   );
-  if (stylingWardrobe.length > 0) {
-    image = pick(stylingWardrobe, seed).imageUri;
+  if (completeOutfit.pieces.length > 0) {
+    image = completeOutfit.pieces[0].item.imageUri;
     usesWardrobeImage = true;
   }
   const luxuryScores = computeLuxuryScores(effectiveMood, seed, weather, eventContext);
@@ -276,7 +469,9 @@ export function generateLook(
     weatherStyling,
     whyThisWorks,
     editorialReasoning,
-    missingPieces,
+    missingPieces: stylingWardrobe.length > 0 ? [] : missingPieces,
+    completeOutfit: completeOutfit.pieces,
+    missingOutfitPieces: completeOutfit.missing,
     eventContext,
     intent,
   };

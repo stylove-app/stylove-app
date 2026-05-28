@@ -43,13 +43,6 @@ export function StyleMemoryProvider({ children }: { children: React.ReactNode })
     setReady(false);
     setMemory(EMPTY_STYLE_MEMORY);
 
-    if (isRegistered) {
-      setReady(true);
-      return () => {
-        cancelled = true;
-      };
-    }
-
     void readScopedStyleMemory(storageScope).then((stored) => {
       if (!cancelled) {
         setMemory(stored);

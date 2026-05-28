@@ -73,6 +73,11 @@ export function TravelPlanView({ plan }: TravelPlanViewProps) {
           <GoldShimmerLine width={36} />
           <Text style={[styles.weatherCity, { color: colors.creamText }]}>{plan.weather.city}</Text>
           <Text style={[styles.weatherTitle, { color: colors.goldMuted }]}>{t.travel.weatherTitle}</Text>
+          {plan.forecastUnavailable ? (
+            <Text style={[styles.forecastNotice, { color: colors.goldMuted }]}>
+              {t.travel.forecastUnavailable}
+            </Text>
+          ) : null}
           <View style={styles.weatherGrid}>
             <View style={styles.weatherCell}>
               <Text style={[styles.weatherPhase, { color: colors.goldSoft }]}>{t.travel.weatherDay}</Text>
@@ -89,6 +94,25 @@ export function TravelPlanView({ plan }: TravelPlanViewProps) {
                 {t.weather.conditions[plan.weather.nightCondition]}
               </Text>
             </View>
+          </View>
+          <View style={styles.weatherDetails}>
+            {plan.weather.feelsLike !== undefined ? (
+              <Text style={[styles.weatherDetailText, { color: colors.grayLight }]}>
+                {interpolate(t.travel.weatherFeelsLike, { temp: plan.weather.feelsLike })}
+              </Text>
+            ) : null}
+            <Text style={[styles.weatherDetailText, { color: colors.grayLight }]}>
+              {interpolate(t.travel.weatherRain, { amount: plan.weather.precipitation.toFixed(1) })}
+            </Text>
+            <Text style={[styles.weatherDetailText, { color: colors.grayLight }]}>
+              {interpolate(t.travel.weatherWind, { speed: Math.round(plan.weather.wind) })}
+            </Text>
+            {plan.weather.needsOuterwear ? (
+              <Text style={[styles.weatherHint, { color: colors.goldMuted }]}>{t.travel.layeringHint}</Text>
+            ) : null}
+            <Text style={[styles.attribution, { color: 'rgba(245,237,224,0.5)' }]}>
+              {t.travel.weatherAttribution}
+            </Text>
           </View>
         </View>
       </SoftEnter>
@@ -110,6 +134,16 @@ export function TravelPlanView({ plan }: TravelPlanViewProps) {
           <PieceRow title={t.travel.accessories} items={plan.accessories} />
           <PieceRow title={t.travel.shoes} items={plan.shoes} />
           <PieceRow title={t.travel.outerwear} items={plan.outerwear} />
+          {plan.packingGuidance.map((guidance) => (
+            <Text key={guidance} style={[styles.wardrobeHint, { color: colors.gray }]}>
+              {guidance}
+            </Text>
+          ))}
+          {plan.missingPieces.map((piece) => (
+            <Text key={piece} style={[styles.wardrobeHint, { color: colors.burgundy }]}>
+              {piece}
+            </Text>
+          ))}
           {plan.wardrobeHint ? (
             <Text style={[styles.wardrobeHint, { color: colors.gray }]}>{plan.wardrobeHint}</Text>
           ) : null}
@@ -143,6 +177,9 @@ export function TravelPlanView({ plan }: TravelPlanViewProps) {
                 <Text style={[styles.dayLook, { color: colors.burgundy }]}>{day.lookTitle}</Text>
                 <Text style={[styles.dayMood, { color: colors.goldMuted }]}>{day.mood}</Text>
                 <Text style={[styles.dayWeather, { color: colors.gray }]}>{day.weatherNote}</Text>
+                {plan.weatherDays[index]?.needsOuterwear ? (
+                  <Text style={[styles.dayWeather, { color: colors.goldMuted }]}>{t.travel.layeringHint}</Text>
+                ) : null}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayItems}>
                   {day.items.map((item) => (
                     <View key={item.id} style={[styles.dayItemThumb, { borderColor: colors.creamRich }]}>
@@ -212,6 +249,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6,
     textTransform: 'uppercase',
   },
+  forecastNotice: {
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
   weatherGrid: {
     flexDirection: 'row',
     width: '100%',
@@ -239,6 +282,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  weatherDetails: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  weatherDetailText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  weatherHint: {
+    fontSize: 12,
+    fontFamily: Fonts.serif,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  attribution: {
+    fontSize: 10,
+    letterSpacing: 0.4,
+    marginTop: 4,
   },
   suitcaseCard: {
     marginHorizontal: 24,

@@ -4,6 +4,8 @@ import type { MoodId, WardrobeCategoryId } from '@/i18n/types';
 export type StyleMemory = {
   moodFrequency: Record<MoodId, number>;
   categoryFrequency: Record<WardrobeCategoryId, number>;
+  toneFrequency: Record<string, number>;
+  silhouetteFrequency: Record<string, number>;
   /** -1 = minimal, +1 = maximal */
   minimalMaximalBalance: number;
   /** -1 = quiet luxury, +1 = street luxury */
@@ -34,9 +36,11 @@ export const EMPTY_STYLE_MEMORY: StyleMemory = {
     bag: 0,
     accessory: 0,
   },
+  toneFrequency: {},
+  silhouetteFrequency: {},
   minimalMaximalBalance: 0,
   luxuryStreetBalance: -0.3,
-  favoriteTones: ['Ivory', 'Burgundy', 'Gold'],
+  favoriteTones: [],
   totalLooksGenerated: 0,
   totalLooksSaved: 0,
   lastUpdated: Date.now(),
@@ -51,9 +55,32 @@ const TONE_BY_MOOD: Record<MoodId, string> = {
   minimal: 'Ivory',
 };
 
+const SILHOUETTE_BY_MOOD: Record<MoodId, string> = {
+  elegant: 'Parisian',
+  soft: 'Soft Contrast',
+  confident: 'Urban Clean',
+  oldMoney: 'Relaxed Tailoring',
+  seductive: 'Monochrome',
+  minimal: 'Minimal',
+};
+
+const TONE_LEXICON: { label: string; patterns: RegExp[] }[] = [
+  { label: 'Noir', patterns: [/\bblack\b/i, /\bsiyah\b/i] },
+  { label: 'Ivory', patterns: [/\bwhite\b/i, /\bcream\b/i, /\bivory\b/i, /\bbeyaz\b/i, /\bkrem\b/i, /\bfildisi\b/i, /\bfildişi\b/i] },
+  { label: 'Wine', patterns: [/\bburgundy\b/i, /\bwine\b/i, /\bbordo\b/i, /\bşarap\b/i] },
+  { label: 'Camel', patterns: [/\bcamel\b/i, /\bbeige\b/i, /\btaupe\b/i, /\bkahve\b/i, /\bbej\b/i, /\bvizon\b/i] },
+  { label: 'Blush', patterns: [/\bpink\b/i, /\bblush\b/i, /\bpembe\b/i] },
+  { label: 'Navy', patterns: [/\bnavy\b/i, /\blacivert\b/i] },
+  { label: 'Charcoal', patterns: [/\bgray\b/i, /\bgrey\b/i, /\bgri\b/i, /\bantrasit\b/i] },
+  { label: 'Gold', patterns: [/\bgold\b/i, /\baltın\b/i, /\baltin\b/i] },
+];
+
 export function recordLookGenerated(memory: StyleMemory, look: CuratedLook): StyleMemory {
-  const next = { ...memory, moodFrequency: { ...memory.moodFrequency } };
+  const next = cloneMemory(memory);
   next.moodFrequency[look.mood] = (next.moodFrequency[look.mood] ?? 0) + 1;
+  next.toneFrequency[TONE_BY_MOOD[look.mood]] = (next.toneFrequency[TONE_BY_MOOD[look.mood]] ?? 0) + 1;
+  next.silhouetteFrequency[SILHOUETTE_BY_MOOD[look.mood]] =
+    (next.silhouetteFrequency[SILHOUETTE_BY_MOOD[look.mood]] ?? 0) + 1;
   next.totalLooksGenerated += 1;
 
   if (look.mood === 'minimal') next.minimalMaximalBalance = Math.max(-1, next.minimalMaximalBalance - 0.08);
@@ -83,11 +110,11 @@ export function recordLookSaved(memory: StyleMemory, look: CuratedLook): StyleMe
 }
 
 export function recordWardrobeItem(memory: StyleMemory, item: WardrobeItem): StyleMemory {
-  const next = {
-    ...memory,
-    categoryFrequency: { ...memory.categoryFrequency },
-  };
+  const next = cloneMemory(memory);
   next.categoryFrequency[item.category] = (next.categoryFrequency[item.category] ?? 0) + 1;
+  detectWardrobeTones(item).forEach((tone) => {
+    next.toneFrequency[tone] = (next.toneFrequency[tone] ?? 0) + 1;
+  });
   next.lastUpdated = Date.now();
   return next;
 }
@@ -107,43 +134,93 @@ export function getSignatureFromMemory(
     };
   },
 ): {
-  signature: string;
-  energy: string;
+  phase: 'empty' | 'forming' | 'emerging' | 'complete';
+  activityCount: number;
+  signature?: string;
+  energy?: string;
   tones: string[];
-  styleDna: string;
+  styleDna?: string;
 } {
-  const moods = Object.entries(memory.moodFrequency) as [MoodId, number][];
+  const normalized = cloneMemory(memory);
+  const wardrobeCount = Object.values(normalized.categoryFrequency).reduce((total, count) => total + count, 0);
+  const activityCount = wardrobeCount + normalized.totalLooksGenerated + normalized.totalLooksSaved;
+  const moods = Object.entries(normalized.moodFrequency) as [MoodId, number][];
   const topMood = moods.sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'elegant';
+  const topMoodCount = normalized.moodFrequency[topMood] ?? 0;
 
-  const signature = t.moods[topMood];
+  if (activityCount < 3 || (wardrobeCount < 2 && normalized.totalLooksGenerated < 2)) {
+    return { phase: 'empty', activityCount, tones: [] };
+  }
+
+  const phase =
+    activityCount < 7
+      ? 'forming'
+      : normalized.totalLooksGenerated < 5 || topMoodCount < 2
+        ? 'emerging'
+        : 'complete';
+
+  const signature = phase === 'forming' ? undefined : t.moods[topMood];
   const energy =
-    memory.luxuryStreetBalance > 0.2
+    normalized.totalLooksGenerated < 4
+      ? undefined
+      : normalized.luxuryStreetBalance > 0.2
       ? t.signature.energyUrban
-      : memory.minimalMaximalBalance < -0.2
+      : normalized.minimalMaximalBalance < -0.2
         ? t.signature.energyQuiet
         : t.signature.energyRefined;
 
-  const tones =
-    memory.favoriteTones.length > 0
-      ? memory.favoriteTones.map((tone) => {
-          const moodEntry = (Object.entries(TONE_BY_MOOD) as [MoodId, string][]).find(
-            ([, v]) => v === tone,
-          );
-          return moodEntry ? t.signature.tones[moodEntry[0]] : tone;
-        })
-      : [t.signature.tones.elegant, t.signature.tones.oldMoney, t.signature.tones.confident];
+  const tones = Object.entries(normalized.toneFrequency)
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .map(([tone]) => {
+      const moodEntry = (Object.entries(TONE_BY_MOOD) as [MoodId, string][]).find(
+        ([, v]) => v === tone,
+      );
+      return moodEntry ? t.signature.tones[moodEntry[0]] : tone;
+    });
 
   const dna =
-    memory.minimalMaximalBalance < -0.15
-      ? t.signature.dnaMinimal
-      : memory.luxuryStreetBalance > 0.15
-        ? t.signature.dnaStreet
-        : t.signature.dnaParisian;
+    phase !== 'complete'
+      ? undefined
+      : normalized.minimalMaximalBalance < -0.15
+        ? t.signature.dnaMinimal
+        : normalized.luxuryStreetBalance > 0.15
+          ? t.signature.dnaStreet
+          : resolveSilhouetteDna(normalized, t);
 
-  return { signature, energy, tones: tones.slice(0, 4), styleDna: dna };
+  return { phase, activityCount, signature, energy, tones: tones.slice(0, 4), styleDna: dna };
 }
 
 function mergeTones(existing: string[], tone: string): string[] {
   const next = [tone, ...existing.filter((t) => t !== tone)];
   return next.slice(0, 5);
+}
+
+function cloneMemory(memory: StyleMemory): StyleMemory {
+  return {
+    ...EMPTY_STYLE_MEMORY,
+    ...memory,
+    moodFrequency: { ...EMPTY_STYLE_MEMORY.moodFrequency, ...memory.moodFrequency },
+    categoryFrequency: { ...EMPTY_STYLE_MEMORY.categoryFrequency, ...memory.categoryFrequency },
+    toneFrequency: { ...(memory.toneFrequency ?? {}) },
+    silhouetteFrequency: { ...(memory.silhouetteFrequency ?? {}) },
+    favoriteTones: memory.favoriteTones ?? [],
+  };
+}
+
+function detectWardrobeTones(item: WardrobeItem): string[] {
+  const source = `${item.name} ${item.itemType}`.trim();
+  return TONE_LEXICON.filter((tone) => tone.patterns.some((pattern) => pattern.test(source))).map(
+    (tone) => tone.label,
+  );
+}
+
+function resolveSilhouetteDna(
+  memory: StyleMemory,
+  t: Parameters<typeof getSignatureFromMemory>[1],
+): string {
+  const topSilhouette = Object.entries(memory.silhouetteFrequency).sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (topSilhouette === 'Minimal' || topSilhouette === 'Monochrome') return t.signature.dnaMinimal;
+  if (topSilhouette === 'Urban Clean') return t.signature.dnaStreet;
+  return t.signature.dnaParisian;
 }

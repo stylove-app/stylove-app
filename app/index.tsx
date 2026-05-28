@@ -1,14 +1,16 @@
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PremiumOnboardingFlow } from '@/components/onboarding/premium-onboarding-flow';
 import { StyloveLogo } from '@/components/brand/stylove-logo';
 import { GoldShimmerLine } from '@/components/ui/gold-shimmer-line';
 import { softFadeIn, softFadeInDown } from '@/constants/luxury-motion';
 import { StyloveColors } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
+import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from '@/contexts/locale-context';
 
 const SPLASH_MS = 1800;
@@ -16,16 +18,27 @@ const SPLASH_MS = 1800;
 export default function WelcomeScreen() {
   const t = useTranslation();
   const insets = useSafeAreaInsets();
+  const { ready: authReady, isRegistered } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.replace('/(tabs)');
+      setSplashDone(true);
     }, SPLASH_MS);
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (!authReady || !splashDone || !isRegistered) return;
+    router.replace('/(tabs)');
+  }, [authReady, splashDone, isRegistered]);
+
+  if (authReady && splashDone && !isRegistered) {
+    return <PremiumOnboardingFlow />;
+  }
+
   return (
-    <Pressable style={styles.screen} onPress={() => router.replace('/(tabs)')}>
+    <Pressable style={styles.screen}>
       <View style={[styles.inner, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.glowTop} />
         <View style={styles.glowBottom} />

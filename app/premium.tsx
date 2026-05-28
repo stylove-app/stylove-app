@@ -1,55 +1,59 @@
-import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StyloveLogo } from '@/components/brand/stylove-logo';
 import { LuxuryButton } from '@/components/ui/luxury-button';
-import { LuxuryConfirmationModal } from '@/components/ui/luxury-confirmation-modal';
-import { usePremium } from '@/contexts/premium-context';
 import { useTranslation } from '@/contexts/locale-context';
 import { hapticLight } from '@/lib/haptics';
-import { purchaseMonthly, purchaseWeekly, restorePurchases } from '@/services/payments';
 import { StyloveColors, StyloveShadow } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-type Plan = 'weekly' | 'monthly';
+type PlanCardProps = {
+  title: string;
+  subtitle: string;
+  price: string;
+  cadence: string;
+  cta: string;
+  recommended?: string;
+  onPress: () => void;
+};
+
+function PlanCard({ title, subtitle, price, cadence, cta, recommended, onPress }: PlanCardProps) {
+  const isRecommended = Boolean(recommended);
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={[
+        styles.planCard,
+        isRecommended && styles.planCardRecommended,
+        StyloveShadow.soft,
+      ]}>
+      <View style={styles.planTopRow}>
+        <Text style={styles.planTitle}>{title}</Text>
+        {recommended ? (
+          <View style={styles.recommendedPill}>
+            <Text style={styles.recommendedText}>{recommended}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.planSubtitle}>{subtitle}</Text>
+      <View style={styles.priceRow}>
+        <Text style={styles.planPrice}>{price}</Text>
+        <Text style={styles.planCadence}>{cadence}</Text>
+      </View>
+      <View style={[styles.inactiveCta, isRecommended && styles.inactiveCtaRecommended]}>
+        <Text style={[styles.inactiveCtaText, isRecommended && styles.inactiveCtaTextRecommended]}>{cta}</Text>
+      </View>
+    </Pressable>
+  );
+}
 
 export default function PremiumScreen() {
   const t = useTranslation();
   const insets = useSafeAreaInsets();
-  const { activatePremium } = usePremium();
-  const [selectedPlan, setSelectedPlan] = useState<Plan>('monthly');
-  const [loading, setLoading] = useState<Plan | 'restore' | null>(null);
-  const [successVisible, setSuccessVisible] = useState(false);
-
-  const handlePurchase = async (plan: Plan) => {
-    setLoading(plan);
-    try {
-      const result = plan === 'weekly' ? await purchaseWeekly() : await purchaseMonthly();
-      if (result.success) {
-        await activatePremium(plan);
-        setSuccessVisible(true);
-      }
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleRestore = async () => {
-    setLoading('restore');
-    try {
-      await restorePurchases();
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const closeSuccess = () => {
-    setSuccessVisible(false);
-    router.back();
-  };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -68,91 +72,84 @@ export default function PremiumScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
         <View style={styles.hero}>
           <StyloveLogo size="md" variant="light" />
+          <Text style={styles.eyebrow}>{t.premium.paywallEyebrow}</Text>
           <Text style={styles.title}>{t.premium.title}</Text>
           <Text style={styles.subtitle}>{t.premium.subtitle}</Text>
         </View>
 
-        <View style={styles.plans}>
-          <Pressable
-            onPress={() => {
-              void hapticLight();
-              setSelectedPlan('weekly');
-            }}
-            style={({ pressed }) => [
-              styles.planCard,
-              selectedPlan === 'weekly' && styles.planActive,
-              pressed && styles.planPressed,
-            ]}>
-            <Text style={[styles.planLabel, selectedPlan === 'weekly' && styles.planLabelActive]}>
-              {t.premium.weekly}
-            </Text>
-            <Text style={[styles.planPrice, selectedPlan === 'weekly' && styles.planPriceActive]}>
-              {t.premium.weeklyPrice}
-            </Text>
-            <Text style={styles.planPeriod}>{t.premium.perWeek}</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => {
-              void hapticLight();
-              setSelectedPlan('monthly');
-            }}
-            style={({ pressed }) => [
-              styles.planCard,
-              selectedPlan === 'monthly' && styles.planActive,
-              pressed && styles.planPressed,
-            ]}>
-            <Text style={[styles.planLabel, selectedPlan === 'monthly' && styles.planLabelActive]}>
-              {t.premium.monthly}
-            </Text>
-            <Text style={[styles.planPrice, selectedPlan === 'monthly' && styles.planPriceActive]}>
-              {t.premium.monthlyPrice}
-            </Text>
-            <Text style={styles.planPeriod}>{t.premium.perMonth}</Text>
-          </Pressable>
+        <View style={styles.planGrid}>
+          <View style={[styles.accessCard, styles.freeCard]}>
+            <Text style={styles.accessTitle}>{t.premium.freeTitle}</Text>
+            {t.premium.freeFeatures.map((feature) => (
+              <View key={feature} style={styles.accessRow}>
+                <Ionicons name="ellipse" size={6} color="rgba(248,244,237,0.5)" />
+                <Text style={styles.accessText}>{feature}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={[styles.accessCard, styles.premiumCard]}>
+            <Text style={[styles.accessTitle, styles.accessTitlePremium]}>{t.premium.premiumTitle}</Text>
+            {t.premium.premiumFeatures.map((feature) => (
+              <View key={feature} style={styles.accessRow}>
+                <Ionicons name="checkmark" size={15} color={StyloveColors.goldSoft} />
+                <Text style={[styles.accessText, styles.accessTextPremium]}>{feature}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
-        <View style={styles.benefits}>
+        <View style={[styles.featureCard, StyloveShadow.editorial]}>
+          <View style={styles.featureGlow} />
           {t.premium.benefits.map((benefit) => (
             <View key={benefit} style={styles.benefitRow}>
-              <View style={styles.benefitDot} />
+              <Ionicons name="checkmark" size={16} color={StyloveColors.goldSoft} />
               <Text style={styles.benefitText}>{benefit}</Text>
             </View>
           ))}
         </View>
 
-        <View style={styles.actions}>
-          <LuxuryButton
-            label={t.premium.ctaWeekly}
-            onPress={() => handlePurchase('weekly')}
-            variant={selectedPlan === 'weekly' ? 'gold' : 'secondary'}
-            style={styles.actionBtn}
-            disabled={loading !== null}
+        <View style={styles.plans}>
+          <PlanCard
+            title={t.premium.monthlyPlanTitle}
+            subtitle={t.premium.monthlyPlanSubtitle}
+            price={t.premium.monthlyPrice}
+            cadence={t.premium.perMonth}
+            cta={t.premium.inactiveCta}
+            onPress={() => {
+              void hapticLight();
+            }}
           />
-          <LuxuryButton
-            label={t.premium.ctaMonthly}
-            onPress={() => handlePurchase('monthly')}
-            variant={selectedPlan === 'monthly' ? 'gold' : 'secondary'}
-            style={styles.actionBtn}
-            disabled={loading !== null}
+          <PlanCard
+            title={t.premium.yearlyPlanTitle}
+            subtitle={t.premium.yearlyPlanSubtitle}
+            price={t.premium.yearlyPrice}
+            cadence={t.premium.perYear}
+            cta={t.premium.inactiveCta}
+            recommended={t.premium.recommended}
+            onPress={() => {
+              void hapticLight();
+            }}
           />
         </View>
 
-        <Pressable onPress={handleRestore} disabled={loading !== null} style={styles.restoreBtn}>
-          <Text style={styles.restoreText}>{t.premium.restore}</Text>
-        </Pressable>
+        <View style={styles.comparison}>
+          <View style={styles.compareHeader}>
+            <Text style={styles.comparePlan}>{t.premium.freeTitle}</Text>
+            <Text style={[styles.comparePlan, styles.comparePremium]}>{t.premium.premiumTitle}</Text>
+          </View>
+          {t.premium.comparison.map((row) => (
+            <View key={row.label} style={styles.compareRow}>
+              <Text style={styles.compareLabel}>{row.label}</Text>
+              <Text style={styles.compareValue}>{row.free}</Text>
+              <Text style={[styles.compareValue, styles.comparePremium]}>{row.premium}</Text>
+            </View>
+          ))}
+        </View>
+
+        <LuxuryButton label={t.premium.inactiveCta} onPress={() => void hapticLight()} variant="gold" />
 
         <Text style={styles.note}>{t.premium.note}</Text>
       </ScrollView>
-
-      <LuxuryConfirmationModal
-        visible={successVisible}
-        title={t.premium.successTitle}
-        subtitle={t.premium.successMessage}
-        buttonLabel={t.premium.continueCta}
-        onClose={closeSuccess}
-        variant="dark"
-      />
     </View>
   );
 }
@@ -181,6 +178,13 @@ const styles = StyleSheet.create({
     marginBottom: 36,
     gap: 12,
   },
+  eyebrow: {
+    color: StyloveColors.goldSoft,
+    fontSize: 11,
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
   title: {
     fontFamily: Fonts.serif,
     fontSize: 28,
@@ -195,66 +199,70 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 22,
   },
-  plans: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 32,
+  planGrid: {
+    gap: 14,
+    marginBottom: 22,
   },
-  planCard: {
-    flex: 1,
-    padding: 20,
-    borderRadius: 20,
+  accessCard: {
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(248,244,237,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    gap: 6,
+    padding: 18,
+    gap: 10,
   },
-  planActive: {
-    borderColor: StyloveColors.goldMuted,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    ...StyloveShadow.glow,
+  freeCard: {
+    borderColor: 'rgba(248,244,237,0.12)',
+    backgroundColor: 'rgba(255,250,242,0.04)',
   },
-  planPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
+  premiumCard: {
+    borderColor: 'rgba(196,160,98,0.34)',
+    backgroundColor: 'rgba(196,160,98,0.08)',
   },
-  planLabel: {
-    fontSize: 12,
-    letterSpacing: 0.2,
-    color: 'rgba(248,244,237,0.6)',
-  },
-  planLabelActive: {
-    color: StyloveColors.goldMuted,
-  },
-  planPrice: {
+  accessTitle: {
     fontFamily: Fonts.serif,
-    fontSize: 24,
-    color: StyloveColors.ivory,
-    textAlign: 'center',
+    fontSize: 20,
+    color: 'rgba(248,244,237,0.78)',
+    marginBottom: 2,
   },
-  planPriceActive: {
-    color: StyloveColors.ivory,
+  accessTitlePremium: {
+    color: StyloveColors.goldSoft,
   },
-  planPeriod: {
-    fontSize: 11,
-    color: 'rgba(248,244,237,0.5)',
-    fontStyle: 'italic',
+  accessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  benefits: {
-    marginBottom: 28,
-    gap: 16,
+  accessText: {
+    flex: 1,
+    color: 'rgba(248,244,237,0.68)',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  accessTextPremium: {
+    color: 'rgba(248,244,237,0.9)',
+  },
+  featureCard: {
+    gap: 14,
+    marginBottom: 22,
+    padding: 22,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: StyloveColors.goldMuted,
+    backgroundColor: 'rgba(255,250,242,0.06)',
+    overflow: 'hidden',
+  },
+  featureGlow: {
+    position: 'absolute',
+    top: -80,
+    right: -60,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(196,160,98,0.16)',
   },
   benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-  },
-  benefitDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: StyloveColors.goldMuted,
   },
   benefitText: {
     fontSize: 15,
@@ -262,22 +270,134 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     flex: 1,
   },
-  actions: {
+  plans: {
+    gap: 14,
+    marginBottom: 24,
+  },
+  planCard: {
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: 'rgba(248,244,237,0.13)',
+    backgroundColor: 'rgba(255,250,242,0.05)',
+    padding: 20,
     gap: 12,
-    marginBottom: 8,
   },
-  actionBtn: {
-    width: '100%',
+  planCardRecommended: {
+    borderColor: 'rgba(196,160,98,0.58)',
+    backgroundColor: 'rgba(196,160,98,0.12)',
   },
-  restoreBtn: {
+  planTopRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  restoreText: {
-    fontSize: 12,
+  planTitle: {
+    flex: 1,
+    fontFamily: Fonts.serif,
+    color: StyloveColors.ivory,
+    fontSize: 21,
+  },
+  recommendedPill: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: StyloveColors.goldSoft,
+  },
+  recommendedText: {
+    color: StyloveColors.wineDeep,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+  },
+  planSubtitle: {
+    color: 'rgba(248,244,237,0.68)',
+    fontSize: 13,
+    lineHeight: 19,
+    fontStyle: 'italic',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  planPrice: {
+    fontFamily: Fonts.serif,
+    color: StyloveColors.ivory,
+    fontSize: 30,
+  },
+  planCadence: {
+    color: 'rgba(248,244,237,0.58)',
+    fontSize: 13,
+    paddingBottom: 5,
+  },
+  inactiveCta: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(196,160,98,0.22)',
+    backgroundColor: 'rgba(255,250,242,0.06)',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  inactiveCtaRecommended: {
+    backgroundColor: StyloveColors.goldSoft,
+    borderColor: StyloveColors.goldSoft,
+  },
+  inactiveCtaText: {
     color: StyloveColors.goldSoft,
-    letterSpacing: 0.6,
-    textDecorationLine: 'underline',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  inactiveCtaTextRecommended: {
+    color: StyloveColors.wineDeep,
+  },
+  comparison: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(196,160,98,0.22)',
+    overflow: 'hidden',
+    marginBottom: 22,
+  },
+  compareHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255,250,242,0.06)',
+  },
+  comparePlan: {
+    width: 82,
+    color: 'rgba(248,244,237,0.7)',
+    textAlign: 'center',
+    fontSize: 12,
+  },
+  comparePremium: {
+    color: StyloveColors.goldSoft,
+    fontWeight: '600',
+  },
+  compareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(196,160,98,0.14)',
+    gap: 10,
+  },
+  compareLabel: {
+    flex: 1,
+    color: StyloveColors.creamText,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  compareValue: {
+    width: 82,
+    color: 'rgba(248,244,237,0.64)',
+    textAlign: 'center',
+    fontSize: 12,
   },
   note: {
     fontSize: 12,

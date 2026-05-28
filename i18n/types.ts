@@ -1,4 +1,4 @@
-export type Locale = 'en' | 'tr' | 'fr' | 'ar' | 'de';
+export type Locale = 'en' | 'tr' | 'fr' | 'ar' | 'de' | 'es' | 'it' | 'ru';
 
 export type StyleMoodId = 'elegant' | 'minimal' | 'confident' | 'romantic' | 'dailyChic';
 
@@ -140,6 +140,12 @@ export type TranslationKeys = {
     suggestionsLabel: string;
     suggestions: string[];
   };
+  limits: {
+    wardrobeTitle: string;
+    outfitTitle: string;
+    freeWardrobeLimit: string;
+    freeDailyOutfitLimit: string;
+  };
   weather: {
     line: string;
     conditions: Record<
@@ -151,10 +157,24 @@ export type TranslationKeys = {
   completeLook: {
     title: string;
     subtitle: string;
+    top: string;
+    bottom: string;
+    dress: string;
     shoes: string;
+    outerwear: string;
+    bag: string;
     accessories: string;
+    jewelry: string;
     watches: string;
     perfume: string;
+    missingTitle: string;
+    missingSubtitle: string;
+    missingTopCompletion: string;
+    missingBottomCompletion: string;
+    missingShoeCompletion: string;
+    missingOuterwearCompletion: string;
+    missingBagCompletion: string;
+    missingJewelryCompletion: string;
   };
   outfit: {
     elegance: string;
@@ -221,6 +241,62 @@ export type TranslationKeys = {
     removeAction: string;
     savedTitle: string;
     savedMessage: string;
+    saveError: string;
+    archiveCategoryLabel: string;
+    archiveCategoryToday: string;
+    archiveCategoryDateNight: string;
+    archiveCategoryBusiness: string;
+    archiveCategorySummer: string;
+    archiveCategoryTravel: string;
+  };
+  weeklySummary: {
+    title: string;
+    subtitle: string;
+    cardEyebrow: string;
+    openCta: string;
+    emptyTitle: string;
+    emptySubtitle: string;
+    auraTitle: string;
+    moodTitle: string;
+    tonesTitle: string;
+    favoriteTitle: string;
+    insightsTitle: string;
+    metricsTitle: string;
+    editorialTitle: string;
+    nextWeekTitle: string;
+    looksCreated: string;
+    savedLooks: string;
+    favoriteCategory: string;
+    activeDays: string;
+    noFavorite: string;
+    moods: {
+      minimal: string;
+      business: string;
+      romantic: string;
+      relaxed: string;
+      chic: string;
+    };
+    auras: {
+      cityElegance: string;
+      minimalPower: string;
+      nightRomance: string;
+      modernCashmere: string;
+      quietLuxury: string;
+    };
+    insights: {
+      strongSilhouettes: string;
+      neutralCenter: string;
+      travelRhythm: string;
+      romanticLine: string;
+      relaxedEase: string;
+    };
+    nextWeekSuggestions: {
+      contrast: string;
+      texture: string;
+      color: string;
+      tailoring: string;
+    };
+    editorialFallback: string;
   };
   loading: {
     preparingPhoto: string;
@@ -270,6 +346,23 @@ export type TranslationKeys = {
     title: string;
     shareAura: string;
     message: string;
+    previewTitle: string;
+    previewSubtitle: string;
+    saveImage: string;
+    instagramStory: string;
+    copyLink: string;
+    savedToGallery: string;
+    linkCopied: string;
+    shareUnavailable: string;
+    shareError: string;
+    emptyTitle: string;
+    emptySubtitle: string;
+    themeLabel: string;
+    themeNoir: string;
+    themeIvory: string;
+    themeEspresso: string;
+    itemsLabel: string;
+    commentaryLabel: string;
   };
   privileges: {
     title: string;
@@ -307,6 +400,11 @@ export type TranslationKeys = {
     yourEnergy: string;
     mostWornTones: string;
     styleDna: string;
+    signatureEmptyTitle: string;
+    signatureEmptyBody: string;
+    signatureFormingTitle: string;
+    signatureFormingBody: string;
+    signaturePending: string;
     theme: string;
     themeLight: string;
     themeDark: string;
@@ -314,6 +412,20 @@ export type TranslationKeys = {
     displayName: string;
     statsCurated: string;
     statsSaved: string;
+    settingsTitle: string;
+    premiumStatus: string;
+    premiumFree: string;
+    premiumActive: string;
+    freePlan: string;
+    premiumPlan: string;
+    deleteAccount: string;
+    deleteAccountNote: string;
+    deleteAccountConfirmTitle: string;
+    deleteAccountConfirmBody: string;
+    deleteAccountConfirmCta: string;
+    deleteAccountCancel: string;
+    deleteAccountDeleting: string;
+    deleteAccountError: string;
     details: {
       title: string;
       firstName: string;
@@ -408,11 +520,28 @@ export type TranslationKeys = {
     subtitle: string;
     weekly: string;
     monthly: string;
+    yearly: string;
     weeklyPrice: string;
     monthlyPrice: string;
+    yearlyPrice: string;
     perWeek: string;
     perMonth: string;
+    perYear: string;
     benefits: string[];
+    freeFeatures: string[];
+    premiumFeatures: string[];
+    freeTitle: string;
+    premiumTitle: string;
+    recommended: string;
+    paywallEyebrow: string;
+    monthlyPlanTitle: string;
+    yearlyPlanTitle: string;
+    monthlyPlanSubtitle: string;
+    yearlyPlanSubtitle: string;
+    inactiveCta: string;
+    comparison: readonly { label: string; free: string; premium: string }[];
+    comingSoonTitle: string;
+    comingSoonMessage: string;
     ctaWeekly: string;
     ctaMonthly: string;
     restore: string;
@@ -443,6 +572,12 @@ export type TranslationKeys = {
     weatherDay: string;
     weatherNight: string;
     weatherDayNote: string;
+    weatherFeelsLike: string;
+    weatherRain: string;
+    weatherWind: string;
+    layeringHint: string;
+    forecastUnavailable: string;
+    weatherAttribution: string;
     suitcaseTitle: string;
     suitcaseSubtitle: string;
     packedItems: string;

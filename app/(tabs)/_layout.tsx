@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import { Platform, StyleSheet, View } from 'react-native';
+import { router, Tabs, usePathname } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { PremiumOnboardingFlow } from '@/components/onboarding/premium-onboarding-flow';
+import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from '@/contexts/locale-context';
 import { useTheme, StyloveShadow } from '@/contexts/theme-context';
 
@@ -27,6 +30,35 @@ function TabIcon({
 export default function TabLayout() {
   const t = useTranslation();
   const { colors } = useTheme();
+  const { ready, isRegistered } = useAuth();
+  const pathname = usePathname();
+  const redirectedRef = useRef(false);
+
+  useEffect(() => {
+    if (!ready) return;
+
+    if (isRegistered) {
+      redirectedRef.current = false;
+      return;
+    }
+
+    if (!redirectedRef.current && pathname !== '/') {
+      redirectedRef.current = true;
+      router.replace('/');
+    }
+  }, [ready, isRegistered, pathname]);
+
+  if (!ready) {
+    return (
+      <View style={[styles.loading, { backgroundColor: colors.ivory }]}>
+        <ActivityIndicator color={colors.goldMuted} />
+      </View>
+    );
+  }
+
+  if (!isRegistered) {
+    return <PremiumOnboardingFlow />;
+  }
 
   return (
     <Tabs
@@ -112,6 +144,11 @@ const styles = StyleSheet.create({
   },
   tabBarItem: {
     paddingTop: 2,
+  },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconWrap: {
     width: 40,

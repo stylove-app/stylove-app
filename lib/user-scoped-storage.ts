@@ -5,6 +5,7 @@ import { EMPTY_USER_PROFILE, type UserProfile } from '@/lib/user-profile';
 import type { CuratedLook, WardrobeItem } from '@/lib/outfit-engine';
 import { normalizeWardrobeItems } from '@/lib/wardrobe-item-types';
 import { stripDemoWardrobe } from '@/lib/wardrobe-utils';
+import { freePlanUsageKeyPrefix } from '@/lib/free-plan-limits';
 
 /** Local-only scope for guest / pre-auth mode — never synced from signed-in caches. */
 export const GUEST_STORAGE_SCOPE = 'guest';
@@ -126,7 +127,8 @@ export async function resetAllLocalCaches(): Promise<void> {
       key.startsWith('@stylove/wardrobe/') ||
       key.startsWith('@stylove/user-profile/') ||
       key.startsWith('@stylove/looks/') ||
-      key.startsWith('@stylove/style-memory/'),
+      key.startsWith('@stylove/style-memory/') ||
+      key.startsWith(`${freePlanUsageKeyPrefix()}/`),
   );
 
   if (styloveCacheKeys.length > 0) {

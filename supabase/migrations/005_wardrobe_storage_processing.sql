@@ -42,13 +42,21 @@ where processing_status = 'pending'
   and image_uri is not null
   and image_uri <> '';
 
--- Status constraint (idempotent)
-alter table public.wardrobe_items
-  drop constraint if exists wardrobe_items_processing_status_check;
-
-alter table public.wardrobe_items
-  add constraint wardrobe_items_processing_status_check
-  check (processing_status in ('pending', 'processing', 'done', 'failed'));
+-- Status constraint (idempotent, preserves existing rows)
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'wardrobe_items_processing_status_check'
+      and conrelid = 'public.wardrobe_items'::regclass
+  ) then
+    alter table public.wardrobe_items
+      add constraint wardrobe_items_processing_status_check
+      check (processing_status in ('pending', 'processing', 'done', 'failed')) not valid;
+  end if;
+end;
+$$;
 
 create index if not exists wardrobe_items_processing_status_idx
   on public.wardrobe_items (user_id, processing_status);

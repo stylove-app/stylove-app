@@ -2,15 +2,19 @@ import ar from '@/i18n/locales/ar';
 import de from '@/i18n/locales/de';
 import en from '@/i18n/locales/en';
 import fr from '@/i18n/locales/fr';
+import { LOCALE_COMPLETION_PATCHES } from '@/i18n/locale-completion-patches';
 import tr from '@/i18n/locales/tr';
 import type { Locale, TranslationKeys } from '@/i18n/types';
 
 export const LOCALES: { id: Locale; label: string; native: string }[] = [
-  { id: 'en', label: 'English', native: 'English' },
   { id: 'tr', label: 'Turkish', native: 'Türkçe' },
-  { id: 'fr', label: 'French', native: 'Français' },
-  { id: 'ar', label: 'Arabic', native: 'العربية' },
+  { id: 'en', label: 'English', native: 'English' },
   { id: 'de', label: 'German', native: 'Deutsch' },
+  { id: 'fr', label: 'French', native: 'Français' },
+  { id: 'es', label: 'Spanish', native: 'Español' },
+  { id: 'it', label: 'Italian', native: 'Italiano' },
+  { id: 'ar', label: 'Arabic', native: 'العربية' },
+  { id: 'ru', label: 'Russian', native: 'Русский' },
 ];
 
 type DeepPartial<T> = {
@@ -27,40 +31,37 @@ const localePatches: Record<Locale, TranslationKeys | DeepPartial<TranslationKey
   fr,
   ar,
   de,
+  es: en,
+  it: en,
+  ru: en,
 };
 
-function mergeTranslations(
-  base: TranslationKeys,
-  patch: DeepPartial<TranslationKeys>,
-): TranslationKeys {
-  const result = { ...base, ...patch } as TranslationKeys;
+function mergeDeep<T>(base: T, patch: DeepPartial<T>): T {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return patch as T;
+  if (!base || typeof base !== 'object' || Array.isArray(base)) return patch as T;
 
-  for (const key of Object.keys(patch) as (keyof TranslationKeys)[]) {
-    const value = patch[key];
-    const baseValue = base[key];
-    if (
-      value &&
-      typeof value === 'object' &&
-      !Array.isArray(value) &&
+  const result = { ...(base as Record<string, unknown>) };
+  for (const key of Object.keys(patch as Record<string, unknown>)) {
+    const patchValue = (patch as Record<string, unknown>)[key];
+    const baseValue = (base as Record<string, unknown>)[key];
+    result[key] =
+      patchValue &&
+      typeof patchValue === 'object' &&
+      !Array.isArray(patchValue) &&
       baseValue &&
       typeof baseValue === 'object' &&
       !Array.isArray(baseValue)
-    ) {
-      (result as Record<string, unknown>)[key as string] = {
-        ...(baseValue as Record<string, unknown>),
-        ...(value as Record<string, unknown>),
-      };
-    }
+        ? mergeDeep(baseValue, patchValue as DeepPartial<typeof baseValue>)
+        : patchValue;
   }
-
-  return result;
+  return result as T;
 }
 
 export function getTranslations(locale: Locale): TranslationKeys {
   if (locale === 'en') return en;
   if (locale === 'tr') return tr;
   const patch = localePatches[locale] ?? en;
-  return mergeTranslations(en, patch);
+  return mergeDeep(mergeDeep(en, patch), LOCALE_COMPLETION_PATCHES[locale] ?? {});
 }
 
 export function isRtl(locale: Locale): boolean {

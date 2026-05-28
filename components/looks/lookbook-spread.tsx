@@ -49,6 +49,9 @@ export function LookbookSpread({ look, index, onPress, onDelete }: LookbookSprea
         <View style={styles.meta}>
           <Text style={[styles.title, { color: isDark ? colors.creamText : colors.black }]}>{look.title}</Text>
           <Text style={[styles.occasion, { color: colors.gray }]}>{look.occasion}</Text>
+          {look.archiveCategory ? (
+            <Text style={[styles.category, { color: colors.goldMuted }]}>{look.archiveCategory}</Text>
+          ) : null}
           <Text style={[styles.description, { color: colors.grayLight }]} numberOfLines={3}>
             {look.description}
           </Text>
@@ -184,6 +187,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     letterSpacing: 0.3,
+  },
+  category: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   description: {
     fontSize: 14,

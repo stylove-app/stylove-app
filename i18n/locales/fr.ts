@@ -46,7 +46,7 @@ const fr = {
     premiumCta: 'Plus de style exclusif avec Premium',
   },
   intent: {
-    title: 'Où allez-vous ce soir ?',
+    title: 'Où allez-vous ?',
     subtitle: 'Partagez la destination — ou simplement ce que vous souhaitez ressentir.',
     placeholder: 'Dîner à Nişantaşı, confiante, rendez-vous romantique…',
     suggestionsLabel: 'Inspiration',

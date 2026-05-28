@@ -44,7 +44,7 @@ const ar = {
     premiumCta: 'المزيد من الأسلوب الحصري مع Premium',
   },
   intent: {
-    title: 'إلى أين تذهبين الليلة؟',
+    title: 'إلى أين تذهبين؟',
     subtitle: 'شاركي الوجهة — أو ببساطة كيف تتمنين أن تشعري.',
     placeholder: 'عشاء في نişantaşı، واثقة، موعد رومانسي…',
     suggestionsLabel: 'إلهام',

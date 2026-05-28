@@ -21,12 +21,15 @@ import { WardrobeTypePicker } from '@/components/wardrobe/wardrobe-type-picker';
 import { WardrobeImageProcessing } from '@/components/wardrobe/wardrobe-image-processing';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LuxuryButton } from '@/components/ui/luxury-button';
+import { LuxuryToast } from '@/components/ui/luxury-toast';
 import { SkeletonShimmer } from '@/components/ui/skeleton-shimmer';
 import { SoftEnter } from '@/components/ui/soft-enter';
 import { StyloveFooter } from '@/components/ui/stylove-footer';
 import { useWardrobe } from '@/contexts/wardrobe-context';
 import { useStyleMemory } from '@/contexts/style-memory-context';
 import { useTranslation } from '@/contexts/locale-context';
+import { usePremium } from '@/contexts/premium-context';
+import { FREE_WARDROBE_ITEM_LIMIT } from '@/lib/free-plan-limits';
 import { WARDROBE_IMAGE_PICKER_OPTIONS } from '@/lib/wardrobe-image-picker';
 import { hapticLight } from '@/lib/haptics';
 import { WARDROBE_CATEGORIES } from '@/lib/outfit-engine';
@@ -39,6 +42,7 @@ export default function WardrobeScreen() {
   const insets = useSafeAreaInsets();
   const { stylingItems, addItem, removeItem, getByCategory, ready } = useWardrobe();
   const { recordWardrobeAdd } = useStyleMemory();
+  const { isPremium } = usePremium();
 
   const [filter, setFilter] = useState<WardrobeCategoryId | 'all'>('all');
   const [modalVisible, setModalVisible] = useState(false);
@@ -46,6 +50,7 @@ export default function WardrobeScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [itemName, setItemName] = useState('');
   const [itemType, setItemType] = useState<WardrobeItemTypeId>('elbise');
+  const [limitToastVisible, setLimitToastVisible] = useState(false);
 
   const scrollRef = useTabScrollToTop();
   const filtered = filter === 'all' ? stylingItems : getByCategory(filter);
@@ -78,6 +83,11 @@ export default function WardrobeScreen() {
   };
 
   const showUploadOptions = () => {
+    if (!isPremium && stylingItems.length >= FREE_WARDROBE_ITEM_LIMIT) {
+      setLimitToastVisible(true);
+      return;
+    }
+
     Alert.alert(t.wardrobe.addPiece, undefined, [
       { text: t.wardrobe.takePhoto, onPress: () => void pickFromCamera() },
       { text: t.wardrobe.chooseFromGallery, onPress: () => void pickFromLibrary() },
@@ -95,6 +105,11 @@ export default function WardrobeScreen() {
 
   const saveItem = async () => {
     if (!pendingUri || !itemName.trim() || isSaving) return;
+    if (!isPremium && stylingItems.length >= FREE_WARDROBE_ITEM_LIMIT) {
+      setLimitToastVisible(true);
+      return;
+    }
+
     Keyboard.dismiss();
     setIsSaving(true);
     try {
@@ -248,6 +263,13 @@ export default function WardrobeScreen() {
           </View>
         </View>
       </Modal>
+      <LuxuryToast
+        visible={limitToastVisible}
+        title={t.limits.wardrobeTitle}
+        subtitle={t.limits.freeWardrobeLimit}
+        onHide={() => setLimitToastVisible(false)}
+        durationMs={4200}
+      />
     </View>
   );
 }

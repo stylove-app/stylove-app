@@ -1,17 +1,28 @@
 import type { TranslationKeys, StyleMoodId, TravelVibeId, WardrobeCategoryId } from '@/i18n/types';
 import type { WardrobeItem } from '@/lib/outfit-engine';
 import { styleMoodToEngine } from '@/lib/style-mood';
-import type { WeatherCondition } from '@/lib/weather';
+import { normalizeWeather, type DailyWeatherSummary, type WeatherCondition } from '@/lib/weather';
 import { generateLook } from '@/lib/outfit-engine';
 import { getStylingWardrobe } from '@/lib/wardrobe-utils';
 
 export type DestinationWeather = {
   city: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
   temperature: number;
+  feelsLike?: number;
+  precipitation: number;
+  wind: number;
   condition: WeatherCondition;
+  summary: WeatherCondition;
   isDay: boolean;
   nightTemperature: number;
   nightCondition: WeatherCondition;
+  isCold: boolean;
+  isRainy: boolean;
+  needsOuterwear: boolean;
+  source?: string;
 };
 
 export type TravelDayPlan = {
@@ -38,6 +49,12 @@ export type TravelPlan = {
   departureDate: string;
   vibe: TravelVibeId;
   weather: DestinationWeather;
+  weatherDays: DailyWeatherSummary[];
+  weatherSource: string;
+  forecastUnavailable: boolean;
+  baggageType: 'cabin';
+  packingGuidance: string[];
+  missingPieces: string[];
   packedItems: WardrobeItem[];
   accessories: WardrobeItem[];
   shoes: WardrobeItem[];
@@ -47,7 +64,10 @@ export type TravelPlan = {
   wardrobeHint?: string;
 };
 
-const DESTINATION_WEATHER: Record<string, Omit<DestinationWeather, 'city'>> = {
+const DESTINATION_WEATHER: Record<
+  string,
+  Pick<DestinationWeather, 'temperature' | 'condition' | 'isDay' | 'nightTemperature' | 'nightCondition'>
+> = {
   paris: { temperature: 17, condition: 'partlyCloudy', isDay: true, nightTemperature: 11, nightCondition: 'cloudy' },
   bodrum: { temperature: 29, condition: 'clear', isDay: true, nightTemperature: 22, nightCondition: 'clear' },
   milano: { temperature: 20, condition: 'clear', isDay: true, nightTemperature: 14, nightCondition: 'partlyCloudy' },
@@ -89,16 +109,73 @@ function normalizeDestination(raw: string): string {
 function resolveWeather(destination: string): Omit<DestinationWeather, 'city'> {
   const key = normalizeDestination(destination);
   for (const [name, profile] of Object.entries(DESTINATION_WEATHER)) {
-    if (key.includes(name)) return profile;
+    if (key.includes(name)) {
+      const normalized = normalizeWeather({
+        city: '',
+        temperature: profile.temperature,
+        condition: profile.condition,
+        hour: 14,
+        isDay: profile.isDay,
+      });
+      return {
+        ...profile,
+        feelsLike: normalized.feelsLike,
+        precipitation: normalized.precipitation ?? 0,
+        wind: normalized.wind ?? 0,
+        summary: profile.condition,
+        isCold: normalized.isCold,
+        isRainy: normalized.isRainy,
+        needsOuterwear: normalized.needsOuterwear,
+      };
+    }
   }
   const seed = hashString(key);
   const conditions: WeatherCondition[] = ['clear', 'partlyCloudy', 'cloudy', 'rain'];
+  const temperature = 16 + (seed % 14);
+  const condition = conditions[seed % conditions.length];
+  const normalized = normalizeWeather({ city: '', temperature, condition, hour: 14, isDay: true });
   return {
-    temperature: 16 + (seed % 14),
-    condition: conditions[seed % conditions.length],
+    temperature: normalized.temperature,
+    feelsLike: normalized.feelsLike,
+    precipitation: normalized.precipitation ?? 0,
+    wind: normalized.wind ?? 0,
+    condition,
+    summary: condition,
     isDay: true,
     nightTemperature: 10 + (seed % 10),
     nightCondition: conditions[(seed + 1) % conditions.length],
+    isCold: normalized.isCold,
+    isRainy: normalized.isRainy,
+    needsOuterwear: normalized.needsOuterwear,
+  };
+}
+
+function resolveFallbackWeather(destination: string): DestinationWeather {
+  const profile = resolveWeather(destination);
+  return { city: destination.trim(), ...profile };
+}
+
+function buildWeatherFromForecast(destination: string, forecast: DailyWeatherSummary[] | undefined): DestinationWeather {
+  const first = forecast?.[0];
+  if (!first) return resolveFallbackWeather(destination);
+  return {
+    city: first.city || destination.trim(),
+    country: first.country,
+    latitude: first.latitude,
+    longitude: first.longitude,
+    temperature: first.temperature,
+    feelsLike: first.feelsLike,
+    precipitation: first.precipitation,
+    wind: first.wind,
+    condition: first.condition,
+    summary: first.summary,
+    isDay: true,
+    nightTemperature: first.lowTemperature,
+    nightCondition: first.condition,
+    isCold: first.isCold,
+    isRainy: first.isRainy,
+    needsOuterwear: first.needsOuterwear,
+    source: first.source,
   };
 }
 
@@ -140,6 +217,9 @@ export function generateTravelPlan(
     departureDate: string;
     vibe: TravelVibeId;
     wardrobe: WardrobeItem[];
+    weatherForecast?: DailyWeatherSummary[];
+    weatherSource?: string;
+    forecastUnavailable?: boolean;
     seed?: number;
   },
 ): TravelPlan {
@@ -148,8 +228,23 @@ export function generateTravelPlan(
   const wardrobeHint =
     stylingWardrobe.length === 1 ? t.travel.wardrobeHintSingle : undefined;
   const seed = params.seed ?? hashString(`${destination}-${vibe}-${departureDate}`);
-  const weatherProfile = resolveWeather(destination);
-  const weather: DestinationWeather = { city: destination.trim(), ...weatherProfile };
+  const weatherDays = params.weatherForecast?.length
+    ? params.weatherForecast
+    : [buildWeatherFromForecast(destination, undefined)].map((day) => ({
+        date: departureDate,
+        city: day.city,
+        temperature: day.temperature,
+        lowTemperature: day.nightTemperature,
+        feelsLike: day.feelsLike,
+        precipitation: day.precipitation,
+        wind: day.wind,
+        condition: day.condition,
+        summary: day.summary,
+        isCold: day.isCold,
+        isRainy: day.isRainy,
+        needsOuterwear: day.needsOuterwear,
+      }));
+  const weather = buildWeatherFromForecast(destination, weatherDays);
 
   const moodEngine = styleMoodToEngine(VIBE_MOOD[vibe]);
   const packedCount = Math.min(
@@ -164,11 +259,23 @@ export function generateTravelPlan(
   const shoes = byCategory(packedItems, 'shoes').length
     ? byCategory(packedItems, 'shoes')
     : pickItems(byCategory(stylingWardrobe, 'shoes'), 2, seed + 2);
-  const outerwear = byCategory(packedItems, 'outerwear').length
-    ? byCategory(packedItems, 'outerwear')
-    : pickItems(byCategory(stylingWardrobe, 'outerwear'), 1, seed + 3);
+  const shouldPackOuterwear = weatherDays.some((day) => day.needsOuterwear);
+  const outerwear = shouldPackOuterwear
+    ? byCategory(packedItems, 'outerwear').length
+      ? byCategory(packedItems, 'outerwear')
+      : pickItems(byCategory(stylingWardrobe, 'outerwear'), 1, seed + 3)
+    : [];
 
   const dayTitles = t.travel.dayTitles[vibe];
+  const missingPieces = [
+    shoes.length === 0 ? t.completeLook.missingShoeCompletion : undefined,
+    shouldPackOuterwear && outerwear.length === 0 ? t.completeLook.missingOuterwearCompletion : undefined,
+    accessories.length === 0 ? t.completeLook.missingJewelryCompletion : undefined,
+  ].filter((item): item is string => Boolean(item));
+  const packingGuidance = [
+    t.travel.layeringHint,
+    shouldPackOuterwear ? t.completeLook.missingOuterwearCompletion : t.completeLook.missingBagCompletion,
+  ];
   const dailyLooks: TravelDayPlan[] = Array.from({ length: duration }, (_, index) => {
     const day = index + 1;
     const daySeed = seed + day * 17;
@@ -180,8 +287,9 @@ export function generateTravelPlan(
     const titleTemplate = dayTitles[index % dayTitles.length];
     const title = titleTemplate.replace('{day}', String(day));
     const mood = t.travel.moodLabels[(daySeed + index) % t.travel.moodLabels.length];
-    const conditionKey = daySeed % 2 === 0 ? weather.condition : weather.nightCondition;
-    const temp = daySeed % 2 === 0 ? weather.temperature : weather.nightTemperature;
+    const dayWeather = weatherDays[index % weatherDays.length];
+    const conditionKey = daySeed % 2 === 0 ? dayWeather.condition : weather.nightCondition;
+    const temp = daySeed % 2 === 0 ? dayWeather.temperature : dayWeather.lowTemperature;
     const weatherNote = t.travel.weatherDayNote
       .replace('{temp}', String(temp))
       .replace('{condition}', t.weather.conditions[conditionKey]);
@@ -192,9 +300,16 @@ export function generateTravelPlan(
       weather: {
         city: destination,
         temperature: temp,
+        feelsLike: dayWeather.feelsLike,
+        precipitation: dayWeather.precipitation,
+        wind: dayWeather.wind,
         condition: conditionKey,
+        summary: conditionKey,
         isDay: daySeed % 2 === 0,
         hour: daySeed % 2 === 0 ? 14 : 21,
+        isCold: dayWeather.isCold,
+        isRainy: dayWeather.isRainy,
+        needsOuterwear: dayWeather.needsOuterwear,
       },
       seed: daySeed,
       moodOverride: moodEngine,
@@ -217,6 +332,12 @@ export function generateTravelPlan(
     departureDate,
     vibe,
     weather,
+    weatherDays,
+    weatherSource: params.weatherSource ?? weather.source ?? 'Open-Meteo',
+    forecastUnavailable: params.forecastUnavailable ?? false,
+    baggageType: 'cabin',
+    packingGuidance,
+    missingPieces,
     packedItems,
     accessories,
     shoes,

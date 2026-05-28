@@ -1,9 +1,11 @@
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCallback, useState } from 'react';
+import { router } from 'expo-router';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 
 import { LookbookSpread } from '@/components/looks/lookbook-spread';
+import { WeeklyStyleSummaryCard } from '@/components/looks/weekly-style-summary-card';
 import { OutfitResult } from '@/components/home/outfit-result';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LuxuryToast } from '@/components/ui/luxury-toast';
@@ -18,6 +20,7 @@ import { useWeather } from '@/contexts/weather-context';
 import { useWardrobe } from '@/contexts/wardrobe-context';
 import { getTodaysAura } from '@/lib/aura-engine';
 import { generateLook } from '@/lib/outfit-engine';
+import { buildWeeklyStyleSummary } from '@/lib/weekly-style-summary';
 import { hapticLight } from '@/lib/haptics';
 import { Fonts } from '@/constants/theme';
 
@@ -27,7 +30,7 @@ export default function LooksScreen() {
   const { colors } = useTheme();
   const { weather } = useWeather();
   const { memory, recordGeneratedLook, recordSavedLook } = useStyleMemory();
-  const { looks, savedLooks, currentLook, setCurrentLook, saveLook, removeLook, ready } = useLooks();
+  const { looks, savedLooks, currentLook, setCurrentLook, saveLook, removeLook, updateLookCategory, ready } = useLooks();
   const { stylingItems, ready: wardrobeReady } = useWardrobe();
   const scrollRef = useTabScrollToTop();
   const [saveToastVisible, setSaveToastVisible] = useState(false);
@@ -36,6 +39,7 @@ export default function LooksScreen() {
   const activeLook = currentLook ?? displayLooks[0] ?? null;
 
   const aura = getTodaysAura({ t, weather, styleMemory: memory });
+  const weeklySummary = buildWeeklyStyleSummary(t, { looks, savedLooks });
 
   const handleReplace = async () => {
     if (!activeLook || !wardrobeReady) return;
@@ -52,9 +56,14 @@ export default function LooksScreen() {
 
   const handleSave = () => {
     if (!activeLook || savedLooks.some((l) => l.id === activeLook.id)) return;
-    saveLook(activeLook);
-    recordSavedLook(activeLook);
-    setSaveToastVisible(true);
+    void saveLook(activeLook)
+      .then((saved) => {
+        recordSavedLook(saved);
+        setSaveToastVisible(true);
+      })
+      .catch(() => {
+        Alert.alert(t.profile.account.errorTitle, t.looks.saveError);
+      });
   };
 
   const confirmRemoveLook = useCallback(
@@ -66,13 +75,21 @@ export default function LooksScreen() {
           style: 'destructive',
           onPress: () => {
             void hapticLight();
-            removeLook(id);
+            void removeLook(id);
           },
         },
       ]);
     },
     [t, removeLook],
   );
+
+  const archiveCategories = [
+    t.looks.archiveCategoryToday,
+    t.looks.archiveCategoryDateNight,
+    t.looks.archiveCategoryBusiness,
+    t.looks.archiveCategorySummer,
+    t.looks.archiveCategoryTravel,
+  ];
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.ivory, paddingTop: insets.top }]}>
@@ -97,14 +114,46 @@ export default function LooksScreen() {
             <SkeletonShimmer height={18} width="60%" borderRadius={8} />
             <SkeletonShimmer height={14} width="40%" borderRadius={8} />
           </View>
-        ) : activeLook ? (
-          <OutfitResult
-            look={activeLook}
-            onReplace={handleReplace}
-            onSave={handleSave}
-            isSaved={savedLooks.some((l) => l.id === activeLook.id)}
-            aura={aura}
-          />
+        ) : weeklySummary.hasData ? (
+          <WeeklyStyleSummaryCard summary={weeklySummary} onPress={() => router.push('/weekly-summary')} />
+        ) : null}
+
+        {!ready ? null : activeLook ? (
+          <>
+            <OutfitResult
+              look={activeLook}
+              onReplace={handleReplace}
+              onSave={handleSave}
+              isSaved={savedLooks.some((l) => l.id === activeLook.id)}
+              aura={aura}
+            />
+            {savedLooks.some((l) => l.id === activeLook.id) ? (
+              <View style={styles.categoryWrap}>
+                <Text style={[styles.categoryTitle, { color: colors.gray }]}>{t.looks.archiveCategoryLabel}</Text>
+                <View style={styles.categoryChips}>
+                  {archiveCategories.map((category) => {
+                    const selected = activeLook.archiveCategory === category;
+                    return (
+                      <Pressable
+                        key={category}
+                        onPress={() => void updateLookCategory(activeLook.id, category)}
+                        style={[
+                          styles.categoryChip,
+                          {
+                            borderColor: selected ? colors.goldMuted : colors.creamRich,
+                            backgroundColor: selected ? colors.wineDeep : colors.white,
+                          },
+                        ]}>
+                        <Text style={[styles.categoryChipText, { color: selected ? colors.creamText : colors.gray }]}>
+                          {category}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+          </>
         ) : (
           <EmptyState title={t.looks.emptyTitle} subtitle={t.looks.emptySubtitle} />
         )}
@@ -158,5 +207,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 16,
     marginBottom: 24,
+  },
+  categoryWrap: {
+    paddingHorizontal: 24,
+    marginTop: -12,
+    marginBottom: 24,
+    gap: 10,
+  },
+  categoryTitle: {
+    fontSize: 12,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  categoryChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  categoryChipText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

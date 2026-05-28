@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -97,6 +98,7 @@ export function AccountSection() {
   const handleSignOut = async () => {
     setBusy(true);
     setFeedback(null);
+    let shouldNavigate = false;
     try {
       const error = await signOut();
       if (error) {
@@ -105,8 +107,12 @@ export function AccountSection() {
       }
       setEmail('');
       setPassword('');
+      shouldNavigate = true;
     } finally {
       setBusy(false);
+    }
+    if (shouldNavigate) {
+      router.replace('/');
     }
   };
 

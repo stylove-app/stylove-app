@@ -44,7 +44,7 @@ const de = {
     premiumCta: 'Mehr exklusiver Stil mit Premium',
   },
   intent: {
-    title: 'Wohin gehen Sie heute Abend?',
+    title: 'Wohin gehen Sie?',
     subtitle: 'Teilen Sie das Ziel — oder einfach, wie Sie sich fühlen möchten.',
     placeholder: 'Abendessen in Nişantaşı, selbstbewusst, romantisches Date…',
     suggestionsLabel: 'Inspiration',

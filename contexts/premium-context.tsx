@@ -16,40 +16,30 @@ type PremiumContextValue = {
 const PremiumContext = createContext<PremiumContextValue | null>(null);
 
 export function PremiumProvider({ children }: { children: React.ReactNode }) {
-  const [isPremium, setIsPremium] = useState(false);
-  const [activePlan, setActivePlan] = useState<PurchasePlan | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(PREMIUM_KEY).then((stored) => {
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored) as { active: boolean; plan: PurchasePlan | null };
-          setIsPremium(parsed.active);
-          setActivePlan(parsed.plan);
-        } catch {
-          setIsPremium(false);
-        }
-      }
-      setReady(true);
-    });
+    void AsyncStorage.removeItem(PREMIUM_KEY).finally(() => setReady(true));
   }, []);
 
   const activatePremium = useCallback(async (plan: PurchasePlan) => {
-    setIsPremium(true);
-    setActivePlan(plan);
-    await AsyncStorage.setItem(PREMIUM_KEY, JSON.stringify({ active: true, plan }));
+    void plan;
+    await AsyncStorage.removeItem(PREMIUM_KEY);
   }, []);
 
   const deactivatePremium = useCallback(async () => {
-    setIsPremium(false);
-    setActivePlan(null);
     await AsyncStorage.removeItem(PREMIUM_KEY);
   }, []);
 
   const value = useMemo(
-    () => ({ isPremium, ready, activePlan, activatePremium, deactivatePremium }),
-    [isPremium, ready, activePlan, activatePremium, deactivatePremium],
+    () => ({
+      isPremium: false,
+      ready,
+      activePlan: null,
+      activatePremium,
+      deactivatePremium,
+    }),
+    [ready, activatePremium, deactivatePremium],
   );
 
   return <PremiumContext.Provider value={value}>{children}</PremiumContext.Provider>;

@@ -1,17 +1,19 @@
 import * as Location from 'expo-location';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { fetchWeather, getTimeOfDay, type WeatherSnapshot } from '@/lib/weather';
+import { fetchWeather, getTimeOfDay, normalizeWeather, type WeatherSnapshot } from '@/lib/weather';
 import { useLocale, useTranslation } from '@/contexts/locale-context';
 
 function getFallbackWeather(city: string): WeatherSnapshot {
-  return {
+  return normalizeWeather({
     city,
     temperature: 18,
     condition: 'rain',
     isDay: false,
     hour: 20,
-  };
+    precipitation: 1.2,
+    wind: 12,
+  });
 }
 
 type WeatherContextValue = {

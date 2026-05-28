@@ -1,11 +1,15 @@
-import React, { createContext, useCallback, useContext, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import tr from '@/i18n/locales/tr';
-import { interpolate } from '@/i18n';
+import { getTranslations, interpolate, isRtl } from '@/i18n';
 import type { Locale, TranslationKeys } from '@/i18n/types';
 
-/** App is Turkish-only until full EN locale QA is complete. */
-const APP_LOCALE: Locale = 'tr';
+const LOCALE_KEY = '@stylove/locale';
+const SUPPORTED_LOCALES: readonly Locale[] = ['tr', 'en', 'de', 'fr', 'es', 'it', 'ar', 'ru'];
+
+function isSupportedLocale(value: string | null): value is Locale {
+  return value !== null && (SUPPORTED_LOCALES as readonly string[]).includes(value);
+}
 
 type LocaleContextValue = {
   locale: Locale;
@@ -19,20 +23,40 @@ type LocaleContextValue = {
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const setLocale = useCallback(async (_next: Locale) => {
-    // Turkish-only: language switching disabled for stability.
+  const [locale, setLocaleState] = useState<Locale>('tr');
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    void AsyncStorage.getItem(LOCALE_KEY).then((stored) => {
+      if (!mounted) return;
+      if (isSupportedLocale(stored)) {
+        setLocaleState(stored);
+      }
+      setReady(true);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const setLocale = useCallback(async (next: Locale) => {
+    setLocaleState(next);
+    await AsyncStorage.setItem(LOCALE_KEY, next);
   }, []);
 
   const value = useMemo<LocaleContextValue>(
     () => ({
-      locale: APP_LOCALE,
-      t: tr,
-      isRtl: false,
-      ready: true,
+      locale,
+      t: getTranslations(locale),
+      isRtl: isRtl(locale),
+      ready,
       setLocale,
       i: (template, values) => interpolate(template, values ?? {}),
     }),
-    [setLocale],
+    [locale, ready, setLocale],
   );
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
