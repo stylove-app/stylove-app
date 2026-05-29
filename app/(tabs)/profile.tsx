@@ -10,6 +10,7 @@ import { PremiumPrivilegesSection } from '@/components/profile/premium-privilege
 import { ProfileDetailsSection } from '@/components/profile/profile-details-section';
 import { LegalTrustSection } from '@/components/profile/legal-trust-section';
 import { AboutStyloveSection } from '@/components/profile/about-stylove-section';
+import { PushNotificationsSetting } from '@/components/profile/push-notifications-setting';
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { LuxuryModalFrame } from '@/components/ui/luxury-modal-frame';
 import { PremiumCta } from '@/components/ui/premium-cta';
@@ -176,6 +177,9 @@ export default function ProfileScreen() {
               })}
             </View>
           </View>
+
+          <PushNotificationsSetting />
+
         </View>
 
         <AboutStyloveSection

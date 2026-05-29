@@ -49,7 +49,14 @@ export function AccountSection() {
   };
 
   const handleSignIn = async () => {
-    if (!email.trim() || !password) return;
+    if (!email.trim()) {
+      showError(account.errors.emailRequired, false);
+      return;
+    }
+    if (!password) {
+      showError(account.errors.passwordRequired, false);
+      return;
+    }
     setBusy(true);
     setFeedback(null);
     try {
@@ -68,7 +75,15 @@ export function AccountSection() {
   };
 
   const handleSignUp = async () => {
-    if (!email.trim() || password.length < 6) {
+    if (!email.trim()) {
+      showError(account.errors.emailRequired, true);
+      return;
+    }
+    if (!password) {
+      showError(account.errors.passwordRequired, true);
+      return;
+    }
+    if (password.length < 6) {
       showError(account.errors.weakPassword, true);
       return;
     }

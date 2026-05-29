@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -38,17 +39,17 @@ import { useTheme } from '@/contexts/theme-context';
 import { useWeather } from '@/contexts/weather-context';
 import { useWardrobe } from '@/contexts/wardrobe-context';
 import { getTodaysAura, inferWardrobeTone } from '@/lib/aura-engine';
-import { canGenerateFreeOutfit, recordFreeOutfitGeneration } from '@/lib/free-plan-limits';
-import { generateLook, getTonightsSelection } from '@/lib/outfit-engine';
+import { canGenerateFreeOutfit } from '@/lib/free-plan-limits';
+import { getTonightsSelection } from '@/lib/outfit-engine';
 import { INTENT_SUGGESTIONS } from '@/lib/intent-parser';
 import { styleMoodToEngine } from '@/lib/style-mood';
+import { runSecureOutfitGeneration } from '@/lib/run-secure-outfit-generation';
+import { analytics } from '@/lib/analytics';
+import { isEmptyReadyWardrobeError } from '@/lib/empty-ready-wardrobe';
+import { getReadyStylingWardrobe } from '@/lib/wardrobe-utils';
 import { hapticLight } from '@/lib/haptics';
-import { waitForWardrobeReady } from '@/lib/wardrobe-ready';
-import { generateOutfitSecurely } from '@/services/outfit-generation';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 import type { StyleMoodId } from '@/i18n/types';
-
-const GENERATION_MS = 5500;
 
 export default function HomeScreen() {
   const { t, locale } = useLocale();
@@ -73,6 +74,9 @@ export default function HomeScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveToastVisible, setSaveToastVisible] = useState(false);
   const [limitToastVisible, setLimitToastVisible] = useState(false);
+
+  const hideSaveToast = useCallback(() => setSaveToastVisible(false), []);
+  const hideLimitToast = useCallback(() => setLimitToastVisible(false), []);
 
   useEffect(() => {
     wardrobeSnapshotRef.current = { ready: wardrobeReady, stylingItems };
@@ -109,10 +113,56 @@ export default function HomeScreen() {
 
   const isSaved = currentLook ? savedLooks.some((l) => l.id === currentLook.id) : false;
   const usageScope = userId ?? 'guest';
+  const wardrobeEmpty =
+    wardrobeReady && getReadyStylingWardrobe(stylingItems).length === 0;
+
+  const alertGenerationFailure = useCallback(
+    (error: unknown) => {
+      if (isEmptyReadyWardrobeError(error)) {
+        Alert.alert(t.home.emptyWardrobeTitle, t.home.emptyWardrobeMessage);
+        return;
+      }
+      Alert.alert(t.profile.account.errorTitle, t.home.generateError);
+    },
+    [t],
+  );
 
   const scrollContentStyle = useMemo(
     () => ({ paddingBottom: insets.bottom + 100 }),
     [insets.bottom],
+  );
+
+  const runGeneration = useCallback(
+    async (intentText: string, analyticsSource: 'home' | 'replace') =>
+      runSecureOutfitGeneration({
+        intentText,
+        analyticsSource,
+        locale,
+        t,
+        weather,
+        memory,
+        engineMood,
+        styleMood: Boolean(styleMood),
+        currentLook,
+        savedLooks,
+        isPremium,
+        usageScope,
+        recordGeneratedLook,
+        getWardrobeSnapshot: () => wardrobeSnapshotRef.current,
+      }),
+    [
+      locale,
+      t,
+      weather,
+      memory,
+      engineMood,
+      styleMood,
+      currentLook,
+      savedLooks,
+      isPremium,
+      usageScope,
+      recordGeneratedLook,
+    ],
   );
 
   const handleReveal = useCallback(
@@ -133,57 +183,25 @@ export default function HomeScreen() {
         return;
       }
 
+      if (wardrobeEmpty) {
+        Alert.alert(t.home.emptyWardrobeTitle, t.home.emptyWardrobeMessage);
+        return;
+      }
+
       if (process.env.EXPO_OS === 'ios') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
       setIsGenerating(true);
       try {
-        const [{ stylingItems: wardrobeForLook }] = await Promise.all([
-          waitForWardrobeReady(() => wardrobeSnapshotRef.current),
-          new Promise((resolve) => setTimeout(resolve, GENERATION_MS)),
-        ]);
-
-        const fallbackLook = generateLook(t, {
-          intent: text,
-          wardrobe: wardrobeForLook,
-          weather,
-          seed: Date.now(),
-          styleMemory: memory,
-          moodOverride: engineMood,
-        });
-        const look = await generateOutfitSecurely({
-          locale,
-          intent: text,
-          wardrobe: wardrobeForLook,
-          weather,
-          mood: engineMood,
-          styleMemory: memory,
-          recentItemIds: [
-            ...(currentLook?.itemIds ?? []),
-            ...savedLooks.slice(-4).flatMap((lookItem) => lookItem.itemIds),
-          ],
-          roleLabels: {
-            top: t.completeLook.top,
-            bottom: t.completeLook.bottom,
-            dress: t.completeLook.dress,
-            shoes: t.completeLook.shoes,
-            outerwear: t.completeLook.outerwear,
-            bag: t.completeLook.bag,
-            accessory: t.completeLook.accessories,
-            jewelry: t.completeLook.jewelry,
-          },
-          fallback: fallbackLook,
-        });
-        if (!isPremium) {
-          await recordFreeOutfitGeneration(usageScope);
-        }
-        recordGeneratedLook(look);
+        const look = await runGeneration(text, 'home');
         setCurrentLook(look);
         setShowResult(true);
         requestAnimationFrame(() => {
           scrollRef.current?.scrollTo({ y: resultsY.current, animated: true });
         });
+      } catch (error) {
+        alertGenerationFailure(error);
       } finally {
         setIsGenerating(false);
       }
@@ -192,70 +210,84 @@ export default function HomeScreen() {
       isGenerating,
       styleMood,
       t,
-      locale,
-      weather,
-      memory,
-      engineMood,
-      currentLook,
-      savedLooks,
-      recordGeneratedLook,
+      runGeneration,
       setCurrentLook,
-      isPremium,
       usageScope,
+      isPremium,
+      wardrobeEmpty,
+      alertGenerationFailure,
     ],
   );
 
   const handleReplace = useCallback(async () => {
+    if (isGenerating || !currentLook) return;
+
     if (!isPremium && !(await canGenerateFreeOutfit(usageScope))) {
       setLimitToastVisible(true);
       return;
     }
 
-    const text = currentLook?.intent ?? (styleMood ? t.home.moods[styleMood] : t.intent.suggestions[0]);
-    const { stylingItems: wardrobeForLook } = await waitForWardrobeReady(
-      () => wardrobeSnapshotRef.current,
-    );
-    const look = generateLook(t, {
-      intent: text,
-      wardrobe: wardrobeForLook,
-      weather,
-      seed: Date.now(),
-      styleMemory: memory,
-      moodOverride: engineMood,
-    });
-    if (!isPremium) {
-      await recordFreeOutfitGeneration(usageScope);
+    if (wardrobeEmpty) {
+      Alert.alert(t.home.emptyWardrobeTitle, t.home.emptyWardrobeMessage);
+      return;
     }
-    recordGeneratedLook(look);
-    setCurrentLook(look);
+
+    if (process.env.EXPO_OS === 'ios') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+
+    const text =
+      currentLook.intent ??
+      (styleMood ? t.home.moods[styleMood] : t.intent.suggestions[0]);
+
+    setIsGenerating(true);
+    try {
+      const look = await runGeneration(text, 'replace');
+      setCurrentLook(look);
+    } catch (error) {
+      alertGenerationFailure(error);
+    } finally {
+      setIsGenerating(false);
+    }
   }, [
+    isGenerating,
     currentLook,
-    weather,
-    memory,
-    setCurrentLook,
-    recordGeneratedLook,
-    t,
     styleMood,
-    engineMood,
+    t,
+    runGeneration,
+    setCurrentLook,
     isPremium,
     usageScope,
+    wardrobeEmpty,
+    alertGenerationFailure,
   ]);
+
+  const openShare = useCallback(() => {
+    if (!currentLook) return;
+    setCurrentLook(currentLook);
+    router.push({ pathname: '/share-look', params: { look: currentLook.id } });
+  }, [currentLook, setCurrentLook]);
 
   const handleSave = useCallback(async () => {
     if (!currentLook || isSaved) return;
     Keyboard.dismiss();
     setIsSaving(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
       const saved = await saveLook(currentLook);
       recordSavedLook(saved);
+      analytics.capture('outfit_saved', {
+        is_premium: isPremium,
+        item_count: saved.itemIds.length,
+        mood: saved.mood,
+        has_weather: Boolean(saved.weatherNote),
+      });
       setSaveToastVisible(true);
     } catch {
       Alert.alert(t.profile.account.errorTitle, t.looks.saveError);
     } finally {
       setIsSaving(false);
     }
-  }, [currentLook, isSaved, saveLook, recordSavedLook, t.looks.saveError, t.profile.account.errorTitle]);
+  }, [currentLook, isSaved, saveLook, recordSavedLook, t.looks.saveError, t.profile.account.errorTitle, isPremium]);
 
   const confirmRemoveLook = useCallback(
     (id: string) => {
@@ -266,7 +298,9 @@ export default function HomeScreen() {
           style: 'destructive',
           onPress: () => {
             void hapticLight();
-            void removeLook(id);
+            void removeLook(id).catch(() => {
+              Alert.alert(t.profile.account.errorTitle, t.looks.saveError);
+            });
             if (currentLook?.id === id) {
               setShowResult(false);
             }
@@ -323,6 +357,7 @@ export default function HomeScreen() {
               onReveal={handleReveal}
               isGenerating={isGenerating}
               wardrobeLoading={!wardrobeReady}
+              wardrobeEmpty={wardrobeEmpty}
             />
           </Animated.View>
 
@@ -341,6 +376,7 @@ export default function HomeScreen() {
               isSaved={isSaved}
               isSaving={isSaving}
               aura={todaysAura}
+              onShare={openShare}
             />
             <PremiumCta label={t.home.premiumCta} />
             <CompleteTheLook />
@@ -359,7 +395,12 @@ export default function HomeScreen() {
                   look={tonightsSelection}
                   wide
                   onPress={() => {
-                    if (isGenerating || !wardrobeReady) return;
+                    if (isGenerating || !wardrobeReady || wardrobeEmpty) {
+                      if (wardrobeEmpty) {
+                        Alert.alert(t.home.emptyWardrobeTitle, t.home.emptyWardrobeMessage);
+                      }
+                      return;
+                    }
                     void handleReveal(t.intent.suggestions[0]);
                   }}
                 />
@@ -406,13 +447,13 @@ export default function HomeScreen() {
         visible={saveToastVisible}
         title={t.looks.savedTitle}
         subtitle={t.looks.savedMessage}
-        onHide={() => setSaveToastVisible(false)}
+        onHide={hideSaveToast}
       />
       <LuxuryToast
         visible={limitToastVisible}
         title={t.limits.outfitTitle}
         subtitle={t.limits.freeDailyOutfitLimit}
-        onHide={() => setLimitToastVisible(false)}
+        onHide={hideLimitToast}
         durationMs={4200}
       />
     </View>

@@ -5,6 +5,7 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PremiumOnboardingFlow } from '@/components/onboarding/premium-onboarding-flow';
+import { SessionRestoreError } from '@/components/auth/session-restore-error';
 import { StyloveLogo } from '@/components/brand/stylove-logo';
 import { GoldShimmerLine } from '@/components/ui/gold-shimmer-line';
 import { softFadeIn, softFadeInDown } from '@/constants/luxury-motion';
@@ -18,20 +19,26 @@ const SPLASH_MS = 1800;
 export default function WelcomeScreen() {
   const t = useTranslation();
   const insets = useSafeAreaInsets();
-  const { ready: authReady, isRegistered } = useAuth();
+  const { ready: authReady, isRegistered, initError } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (authReady && isRegistered) {
       setSplashDone(true);
-    }, SPLASH_MS);
+      return;
+    }
+    const timer = setTimeout(() => setSplashDone(true), SPLASH_MS);
     return () => clearTimeout(timer);
-  }, []);
+  }, [authReady, isRegistered]);
 
   useEffect(() => {
     if (!authReady || !splashDone || !isRegistered) return;
     router.replace('/(tabs)');
   }, [authReady, splashDone, isRegistered]);
+
+  if (authReady && initError) {
+    return <SessionRestoreError variant="splash" onSignInAgain={() => setSplashDone(true)} />;
+  }
 
   if (authReady && splashDone && !isRegistered) {
     return <PremiumOnboardingFlow />;

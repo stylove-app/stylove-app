@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { GoldShimmerLine } from '@/components/ui/gold-shimmer-line';
+import { LuxuryButton } from '@/components/ui/luxury-button';
 import { SoftEnter } from '@/components/ui/soft-enter';
 import { useTheme } from '@/contexts/theme-context';
 import { Fonts } from '@/constants/theme';
@@ -9,9 +10,25 @@ type EmptyStateProps = {
   title: string;
   subtitle: string;
   compact?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
+  actionLoading?: boolean;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
+  secondaryLoading?: boolean;
 };
 
-export function EmptyState({ title, subtitle, compact }: EmptyStateProps) {
+export function EmptyState({
+  title,
+  subtitle,
+  compact,
+  actionLabel,
+  onAction,
+  actionLoading,
+  secondaryActionLabel,
+  onSecondaryAction,
+  secondaryLoading,
+}: EmptyStateProps) {
   const { colors } = useTheme();
 
   return (
@@ -29,6 +46,26 @@ export function EmptyState({ title, subtitle, compact }: EmptyStateProps) {
           <GoldShimmerLine width={32} />
           <Text style={[styles.title, { color: colors.black }]}>{title}</Text>
           <Text style={[styles.subtitle, { color: colors.gray }]}>{subtitle}</Text>
+          {actionLabel && onAction ? (
+            <LuxuryButton
+              label={actionLabel}
+              onPress={onAction}
+              variant="secondary"
+              small
+              disabled={actionLoading || secondaryLoading}
+              style={styles.action}
+            />
+          ) : null}
+          {secondaryActionLabel && onSecondaryAction ? (
+            <LuxuryButton
+              label={secondaryActionLabel}
+              onPress={onSecondaryAction}
+              variant="ghost"
+              small
+              disabled={actionLoading || secondaryLoading}
+              style={styles.secondaryAction}
+            />
+          ) : null}
         </View>
       </View>
     </SoftEnter>
@@ -73,5 +110,12 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 21,
     maxWidth: 280,
+  },
+  action: {
+    marginTop: 8,
+    minWidth: 160,
+  },
+  secondaryAction: {
+    minWidth: 160,
   },
 });

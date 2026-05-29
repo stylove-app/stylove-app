@@ -76,6 +76,7 @@ const en: TranslationKeys = {
     yourWardrobe: 'From Your Wardrobe',
     wardrobeSubtitle: 'Pieces that define your silhouette',
     revealLook: 'Reveal My Look',
+    wardrobeLoadingHint: 'Your wardrobe is still loading…',
     preparedForYou: 'Prepared exclusively for you',
     curatedFor: 'Curated for',
     todaysAura: "Today's Aura",
@@ -83,6 +84,11 @@ const en: TranslationKeys = {
     noLookTitle: 'Your edit awaits',
     noLookSubtitle: 'Share your evening intent on Home to reveal a curated composition.',
     wardrobeHintSingle: 'Add a few more pieces to your wardrobe for fuller outfit compositions.',
+    generateError: 'Your look could not be prepared. Check your connection and try again.',
+    emptyWardrobeTitle: 'Your wardrobe is not ready yet',
+    emptyWardrobeMessage:
+      'Add at least one piece to your wardrobe, or wait for processing to finish, before creating a look.',
+    emptyWardrobeHint: 'Add wardrobe pieces to reveal a curated look.',
   },
   intent: {
     title: 'Where are you going?',
@@ -171,6 +177,14 @@ const en: TranslationKeys = {
     descriptionIndoor: '{description} Composed for {city} — sheltered elegance for the evening ahead.',
     descriptionWarm: '{description} Warm layers chosen for {temp}°C — refined, never bulky.',
     descriptionLight: '{description} Light and luminous for {temp}°C in {city}.',
+    wardrobeDescription:
+      '{primary} gives the look its personal center; {secondary} balances the silhouette, and {shoes} finishes it with a polished line that still feels wearable.',
+    wardrobeWeatherWarm:
+      'For {temp}°C, the edit stays light; {primary} and {secondary} create breathable ease without losing polish.',
+    wardrobeWeatherCool:
+      'At {temp}°C with {condition}, the styling stays controlled; {layer} adds a refined weather layer when needed.',
+    wardrobeStylingNote:
+      '{finish} completes the look with practical ease and a quiet sense of luxury.',
     descriptions: {
       elegant: [
         'An elegant evening composition designed for confidence and effortless femininity.',
@@ -273,6 +287,15 @@ const en: TranslationKeys = {
     ],
     silhouetteCleaning: 'Refining your silhouette…',
     backgroundRetryLater: 'Background cleanup will retry shortly.',
+    filterEmptyTitle: 'No pieces in this category yet.',
+    filterEmptySubtitle: 'Try another filter or add a new piece to your wardrobe.',
+    saveError: 'Your piece could not be saved. Please try again.',
+    permissionDeniedTitle: 'Permission needed',
+    permissionDeniedBody: 'Allow camera or photo access in Settings to add wardrobe pieces.',
+    loadErrorTitle: 'Your wardrobe could not be loaded.',
+    loadErrorSubtitle: 'Check your connection and try again. Your pieces are still saved.',
+    retryLoad: 'Try again',
+    removeError: 'This piece could not be removed. Check your connection and try again.',
   },
   categories: {
     upper: 'Tops',
@@ -332,6 +355,9 @@ const en: TranslationKeys = {
     archiveCategoryBusiness: 'Business',
     archiveCategorySummer: 'Summer',
     archiveCategoryTravel: 'Travel',
+    loadErrorTitle: 'Your collection could not be loaded.',
+    loadErrorSubtitle: 'Check your connection and try again. Your saved looks are still safe.',
+    retryLoad: 'Try again',
   },
   weeklySummary: {
     title: 'Weekly Style Summary',
@@ -453,6 +479,7 @@ const en: TranslationKeys = {
     linkCopied: 'Link copied.',
     shareUnavailable: 'Sharing is not available on this device.',
     shareError: 'Could not prepare sharing. Please try again.',
+    permissionDenied: 'Photo library access is required to save your share card.',
     emptyTitle: 'No selected look to share.',
     emptySubtitle: 'Create an outfit on Home and your share card will be prepared here.',
     themeLabel: 'Card theme',
@@ -529,7 +556,7 @@ const en: TranslationKeys = {
     freePlan: 'Limited wardrobe and daily style suggestions',
     premiumPlan: 'Unlimited wardrobe, travel assistant, and style memory',
     deleteAccount: 'Delete account',
-    deleteAccountNote: 'For account deletion requests, contact support@stylove.app.',
+    deleteAccountNote: 'You can permanently delete your account from Profile settings. This removes your account, wardrobe records, and uploaded wardrobe images.',
     deleteAccountConfirmTitle: 'Permanently delete your account?',
     deleteAccountConfirmBody:
       'This will permanently delete your account, profile, wardrobe records, and your uploaded wardrobe images. This action cannot be undone.',
@@ -569,12 +596,18 @@ const en: TranslationKeys = {
       signUpSuccessConfirm:
         'Your account has been created. Please verify your email address.',
       signInSuccess: 'Signed in. Your wardrobe is syncing securely.',
+      sessionRestoreErrorTitle: 'Your session could not be restored.',
+      sessionRestoreErrorBody: 'Check your connection and try again to continue.',
+      retrySessionRestore: 'Try again',
+      signInAgain: 'Sign in again',
       errors: {
         invalidCredentials: 'Incorrect email or password. Please try again.',
         emailNotConfirmed: 'Your email is not verified yet. Check your inbox.',
         userExists: 'An account with this email already exists. Try signing in.',
         weakPassword: 'Password must be at least 6 characters.',
         invalidEmail: 'Enter a valid email address.',
+        emailRequired: 'Please enter your email address.',
+        passwordRequired: 'Please enter your password.',
         rateLimited: 'Too many attempts. Please try again later.',
         genericSignIn: 'Could not sign in. Check your details and try again.',
         genericSignUp: 'Could not create your account. Try a different email.',
@@ -602,7 +635,7 @@ const en: TranslationKeys = {
     privacy: {
       title: 'Privacy Policy',
       body:
-        'Stylove respects your privacy. We collect only the information needed to curate your wardrobe, saved looks, and style preferences. Your photos remain on your device unless you choose to share them. We do not sell personal data. For full details, contact support@stylove.app.',
+        'Stylove respects your privacy. We collect only the information needed to curate your wardrobe, saved looks, and style preferences. When you are signed in, wardrobe photos you choose to upload are stored securely on our servers for wardrobe management and background processing. We do not sell personal data. For full details, contact support@stylove.app.',
     },
     terms: {
       title: 'Terms of Use',
@@ -622,7 +655,7 @@ const en: TranslationKeys = {
     purchases: {
       title: 'Purchases & Cancellation',
       body:
-        'Weekly and monthly plans are billed through your App Store or Google Play account. Manage or cancel subscriptions in your device settings. Refunds follow platform policies. Restore purchases anytime from the Premium screen.',
+        'Premium subscriptions are not available for purchase in the app yet. When store billing is connected, weekly and monthly plans will be billed through your App Store or Google Play account. You will be able to manage or cancel subscriptions in your device settings. Refunds will follow platform policies.',
     },
   },
   about: {
@@ -703,18 +736,44 @@ const en: TranslationKeys = {
       },
     ],
   },
+  pushNotifications: {
+    settingsTitle: 'Personal notifications',
+    settingsSubtitle: 'Receive a gentle reminder when your style is ready.',
+    enableCta: 'Enable notifications',
+    enabledLabel: 'Notifications enabled',
+    unavailableLabel: 'Notifications are not available in this environment yet.',
+    deniedHint: 'Notifications are off. You can enable them in Settings.',
+    openSettingsCta: 'Open Settings',
+    tokenUnavailableHint:
+      'Notifications are allowed, but this device cannot register a push token yet. A production build is required.',
+    kinds: {
+      daily_style_ready: {
+        title: 'Today\'s style is ready',
+        body: 'A curated selection from your wardrobe is waiting for you.',
+      },
+      weekly_summary_ready: {
+        title: 'Your weekly style summary',
+        body: 'This week\'s style story has been composed for you.',
+      },
+      travel_outfit_ready: {
+        title: 'Your travel plan is ready',
+        body: 'Your trip looks have been arranged.',
+      },
+      wardrobe_reminder: {
+        title: 'Your wardrobe awaits',
+        body: 'Add new pieces to enrich your personal style.',
+      },
+    },
+  },
   premium: {
     title: 'Stylove Premium',
-    subtitle: 'The art of dressing, without limits.',
+    subtitle: 'The art of dressing, without limits — on your terms.',
     weekly: 'Weekly',
     monthly: 'Monthly',
-    yearly: 'Yearly',
     weeklyPrice: '399 TL',
     monthlyPrice: '649 TL',
-    yearlyPrice: '4,999 TL',
     perWeek: '/ week',
     perMonth: '/ month',
-    perYear: '/ year',
     benefits: [
       'Unlimited wardrobe',
       'Unlimited outfit suggestions',
@@ -736,12 +795,14 @@ const en: TranslationKeys = {
     ],
     freeTitle: 'Free',
     premiumTitle: 'Premium',
-    recommended: 'Recommended',
+    recommended: 'Best value',
     paywallEyebrow: 'Premium experience',
+    plansIntro: 'Two ways to unlock the same Premium world.',
+    sameFeaturesNote: 'Weekly and Monthly include the same Premium features — only billing differs.',
+    weeklyPlanTitle: 'Weekly Premium',
+    weeklyPlanSubtitle: 'A gentle entry — full Premium access for seven days.',
     monthlyPlanTitle: 'Monthly Premium',
-    yearlyPlanTitle: 'Yearly Premium',
-    monthlyPlanSubtitle: 'Flexible membership for a larger style space.',
-    yearlyPlanSubtitle: 'Best value for a full year of unlimited styling.',
+    monthlyPlanSubtitle: 'Best value — the same Premium features, billed monthly.',
     inactiveCta: 'Coming soon',
     comparison: [
       { label: 'Wardrobe', free: '6 items', premium: 'Unlimited' },
@@ -763,6 +824,7 @@ const en: TranslationKeys = {
     restoreSuccess: 'Your membership has been restored.',
     restoreEmpty: 'No previous membership found.',
     note: 'Cancel anytime. Your wardrobe remains yours.',
+    inactiveNote: 'Subscriptions are not live yet. Pricing is shown for preview only.',
     badgeHint: 'Premium',
   },
   travel: {

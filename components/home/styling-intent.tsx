@@ -15,6 +15,7 @@ type StylingIntentProps = {
   onReveal: (intent: string) => void;
   isGenerating?: boolean;
   wardrobeLoading?: boolean;
+  wardrobeEmpty?: boolean;
   presetIntent?: string;
 };
 
@@ -23,6 +24,7 @@ function StylingIntentComponent({
   onReveal,
   isGenerating,
   wardrobeLoading,
+  wardrobeEmpty,
   presetIntent,
 }: StylingIntentProps) {
   const t = useTranslation();
@@ -77,8 +79,13 @@ function StylingIntentComponent({
           label={t.home.revealLook}
           onPress={handleReveal}
           variant="gold"
-          disabled={isGenerating || wardrobeLoading}
+          disabled={isGenerating || wardrobeLoading || wardrobeEmpty}
         />
+        {wardrobeLoading ? (
+          <Text style={styles.loadingHint}>{t.home.wardrobeLoadingHint}</Text>
+        ) : wardrobeEmpty ? (
+          <Text style={styles.loadingHint}>{t.home.emptyWardrobeHint}</Text>
+        ) : null}
 
         <Text style={styles.suggestionsLabel}>{t.intent.suggestionsLabel}</Text>
         <View style={styles.suggestions}>
@@ -161,6 +168,13 @@ const styles = StyleSheet.create({
     color: StyloveColors.grayLight,
     marginTop: 22,
     marginBottom: 10,
+  },
+  loadingHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: StyloveColors.grayLight,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   suggestions: {
     gap: 8,

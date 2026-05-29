@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import * as MediaLibrary from 'expo-media-library';
-import { router } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -25,15 +25,30 @@ export default function ShareLookScreen() {
   const t = useTranslation();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
-  const { currentLook, ready } = useLooks();
+  const { currentLook, savedLooks, looks, ready } = useLooks();
+  const params = useLocalSearchParams<{ look?: string | string[] }>();
   const { width } = useWindowDimensions();
   const [activeTheme, setActiveTheme] = useState(0);
+  const [isCapturing, setIsCapturing] = useState(false);
   const activeCardRef = useRef<View>(null);
   const cardWidth = Math.min(width - 56, 360);
   const themeNames = useMemo(
     () => [t.share.themeNoir, t.share.themeIvory, t.share.themeEspresso],
     [t.share.themeNoir, t.share.themeIvory, t.share.themeEspresso],
   );
+
+  const lookId = Array.isArray(params.look) ? params.look[0] : params.look;
+
+  const shareLook = useMemo(() => {
+    if (lookId) {
+      return (
+        savedLooks.find((item) => item.id === lookId) ??
+        looks.find((item) => item.id === lookId) ??
+        (currentLook?.id === lookId ? currentLook : null)
+      );
+    }
+    return currentLook;
+  }, [lookId, savedLooks, looks, currentLook]);
 
   const captureActiveCard = async (): Promise<string> => {
     if (!activeCardRef.current) throw new Error('Share card is not ready');
@@ -46,45 +61,55 @@ export default function ShareLookScreen() {
     return uri;
   };
 
+  const runCaptureAction = useCallback(
+    async (action: (uri: string) => Promise<void>) => {
+      if (isCapturing) return;
+      setIsCapturing(true);
+      try {
+        const uri = await captureActiveCard();
+        await action(uri);
+      } catch {
+        Alert.alert(t.share.title, t.share.shareError);
+      } finally {
+        setIsCapturing(false);
+      }
+    },
+    [isCapturing, t.share.shareError, t.share.title],
+  );
+
   const handleSaveImage = async () => {
     void hapticLight();
-    try {
+    await runCaptureAction(async (uri) => {
       const permission = await MediaLibrary.requestPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert(t.share.title, t.share.shareError);
+        Alert.alert(t.share.title, t.share.permissionDenied);
         return;
       }
-      const uri = await captureActiveCard();
       await MediaLibrary.saveToLibraryAsync(uri);
       Alert.alert(t.share.title, t.share.savedToGallery);
-    } catch {
-      Alert.alert(t.share.title, t.share.shareError);
-    }
+    });
   };
 
   const handleNativeShare = async () => {
     void hapticLight();
-    try {
+    await runCaptureAction(async (uri) => {
       const available = await Sharing.isAvailableAsync();
       if (!available) {
         Alert.alert(t.share.title, t.share.shareUnavailable);
         return;
       }
-      const uri = await captureActiveCard();
       await Sharing.shareAsync(uri, {
         dialogTitle: t.share.instagramStory,
         mimeType: 'image/png',
         UTI: 'public.png',
       });
-    } catch {
-      Alert.alert(t.share.title, t.share.shareError);
-    }
+    });
   };
 
   const handleCopyLink = async () => {
     void hapticLight();
-    const lookId = currentLook?.id ?? 'current';
-    const url = Linking.createURL(`/share-look?look=${encodeURIComponent(lookId)}`);
+    const id = shareLook?.id ?? 'current';
+    const url = Linking.createURL(`/share-look?look=${encodeURIComponent(id)}`);
     await Clipboard.setStringAsync(url);
     Alert.alert(t.share.title, t.share.linkCopied);
   };
@@ -92,11 +117,13 @@ export default function ShareLookScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: isDark ? colors.ivory : colors.wineDeep, paddingTop: insets.top }]}>
       <Pressable
-        style={styles.close}
+        style={[styles.close, { top: insets.top + 12 }]}
         onPress={() => {
           void hapticLight();
           router.back();
         }}
+        accessibilityRole="button"
+        accessibilityLabel={t.common.close}
         hitSlop={12}>
         <Ionicons name="close" size={24} color={colors.creamText} />
       </Pressable>
@@ -115,7 +142,7 @@ export default function ShareLookScreen() {
             <SkeletonShimmer height={560} borderRadius={34} />
             <SkeletonShimmer height={18} width="60%" borderRadius={8} />
           </View>
-        ) : currentLook ? (
+        ) : shareLook ? (
           <>
             <ScrollView
               horizontal
@@ -131,7 +158,7 @@ export default function ShareLookScreen() {
                   <ViewShot
                     ref={theme === THEMES[activeTheme] ? activeCardRef : undefined}
                     options={{ format: 'png', quality: 1 }}>
-                    <AuraShareCard look={currentLook} theme={theme} width={cardWidth} />
+                    <AuraShareCard look={shareLook} theme={theme} width={cardWidth} />
                   </ViewShot>
                 </View>
               ))}
@@ -155,9 +182,19 @@ export default function ShareLookScreen() {
             </Text>
 
             <View style={styles.actions}>
-              <ShareAction icon="download-outline" label={t.share.saveImage} onPress={handleSaveImage} />
-              <ShareAction icon="logo-instagram" label={t.share.instagramStory} onPress={handleNativeShare} />
-              <ShareAction icon="link-outline" label={t.share.copyLink} onPress={handleCopyLink} />
+              <ShareAction
+                icon="download-outline"
+                label={t.share.saveImage}
+                disabled={isCapturing}
+                onPress={handleSaveImage}
+              />
+              <ShareAction
+                icon="logo-instagram"
+                label={t.share.instagramStory}
+                disabled={isCapturing}
+                onPress={handleNativeShare}
+              />
+              <ShareAction icon="link-outline" label={t.share.copyLink} disabled={isCapturing} onPress={handleCopyLink} />
             </View>
           </>
         ) : (
@@ -172,13 +209,18 @@ function ShareAction({
   icon,
   label,
   onPress,
+  disabled = false,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [styles.action, (pressed || disabled) && styles.actionPressed]}>
       <Ionicons name={icon} size={18} color="#D4B878" />
       <Text style={styles.actionText}>{label}</Text>
     </Pressable>
@@ -191,7 +233,6 @@ const styles = StyleSheet.create({
   },
   close: {
     position: 'absolute',
-    top: 56,
     right: 24,
     zIndex: 10,
     width: 40,

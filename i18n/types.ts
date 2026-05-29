@@ -65,6 +65,8 @@ export type TravelVibeId =
   | 'luxuryEscape'
   | 'minimalTravel';
 
+import type { StylovePushKind } from '@/lib/notifications/types';
+export type { StylovePushKind } from '@/lib/notifications/types';
 export type NotificationActionId = 'aura' | 'savedLook' | 'fragrance';
 
 export type TranslationKeys = {
@@ -125,6 +127,7 @@ export type TranslationKeys = {
     yourWardrobe: string;
     wardrobeSubtitle: string;
     revealLook: string;
+    wardrobeLoadingHint: string;
     preparedForYou: string;
     curatedFor: string;
     todaysAura: string;
@@ -132,6 +135,10 @@ export type TranslationKeys = {
     noLookTitle: string;
     noLookSubtitle: string;
     wardrobeHintSingle: string;
+    generateError: string;
+    emptyWardrobeTitle: string;
+    emptyWardrobeMessage: string;
+    emptyWardrobeHint: string;
   };
   intent: {
     title: string;
@@ -197,6 +204,10 @@ export type TranslationKeys = {
     descriptionIndoor: string;
     descriptionWarm: string;
     descriptionLight: string;
+    wardrobeDescription: string;
+    wardrobeWeatherWarm: string;
+    wardrobeWeatherCool: string;
+    wardrobeStylingNote: string;
     descriptions: Record<MoodId, string[]>;
     titles: Record<MoodId, string[]>;
     vibes: Record<MoodId, string[]>;
@@ -223,6 +234,15 @@ export type TranslationKeys = {
     preparingBackground: readonly string[];
     silhouetteCleaning: string;
     backgroundRetryLater: string;
+    filterEmptyTitle: string;
+    filterEmptySubtitle: string;
+    saveError: string;
+    permissionDeniedTitle: string;
+    permissionDeniedBody: string;
+    loadErrorTitle: string;
+    loadErrorSubtitle: string;
+    retryLoad: string;
+    removeError: string;
   };
   categories: Record<WardrobeCategoryId, string>;
   wardrobeTypes: Record<WardrobeItemTypeId, string>;
@@ -248,6 +268,9 @@ export type TranslationKeys = {
     archiveCategoryBusiness: string;
     archiveCategorySummer: string;
     archiveCategoryTravel: string;
+    loadErrorTitle: string;
+    loadErrorSubtitle: string;
+    retryLoad: string;
   };
   weeklySummary: {
     title: string;
@@ -355,6 +378,7 @@ export type TranslationKeys = {
     linkCopied: string;
     shareUnavailable: string;
     shareError: string;
+    permissionDenied: string;
     emptyTitle: string;
     emptySubtitle: string;
     themeLabel: string;
@@ -456,12 +480,18 @@ export type TranslationKeys = {
       signUpSuccessActive: string;
       signUpSuccessConfirm: string;
       signInSuccess: string;
+      sessionRestoreErrorTitle: string;
+      sessionRestoreErrorBody: string;
+      retrySessionRestore: string;
+      signInAgain: string;
       errors: {
         invalidCredentials: string;
         emailNotConfirmed: string;
         userExists: string;
         weakPassword: string;
         invalidEmail: string;
+        emailRequired: string;
+        passwordRequired: string;
         rateLimited: string;
         genericSignIn: string;
         genericSignUp: string;
@@ -515,18 +545,26 @@ export type TranslationKeys = {
       time: string;
     }[];
   };
+  pushNotifications: {
+    settingsTitle: string;
+    settingsSubtitle: string;
+    enableCta: string;
+    enabledLabel: string;
+    unavailableLabel: string;
+    deniedHint: string;
+    openSettingsCta: string;
+    tokenUnavailableHint: string;
+    kinds: Record<StylovePushKind, { title: string; body: string }>;
+  };
   premium: {
     title: string;
     subtitle: string;
     weekly: string;
     monthly: string;
-    yearly: string;
     weeklyPrice: string;
     monthlyPrice: string;
-    yearlyPrice: string;
     perWeek: string;
     perMonth: string;
-    perYear: string;
     benefits: string[];
     freeFeatures: string[];
     premiumFeatures: string[];
@@ -534,10 +572,12 @@ export type TranslationKeys = {
     premiumTitle: string;
     recommended: string;
     paywallEyebrow: string;
+    plansIntro: string;
+    sameFeaturesNote: string;
+    weeklyPlanTitle: string;
+    weeklyPlanSubtitle: string;
     monthlyPlanTitle: string;
-    yearlyPlanTitle: string;
     monthlyPlanSubtitle: string;
-    yearlyPlanSubtitle: string;
     inactiveCta: string;
     comparison: readonly { label: string; free: string; premium: string }[];
     comingSoonTitle: string;
@@ -552,6 +592,7 @@ export type TranslationKeys = {
     restoreSuccess: string;
     restoreEmpty: string;
     note: string;
+    inactiveNote: string;
     badgeHint: string;
   };
   travel: {

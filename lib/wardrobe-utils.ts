@@ -30,6 +30,11 @@ export function getStylingWardrobe(items: WardrobeItem[]): WardrobeItem[] {
   return items.filter((item) => !isDemoWardrobeItem(item));
 }
 
+/** Styling wardrobe with processing-complete pieces only (outfit engines). */
+export function getReadyStylingWardrobe(items: WardrobeItem[]): WardrobeItem[] {
+  return getStylingWardrobe(items).filter((item) => (item.processingStatus ?? 'done') === 'done');
+}
+
 export function stripDemoWardrobe(items: WardrobeItem[]): WardrobeItem[] {
   return getStylingWardrobe(items);
 }

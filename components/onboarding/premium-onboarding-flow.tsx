@@ -12,6 +12,7 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import Animated, {
   Easing,
@@ -31,8 +32,10 @@ import { BRAND_NAME } from '@/constants/brand';
 import { StyloveColors } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
-import { useLocale } from '@/contexts/locale-context';
+import { useLocale, useTranslation } from '@/contexts/locale-context';
 import { type Locale } from '@/i18n/types';
+import { analytics } from '@/lib/analytics';
+import { mapAuthError } from '@/lib/auth-errors';
 import { ONBOARDING_COPY, ONBOARDING_LANGUAGE_ORDER } from '@/lib/onboarding-copy';
 
 type Step = 'welcome' | 'language' | 'auth';
@@ -50,6 +53,7 @@ const PARTICLES = [
 
 export function PremiumOnboardingFlow() {
   const { locale, setLocale } = useLocale();
+  const t = useTranslation();
   const { signIn, signUp } = useAuth();
   const insets = useSafeAreaInsets();
   const copy = ONBOARDING_COPY[locale] ?? ONBOARDING_COPY.tr;
@@ -65,10 +69,23 @@ export function PremiumOnboardingFlow() {
   const primaryCta = isLogin ? copy.loginCta : copy.registerCta;
   const switchCta = isLogin ? copy.switchToRegister : copy.switchToLogin;
 
-  const goHome = () => router.replace('/(tabs)');
+  const completeOnboarding = (mode: AuthMode) => {
+    analytics.capture('onboarding_completed', {
+      auth_mode: mode,
+      locale,
+    });
+    router.replace('/(tabs)');
+  };
 
   const handleAuth = async () => {
-    if (!email.trim() || !password) return;
+    if (!email.trim()) {
+      Alert.alert(copy.errorTitle, t.profile.account.errors.emailRequired);
+      return;
+    }
+    if (!password) {
+      Alert.alert(copy.errorTitle, t.profile.account.errors.passwordRequired);
+      return;
+    }
     if (!isLogin && password.length < 6) {
       Alert.alert(copy.errorTitle, copy.weakPassword);
       return;
@@ -80,24 +97,25 @@ export function PremiumOnboardingFlow() {
       if (isLogin) {
         const { error, session } = await signIn(email.trim(), password);
         if (error) {
-          Alert.alert(copy.errorTitle, copy.genericLoginError);
+          Alert.alert(copy.errorTitle, mapAuthError(error, t.profile.account.errors, 'signIn'));
           return;
         }
-        if (session) goHome();
+        if (session) completeOnboarding('login');
         return;
       }
 
       const { error, session, needsEmailConfirmation } = await signUp(email.trim(), password);
       if (error) {
-        Alert.alert(copy.errorTitle, copy.genericRegisterError);
+        Alert.alert(copy.errorTitle, mapAuthError(error, t.profile.account.errors, 'signUp'));
         return;
       }
       if (session) {
-        goHome();
+        completeOnboarding('register');
         return;
       }
       if (needsEmailConfirmation) {
         Alert.alert(copy.successTitle, copy.confirmEmail);
+        setAuthMode('login');
       }
     } finally {
       setBusy(false);
@@ -157,7 +175,7 @@ export function PremiumOnboardingFlow() {
               style={styles.input}
               editable={!busy}
             />
-            <OnboardingButton label={primaryCta} onPress={handleAuth} disabled={busy} tone="gold" />
+            <OnboardingButton label={primaryCta} onPress={handleAuth} disabled={busy} tone="gold" loading={busy} />
             <Pressable
               disabled={busy}
               onPress={() => setAuthMode((current) => (current === 'login' ? 'register' : 'login'))}
@@ -239,11 +257,13 @@ function OnboardingButton({
   label,
   onPress,
   disabled = false,
+  loading = false,
   tone,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  loading?: boolean;
   tone: 'gold';
 }) {
   return (
@@ -256,7 +276,11 @@ function OnboardingButton({
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed,
       ]}>
-      <Text style={styles.ctaText}>{label}</Text>
+      {loading ? (
+        <ActivityIndicator color={StyloveColors.wineDeep} />
+      ) : (
+        <Text style={styles.ctaText}>{label}</Text>
+      )}
     </Pressable>
   );
 }

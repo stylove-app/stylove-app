@@ -332,6 +332,68 @@ function resolveLookImage(
   };
 }
 
+function outfitPieceName(pieces: OutfitPiece[], role: OutfitPieceRole): string | undefined {
+  return pieces.find((piece) => piece.role === role)?.item.name;
+}
+
+function fillTemplate(template: string, values: Record<string, string | number | undefined>): string {
+  return Object.entries(values).reduce(
+    (text, [key, value]) => text.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value ?? '')),
+    template,
+  );
+}
+
+function buildWardrobeLedCopy(
+  t: TranslationKeys,
+  pieces: OutfitPiece[],
+  weather: WeatherSnapshot | undefined,
+): {
+  description?: string;
+  weatherStyling?: string;
+  whyThisWorks?: string;
+} {
+  if (pieces.length === 0) return {};
+
+  const primary =
+    outfitPieceName(pieces, 'top') ??
+    outfitPieceName(pieces, 'dress') ??
+    pieces[0]?.item.name;
+  const secondary =
+    outfitPieceName(pieces, 'bottom') ??
+    outfitPieceName(pieces, 'outerwear') ??
+    outfitPieceName(pieces, 'bag') ??
+    primary;
+  const shoes = outfitPieceName(pieces, 'shoes') ?? t.completeLook.shoes.toLowerCase();
+  const layer = outfitPieceName(pieces, 'outerwear') ?? t.completeLook.outerwear.toLowerCase();
+  const finish =
+    outfitPieceName(pieces, 'bag') ??
+    outfitPieceName(pieces, 'accessory') ??
+    outfitPieceName(pieces, 'jewelry') ??
+    shoes;
+
+  const condition = weather ? t.weather.conditions[weather.condition] : undefined;
+  const weatherStyling = weather
+    ? fillTemplate(
+        weather.temperature >= 22 && !weather.needsOuterwear
+          ? t.outfit.wardrobeWeatherWarm
+          : t.outfit.wardrobeWeatherCool,
+        {
+          primary,
+          secondary,
+          temp: weather.temperature,
+          condition,
+          layer,
+        },
+      )
+    : undefined;
+
+  return {
+    description: fillTemplate(t.outfit.wardrobeDescription, { primary, secondary, shoes }),
+    weatherStyling,
+    whyThisWorks: fillTemplate(t.outfit.wardrobeStylingNote, { finish }),
+  };
+}
+
 export function generateLook(
   t: TranslationKeys,
   params: {
@@ -401,12 +463,13 @@ export function generateLook(
   const eleganceScore = luxuryScores.elegance;
   const editorialReasoning = buildEditorialReasoning(t, effectiveMood, seed, weather, eventContext);
   const missingPieces = suggestMissingPieces(t, effectiveMood, seed);
+  const wardrobeCopy = buildWardrobeLedCopy(t, completeOutfit.pieces, weather);
   const whyThisWorks = [
     editorialReasoning.colorHarmony,
     editorialReasoning.silhouetteBalance,
   ].join(' ');
 
-  let description = pick(descriptions, seed + 1);
+  let description = wardrobeCopy.description ?? pick(descriptions, seed + 1);
   if (eventContext.venue) {
     description = t.outfit.descriptionVenue
       .replace('{description}', description)
@@ -430,8 +493,8 @@ export function generateLook(
     }
   }
 
-  let weatherStyling: string | undefined;
-  if (weather) {
+  let weatherStyling: string | undefined = wardrobeCopy.weatherStyling;
+  if (weather && !weatherStyling) {
     const { layerHint, preferIndoor } = weatherMoodBoost(weather.condition, weather.temperature);
     const condition = t.weather.conditions[weather.condition];
     if (preferIndoor) {
@@ -467,7 +530,7 @@ export function generateLook(
     createdAt: Date.now(),
     weatherNote: weather ? t.outfit.weatherNote : undefined,
     weatherStyling,
-    whyThisWorks,
+    whyThisWorks: wardrobeCopy.whyThisWorks ?? whyThisWorks,
     editorialReasoning,
     missingPieces: stylingWardrobe.length > 0 ? [] : missingPieces,
     completeOutfit: completeOutfit.pieces,

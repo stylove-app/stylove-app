@@ -57,7 +57,8 @@
         {
           "photosPermission": "Stylove accesses your photos to build your private wardrobe."
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true,

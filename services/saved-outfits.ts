@@ -45,8 +45,8 @@ function rowToLook(row: SavedOutfitRow): CuratedLook {
   return {
     ...source,
     id: row.id,
-    title: row.title ?? source.title ?? 'Kaydedilen stil',
-    occasion: row.occasion ?? source.occasion ?? row.category ?? 'Seçili görünüm',
+    title: row.title ?? source.title ?? 'Saved look',
+    occasion: row.occasion ?? source.occasion ?? row.category ?? 'Curated look',
     description: source.description ?? source.whyThisWorks ?? '',
     eleganceScore: source.eleganceScore ?? 0,
     luxuryScores: source.luxuryScores ?? {

@@ -17,12 +17,15 @@ type AuthContextValue = {
   user: User | null;
   userId: string | null;
   ready: boolean;
+  initError: boolean;
   isAnonymous: boolean;
   isRegistered: boolean;
   signIn: (email: string, password: string) => Promise<SignInResult>;
   signUp: (email: string, password: string) => Promise<SignUpResult>;
   signOut: () => Promise<AuthError | null>;
   clearLocalSession: () => Promise<void>;
+  retrySessionRestore: () => Promise<void>;
+  resetBrokenSessionForSignIn: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -30,6 +33,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  const [initError, setInitError] = useState(false);
 
   const applySession = useCallback((nextSession: Session | null) => {
     setSession((current) => {
@@ -39,21 +43,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const restoreSession = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        setInitError(true);
+        return;
+      }
+      if (data.session?.user) {
+        applySession(data.session);
+      }
+      setInitError(false);
+    } catch {
+      setInitError(true);
+    }
+  }, [applySession]);
+
   useEffect(() => {
     let mounted = true;
 
     const init = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session?.user) {
-        if (mounted) applySession(data.session);
+      try {
+        await restoreSession();
+      } finally {
+        if (mounted) setReady(true);
       }
-      if (mounted) setReady(true);
     };
 
     void init();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       applySession(nextSession);
+      setInitError(false);
       setReady(true);
     });
 
@@ -61,19 +82,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       listener.subscription.unsubscribe();
     };
+  }, [applySession, restoreSession]);
+
+  const retrySessionRestore = useCallback(async () => {
+    setInitError(false);
+    try {
+      await restoreSession();
+    } finally {
+      setReady(true);
+    }
+  }, [restoreSession]);
+
+  const resetBrokenSessionForSignIn = useCallback(async () => {
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // Continue with local cleanup even if auth storage cannot be cleared.
+    }
+    applySession(null);
+    await resetAllLocalCaches();
+    setInitError(false);
+    setReady(true);
   }, [applySession]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    await resetAllLocalCaches();
     const result = await signInWithEmail(email, password);
-    if (result.session) applySession(result.session);
+    if (result.session) {
+      await resetAllLocalCaches();
+      applySession(result.session);
+    }
     return result;
   }, [applySession]);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    await resetAllLocalCaches();
     const result = await signUpWithEmail(email, password);
-    if (result.session) applySession(result.session);
+    if (result.session) {
+      await resetAllLocalCaches();
+      applySession(result.session);
+    }
     return result;
   }, [applySession]);
 
@@ -101,14 +147,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       userId,
       ready,
+      initError,
       isAnonymous: !!user && !isRegistered,
       isRegistered,
       signIn,
       signUp,
       signOut,
       clearLocalSession,
+      retrySessionRestore,
+      resetBrokenSessionForSignIn,
     }),
-    [session, user, userId, ready, isRegistered, signIn, signUp, signOut, clearLocalSession],
+    [session, user, userId, ready, initError, isRegistered, signIn, signUp, signOut, clearLocalSession, retrySessionRestore, resetBrokenSessionForSignIn],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

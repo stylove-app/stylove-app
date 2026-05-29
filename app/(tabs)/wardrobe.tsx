@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 import {
   Alert,
@@ -40,7 +40,7 @@ import type { WardrobeCategoryId, WardrobeItemTypeId } from '@/i18n/types';
 export default function WardrobeScreen() {
   const t = useTranslation();
   const insets = useSafeAreaInsets();
-  const { stylingItems, addItem, removeItem, getByCategory, ready } = useWardrobe();
+  const { stylingItems, addItem, removeItem, getByCategory, ready, loadError, retryLoad } = useWardrobe();
   const { recordWardrobeAdd } = useStyleMemory();
   const { isPremium } = usePremium();
 
@@ -48,12 +48,23 @@ export default function WardrobeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [pendingUri, setPendingUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [itemName, setItemName] = useState('');
   const [itemType, setItemType] = useState<WardrobeItemTypeId>('elbise');
   const [limitToastVisible, setLimitToastVisible] = useState(false);
 
   const scrollRef = useTabScrollToTop();
   const filtered = filter === 'all' ? stylingItems : getByCategory(filter);
+
+  const handleRetryLoad = useCallback(async () => {
+    if (isRetrying) return;
+    setIsRetrying(true);
+    try {
+      await retryLoad();
+    } finally {
+      setIsRetrying(false);
+    }
+  }, [isRetrying, retryLoad]);
 
   const openPickerResult = (uri: string) => {
     setPendingUri(uri);
@@ -64,7 +75,10 @@ export default function WardrobeScreen() {
 
   const pickFromLibrary = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
+    if (!permission.granted) {
+      Alert.alert(t.wardrobe.permissionDeniedTitle, t.wardrobe.permissionDeniedBody);
+      return;
+    }
 
     const result = await ImagePicker.launchImageLibraryAsync(WARDROBE_IMAGE_PICKER_OPTIONS);
     if (!result.canceled && result.assets[0]) {
@@ -74,7 +88,10 @@ export default function WardrobeScreen() {
 
   const pickFromCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) return;
+    if (!permission.granted) {
+      Alert.alert(t.wardrobe.permissionDeniedTitle, t.wardrobe.permissionDeniedBody);
+      return;
+    }
 
     const result = await ImagePicker.launchCameraAsync(WARDROBE_IMAGE_PICKER_OPTIONS);
     if (!result.canceled && result.assets[0]) {
@@ -120,6 +137,8 @@ export default function WardrobeScreen() {
       });
       recordWardrobeAdd(newItem);
       closeModal();
+    } catch {
+      Alert.alert(t.profile.account.errorTitle, t.wardrobe.saveError);
     } finally {
       setIsSaving(false);
     }
@@ -133,7 +152,9 @@ export default function WardrobeScreen() {
         style: 'destructive',
         onPress: () => {
           void hapticLight();
-          removeItem(id);
+          void removeItem(id).catch(() => {
+            Alert.alert(t.profile.account.errorTitle, t.wardrobe.removeError);
+          });
         },
       },
     ]);
@@ -197,8 +218,19 @@ export default function WardrobeScreen() {
               </View>
             ))}
           </View>
+        ) : loadError ? (
+          <EmptyState
+            title={t.wardrobe.loadErrorTitle}
+            subtitle={t.wardrobe.loadErrorSubtitle}
+            actionLabel={t.wardrobe.retryLoad}
+            onAction={() => void handleRetryLoad()}
+            actionLoading={isRetrying}
+          />
         ) : filtered.length === 0 ? (
-          <EmptyState title={t.wardrobe.emptyTitle} subtitle={t.wardrobe.emptySubtitle} />
+          <EmptyState
+            title={stylingItems.length === 0 ? t.wardrobe.emptyTitle : t.wardrobe.filterEmptyTitle}
+            subtitle={stylingItems.length === 0 ? t.wardrobe.emptySubtitle : t.wardrobe.filterEmptySubtitle}
+          />
         ) : (
           <View style={styles.grid}>
             {filtered.map((item, index) => (

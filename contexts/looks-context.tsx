@@ -23,6 +23,8 @@ type LooksContextValue = {
   updateLookCategory: (id: string, category: string) => Promise<void>;
   savedLooks: CuratedLook[];
   ready: boolean;
+  loadError: boolean;
+  retryLoad: () => Promise<void>;
 };
 
 const LooksContext = createContext<LooksContextValue | null>(null);
@@ -32,6 +34,7 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
   const [looks, setLooks] = useState<CuratedLook[]>([]);
   const [currentLook, setCurrentLookState] = useState<CuratedLook | null>(null);
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const storageScope = isRegistered && userId ? userId : GUEST_STORAGE_SCOPE;
 
@@ -40,6 +43,7 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
     setReady(false);
+    setLoadError(false);
     setLooks([]);
     setCurrentLookState(null);
 
@@ -49,10 +53,13 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
           if (cancelled) return;
           setLooks(stored);
           setCurrentLookState(stored[0] ?? null);
+          setLoadError(false);
         })
         .catch(() => {
           if (cancelled) return;
           setLooks([]);
+          setCurrentLookState(null);
+          setLoadError(true);
         })
         .finally(() => {
           if (!cancelled) setReady(true);
@@ -66,6 +73,7 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
       if (!cancelled) {
         setLooks(stored);
         setCurrentLookState(null);
+        setLoadError(false);
         setReady(true);
       }
     });
@@ -74,6 +82,24 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [authReady, storageScope, isRegistered, userId]);
+
+  const retryLoad = useCallback(async () => {
+    if (!isRegistered || !userId) return;
+    setReady(false);
+    setLoadError(false);
+    try {
+      const stored = await fetchSavedOutfits(userId);
+      setLooks(stored);
+      setCurrentLookState(stored[0] ?? null);
+      setLoadError(false);
+    } catch {
+      setLooks([]);
+      setCurrentLookState(null);
+      setLoadError(true);
+    } finally {
+      setReady(true);
+    }
+  }, [isRegistered, userId]);
 
   const setCurrentLook = useCallback(
     (look: CuratedLook | null) => {
@@ -98,6 +124,7 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
 
         setLooks(refreshed);
         setCurrentLookState(nextCurrent);
+        setLoadError(false);
         return nextCurrent;
       }
 
@@ -160,8 +187,10 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
       updateLookCategory,
       savedLooks,
       ready,
+      loadError,
+      retryLoad,
     }),
-    [looks, currentLook, setCurrentLook, saveLook, removeLook, updateLookCategory, savedLooks, ready],
+    [looks, currentLook, setCurrentLook, saveLook, removeLook, updateLookCategory, savedLooks, ready, loadError, retryLoad],
   );
 
   return <LooksContext.Provider value={value}>{children}</LooksContext.Provider>;

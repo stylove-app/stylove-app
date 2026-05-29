@@ -78,9 +78,20 @@ const TONE_LEXICON: { label: string; patterns: RegExp[] }[] = [
 export function recordLookGenerated(memory: StyleMemory, look: CuratedLook): StyleMemory {
   const next = cloneMemory(memory);
   next.moodFrequency[look.mood] = (next.moodFrequency[look.mood] ?? 0) + 1;
-  next.toneFrequency[TONE_BY_MOOD[look.mood]] = (next.toneFrequency[TONE_BY_MOOD[look.mood]] ?? 0) + 1;
-  next.silhouetteFrequency[SILHOUETTE_BY_MOOD[look.mood]] =
-    (next.silhouetteFrequency[SILHOUETTE_BY_MOOD[look.mood]] ?? 0) + 1;
+  const lookTones = detectLookTones(look);
+  if (lookTones.length > 0) {
+    lookTones.forEach((tone) => {
+      next.toneFrequency[tone] = (next.toneFrequency[tone] ?? 0) + 1;
+    });
+  } else {
+    next.toneFrequency[TONE_BY_MOOD[look.mood]] = (next.toneFrequency[TONE_BY_MOOD[look.mood]] ?? 0) + 1;
+  }
+
+  const silhouette = resolveLookSilhouette(look) ?? SILHOUETTE_BY_MOOD[look.mood];
+  next.silhouetteFrequency[silhouette] = (next.silhouetteFrequency[silhouette] ?? 0) + 1;
+  look.completeOutfit?.forEach((piece) => {
+    next.categoryFrequency[piece.item.category] = (next.categoryFrequency[piece.item.category] ?? 0) + 1;
+  });
   next.totalLooksGenerated += 1;
 
   if (look.mood === 'minimal') next.minimalMaximalBalance = Math.max(-1, next.minimalMaximalBalance - 0.08);
@@ -94,7 +105,7 @@ export function recordLookGenerated(memory: StyleMemory, look: CuratedLook): Sty
     next.luxuryStreetBalance = Math.min(1, next.luxuryStreetBalance + 0.04);
   }
 
-  next.favoriteTones = mergeTones(next.favoriteTones, TONE_BY_MOOD[look.mood]);
+  next.favoriteTones = mergeTones(next.favoriteTones, lookTones[0] ?? TONE_BY_MOOD[look.mood]);
   next.lastUpdated = Date.now();
   return next;
 }
@@ -213,6 +224,20 @@ function detectWardrobeTones(item: WardrobeItem): string[] {
   return TONE_LEXICON.filter((tone) => tone.patterns.some((pattern) => pattern.test(source))).map(
     (tone) => tone.label,
   );
+}
+
+function detectLookTones(look: CuratedLook): string[] {
+  const pieces = look.completeOutfit?.map((piece) => piece.item) ?? [];
+  return Array.from(new Set(pieces.flatMap((item) => detectWardrobeTones(item))));
+}
+
+function resolveLookSilhouette(look: CuratedLook): string | undefined {
+  const roles = new Set(look.completeOutfit?.map((piece) => piece.role) ?? []);
+  if (roles.has('dress')) return 'One-Piece Edit';
+  if (roles.has('outerwear')) return 'Layered Polish';
+  if (roles.has('top') && roles.has('bottom')) return 'Balanced Separates';
+  if (roles.has('shoes') && (roles.has('bag') || roles.has('accessory'))) return 'Accessory-Led';
+  return undefined;
 }
 
 function resolveSilhouetteDna(

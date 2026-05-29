@@ -128,6 +128,8 @@ export async function resetAllLocalCaches(): Promise<void> {
       key.startsWith('@stylove/user-profile/') ||
       key.startsWith('@stylove/looks/') ||
       key.startsWith('@stylove/style-memory/') ||
+      key.startsWith('@stylove/push-token/') ||
+      key.startsWith('@stylove/push-permission-asked/') ||
       key.startsWith(`${freePlanUsageKeyPrefix()}/`),
   );
 

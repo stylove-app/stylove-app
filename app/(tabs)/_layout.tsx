@@ -5,6 +5,7 @@ import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { PremiumOnboardingFlow } from '@/components/onboarding/premium-onboarding-flow';
+import { SessionRestoreError } from '@/components/auth/session-restore-error';
 import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from '@/contexts/locale-context';
 import { useTheme, StyloveShadow } from '@/contexts/theme-context';
@@ -30,7 +31,7 @@ function TabIcon({
 export default function TabLayout() {
   const t = useTranslation();
   const { colors } = useTheme();
-  const { ready, isRegistered } = useAuth();
+  const { ready, isRegistered, initError } = useAuth();
   const pathname = usePathname();
   const redirectedRef = useRef(false);
 
@@ -54,6 +55,10 @@ export default function TabLayout() {
         <ActivityIndicator color={colors.goldMuted} />
       </View>
     );
+  }
+
+  if (initError) {
+    return <SessionRestoreError />;
   }
 
   if (!isRegistered) {

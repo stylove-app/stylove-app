@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,12 +25,14 @@ export function LuxuryToast({
   durationMs = 2800,
 }: LuxuryToastProps) {
   const insets = useSafeAreaInsets();
+  const onHideRef = useRef(onHide);
+  onHideRef.current = onHide;
 
   useEffect(() => {
     if (!visible) return;
-    const timer = setTimeout(onHide, durationMs);
+    const timer = setTimeout(() => onHideRef.current(), durationMs);
     return () => clearTimeout(timer);
-  }, [visible, durationMs, onHide]);
+  }, [visible, durationMs]);
 
   if (!visible) return null;
 

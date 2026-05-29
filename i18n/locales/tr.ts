@@ -75,6 +75,7 @@ const tr: TranslationKeys = {
     yourWardrobe: 'Gardırobunuzdan',
     wardrobeSubtitle: 'Siluetinizi tanımlayan parçalar',
     revealLook: 'Stilimi göster',
+    wardrobeLoadingHint: 'Gardırobunuz hazırlanıyor…',
     preparedForYou: 'Yalnızca sizin için hazırlandı',
     curatedFor: 'Seçildi:',
     todaysAura: 'Bugünün Aurası',
@@ -83,6 +84,11 @@ const tr: TranslationKeys = {
     noLookSubtitle: 'Ana sayfada bu geceki niyetinizi paylaşın; size özel bir kompozisyon oluşturalım.',
     wardrobeHintSingle:
       'Daha eksiksiz kombinler için gardırobunuza birkaç parça daha ekleyin.',
+    generateError: 'Görünümünüz hazırlanamadı. Bağlantınızı kontrol edip tekrar deneyin.',
+    emptyWardrobeTitle: 'Gardırobunuz henüz hazır değil',
+    emptyWardrobeMessage:
+      'Bir görünüm oluşturmak için gardırobunuza en az bir parça ekleyin veya işlemin tamamlanmasını bekleyin.',
+    emptyWardrobeHint: 'Özel bir görünüm için gardırobunuza parça ekleyin.',
   },
   intent: {
     title: 'Nereye gidiyorsunuz?',
@@ -171,6 +177,14 @@ const tr: TranslationKeys = {
     descriptionIndoor: '{description} {city} için — akşama uygun korunaklı zarafet.',
     descriptionWarm: '{description} {temp}°C için sıcak katmanlar — rafine, asla hacimli değil.',
     descriptionLight: '{description} {city}\'de {temp}°C — ışıltılı ve zahmetsiz.',
+    wardrobeDescription:
+      '{primary}, görünümün kişisel merkezini kuruyor; {secondary} silueti dengeliyor ve {shoes} kombini gerçek hayata yakın, özenli bir çizgide tamamlıyor.',
+    wardrobeWeatherWarm:
+      '{temp}°C için seçki hafif tutuldu; {primary} ve {secondary} sıcak havada nefes alan, rahat bir tempo yaratıyor.',
+    wardrobeWeatherCool:
+      '{temp}°C ve {condition} için görünüm kontrollü tutuldu; {layer} ihtiyaç olduğunda rafine bir dış katman etkisi veriyor.',
+    wardrobeStylingNote:
+      '{finish} son dokunuşu pratik ama sessiz bir lüks hissiyle tamamlıyor.',
     descriptions: {
       elegant: [
         'Özgüven ve zahmetsiz feminenlik için tasarlanmış zarif bir akşam kompozisyonu.',
@@ -273,6 +287,15 @@ const tr: TranslationKeys = {
     ],
     silhouetteCleaning: 'Siluet temizleniyor…',
     backgroundRetryLater: 'Arka plan daha sonra tekrar temizlenecek.',
+    filterEmptyTitle: 'Bu kategoride henüz parça yok.',
+    filterEmptySubtitle: 'Başka bir filtre deneyin veya gardırobunuza yeni bir parça ekleyin.',
+    saveError: 'Parça kaydedilemedi. Lütfen tekrar deneyin.',
+    permissionDeniedTitle: 'İzin gerekli',
+    permissionDeniedBody: 'Gardırop parçası eklemek için Ayarlar’dan kamera veya fotoğraf erişimine izin verin.',
+    loadErrorTitle: 'Gardırobunuz yüklenemedi.',
+    loadErrorSubtitle: 'Bağlantınızı kontrol edip tekrar deneyin. Parçalarınız kayıtlı.',
+    retryLoad: 'Tekrar dene',
+    removeError: 'Parça kaldırılamadı. Bağlantınızı kontrol edip tekrar deneyin.',
   },
   categories: {
     upper: 'Üst giyim',
@@ -301,7 +324,7 @@ const tr: TranslationKeys = {
     elbise: 'Elbise',
     takim: 'Takım',
     ayakkabi: 'Ayakkabı',
-    bot: 'Bot',
+    bot: 'Çizme',
     topuklu: 'Topuklu',
     canta: 'Çanta',
     saat: 'Saat',
@@ -332,6 +355,9 @@ const tr: TranslationKeys = {
     archiveCategoryBusiness: 'Business',
     archiveCategorySummer: 'Summer',
     archiveCategoryTravel: 'Seyahat',
+    loadErrorTitle: 'Koleksiyonunuz yüklenemedi.',
+    loadErrorSubtitle: 'Bağlantınızı kontrol edip tekrar deneyin. Kayıtlı görünümleriniz güvende.',
+    retryLoad: 'Tekrar dene',
   },
   weeklySummary: {
     title: 'Haftalık Stil Özeti',
@@ -456,6 +482,7 @@ const tr: TranslationKeys = {
     linkCopied: 'Bağlantı kopyalandı.',
     shareUnavailable: 'Paylaşım bu cihazda kullanılamıyor.',
     shareError: 'Paylaşım hazırlanamadı. Lütfen tekrar deneyin.',
+    permissionDenied: 'Paylaşım kartını kaydetmek için fotoğraf erişimine izin vermeniz gerekir.',
     emptyTitle: 'Paylaşılacak seçili görünüm yok.',
     emptySubtitle: 'Ana sayfada bir kombin oluşturduğunuzda paylaşım kartınız burada hazırlanır.',
     themeLabel: 'Kart teması',
@@ -532,7 +559,7 @@ const tr: TranslationKeys = {
     freePlan: 'Sınırlı gardırop ve günlük stil önerileri',
     premiumPlan: 'Sınırsız gardırop, seyahat asistanı ve stil hafızası',
     deleteAccount: 'Hesabı sil',
-    deleteAccountNote: 'Hesap silme talepleri için support@stylove.app adresinden bize ulaşın.',
+    deleteAccountNote: 'Hesabınızı Profil ayarlarından kalıcı olarak silebilirsiniz. Bu işlem hesabınızı, gardırop kayıtlarınızı ve yüklenmiş gardırop görsellerinizi kaldırır.',
     deleteAccountConfirmTitle: 'Hesabınızı kalıcı olarak silmek istiyor musunuz?',
     deleteAccountConfirmBody:
       'Bu işlem hesabınızı, profilinizi, gardırop kayıtlarınızı ve size ait yüklenmiş gardırop görsellerini kalıcı olarak siler. Bu işlem geri alınamaz.',
@@ -572,6 +599,10 @@ const tr: TranslationKeys = {
       signUpSuccessConfirm:
         'Hesabınız oluşturuldu. Lütfen e-posta adresinizi doğrulayın.',
       signInSuccess: 'Giriş yapıldı. Gardırobunuz güvenle eşitleniyor.',
+      sessionRestoreErrorTitle: 'Oturumunuz geri yüklenemedi.',
+      sessionRestoreErrorBody: 'Devam etmek için bağlantınızı kontrol edip tekrar deneyin.',
+      retrySessionRestore: 'Tekrar dene',
+      signInAgain: 'Tekrar giriş yap',
       errors: {
         invalidCredentials: 'E-posta veya şifre hatalı. Lütfen tekrar deneyin.',
         emailNotConfirmed:
@@ -579,6 +610,8 @@ const tr: TranslationKeys = {
         userExists: 'Bu e-posta ile zaten bir hesap var. Giriş yapmayı deneyin.',
         weakPassword: 'Şifre en az 6 karakter olmalıdır.',
         invalidEmail: 'Geçerli bir e-posta adresi girin.',
+        emailRequired: 'Lütfen e-posta adresinizi girin.',
+        passwordRequired: 'Lütfen şifrenizi girin.',
         rateLimited: 'Çok fazla deneme. Lütfen bir süre sonra tekrar deneyin.',
         genericSignIn: 'Giriş yapılamadı. Bilgilerinizi kontrol edip tekrar deneyin.',
         genericSignUp: 'Hesap oluşturulamadı. Farklı bir e-posta ile tekrar deneyin.',
@@ -606,7 +639,7 @@ const tr: TranslationKeys = {
     privacy: {
       title: 'Gizlilik Politikası',
       body:
-        'Stylove gizliliğinize saygı duyar. Gardırobunuz, kayıtlı stilleriniz ve tercihleriniz yalnızca size özel deneyim sunmak için işlenir. Fotoğraflarınız cihazınızda kalır; paylaşmayı siz seçersiniz. Kişisel verileriniz satılmaz. Detaylar için: support@stylove.app',
+        'Stylove gizliliğinize saygı duyar. Gardırobunuz, kayıtlı stilleriniz ve tercihleriniz yalnızca size özel deneyim sunmak için işlenir. Giriş yaptığınızda yüklemeyi seçtiğiniz gardırop fotoğrafları, gardırop yönetimi ve arka plan işleme için güvenli sunucularımızda saklanır. Kişisel verileriniz satılmaz. Detaylar için: support@stylove.app',
     },
     terms: {
       title: 'Kullanım Koşulları',
@@ -626,7 +659,7 @@ const tr: TranslationKeys = {
     purchases: {
       title: 'Satın Alma ve İptal Bilgileri',
       body:
-        'Haftalık ve aylık planlar App Store veya Google Play hesabınız üzerinden faturalandırılır. Abonelikleri cihaz ayarlarınızdan yönetebilir veya iptal edebilirsiniz. İade koşulları platform politikalarına tabidir. Satın alımları Premium ekranından geri yükleyebilirsiniz.',
+        'Premium abonelikler henüz uygulama içinde satın alınamaz. Mağaza faturalandırması bağlandığında haftalık ve aylık planlar App Store veya Google Play hesabınız üzerinden faturalandırılacaktır. Abonelikleri cihaz ayarlarınızdan yönetebilir veya iptal edebilirsiniz. İade koşulları platform politikalarına tabidir.',
     },
   },
   about: {
@@ -707,18 +740,44 @@ const tr: TranslationKeys = {
       },
     ],
   },
+  pushNotifications: {
+    settingsTitle: 'Kişisel bildirimler',
+    settingsSubtitle: 'Stiliniz hazır olduğunda nazik bir hatırlatma alın.',
+    enableCta: 'Bildirimleri aç',
+    enabledLabel: 'Bildirimler açık',
+    unavailableLabel: 'Bu ortamda bildirimler henüz kullanılamıyor.',
+    deniedHint: 'Bildirimler kapalı. Ayarlardan açabilirsiniz.',
+    openSettingsCta: 'Ayarları aç',
+    tokenUnavailableHint:
+      'Bildirim izni verildi, ancak bu cihaz henüz push anahtarı alamıyor. Üretim derlemesi gerekir.',
+    kinds: {
+      daily_style_ready: {
+        title: 'Bugünkü stiliniz hazır',
+        body: 'Gardırobunuzdan size özel bir seçki sizi bekliyor.',
+      },
+      weekly_summary_ready: {
+        title: 'Haftalık stil özetiniz',
+        body: 'Bu haftanın stil hikâyesi sizin için derlendi.',
+      },
+      travel_outfit_ready: {
+        title: 'Valiz planınız hazır',
+        body: 'Seyahatiniz için kombinleriniz düzenlendi.',
+      },
+      wardrobe_reminder: {
+        title: 'Gardırobunuz sizi bekliyor',
+        body: 'Yeni parçalar ekleyerek stilinizi zenginleştirin.',
+      },
+    },
+  },
   premium: {
     title: 'Stylove Premium',
-    subtitle: 'Sınırsız giyinme sanatı.',
+    subtitle: 'Sınırsız giyinme sanatı — size göre.',
     weekly: 'Haftalık',
     monthly: 'Aylık',
-    yearly: 'Yıllık',
     weeklyPrice: '399 TL',
     monthlyPrice: '649 TL',
-    yearlyPrice: '4.999 TL',
     perWeek: '/ hafta',
     perMonth: '/ ay',
-    perYear: '/ yıl',
     benefits: [
       'Sınırsız gardırop',
       'Sınırsız kombin önerisi',
@@ -738,15 +797,17 @@ const tr: TranslationKeys = {
       'Favori görünüm arşivi',
       'Premium editoryal styling',
     ],
-    freeTitle: 'Free',
+    freeTitle: 'Ücretsiz',
     premiumTitle: 'Premium',
-    recommended: 'Önerilen',
+    recommended: 'En iyi değer',
     paywallEyebrow: 'Premium deneyim',
+    plansIntro: 'Aynı Premium dünyayı açmanın iki yolu.',
+    sameFeaturesNote: 'Haftalık ve Aylık aynı Premium özellikleri sunar — yalnızca faturalandırma farklıdır.',
+    weeklyPlanTitle: 'Haftalık Premium',
+    weeklyPlanSubtitle: 'Hafif bir başlangıç — yedi gün boyunca tam Premium erişim.',
     monthlyPlanTitle: 'Aylık Premium',
-    yearlyPlanTitle: 'Yıllık Premium',
-    monthlyPlanSubtitle: 'Esnek üyelik, stil alanınızı genişletir.',
-    yearlyPlanSubtitle: 'En iyi değer; tüm yıl sınırsız stil alanı.',
-    inactiveCta: 'Yakında aktif olacak',
+    monthlyPlanSubtitle: 'En iyi değer — aynı Premium özellikler, aylık faturalandırma.',
+    inactiveCta: 'Yakında açılacak',
     comparison: [
       { label: 'Gardırop', free: '6 parça', premium: 'Sınırsız' },
       { label: 'Kombin oluşturma', free: 'Günde 1', premium: 'Sınırsız' },
@@ -767,6 +828,7 @@ const tr: TranslationKeys = {
     restoreSuccess: 'Üyeliğiniz geri yüklendi.',
     restoreEmpty: 'Önceki üyelik bulunamadı.',
     note: 'İstediğiniz zaman iptal edin. Gardırobunuz sizin kalır.',
+    inactiveNote: 'Abonelikler henüz aktif değil. Fiyatlar yalnızca önizleme amaçlıdır.',
     badgeHint: 'Premium',
   },
   travel: {

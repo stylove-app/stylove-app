@@ -52,9 +52,20 @@ const corsHeaders = {
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 const MAX_WARDROBE_ITEMS = 45;
 const MAX_TEXT_LENGTH = 180;
+const MAX_COMMENTARY_LENGTH = 420;
 const MAX_OUTPUT_TOKENS = 520;
 const REQUEST_TIMEOUT_MS = 12000;
 const RETRY_COUNT = 1;
+const VALID_ROLES = new Set<SelectedPiece['role']>([
+  'top',
+  'bottom',
+  'dress',
+  'shoes',
+  'outerwear',
+  'bag',
+  'accessory',
+  'jewelry',
+]);
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -70,6 +81,11 @@ function logHook(event: string, metadata: Record<string, unknown>) {
 function truncateText(value: unknown, fallback = ''): string {
   if (typeof value !== 'string') return fallback;
   return value.trim().slice(0, MAX_TEXT_LENGTH);
+}
+
+function truncateLongText(value: unknown, maxLength: number, fallback = ''): string {
+  if (typeof value !== 'string') return fallback;
+  return value.trim().slice(0, maxLength);
 }
 
 function clampNumber(value: unknown): number | undefined {
@@ -121,6 +137,31 @@ function summarizeWardrobe(wardrobe: WardrobePayloadItem[]) {
   };
 }
 
+function summarizeMemory(raw: unknown) {
+  if (!raw || typeof raw !== 'object') return null;
+  const memory = raw as Record<string, unknown>;
+  return {
+    generated: memory.totalLooksGenerated,
+    saved: memory.totalLooksSaved,
+    favoriteTones: Array.isArray(memory.favoriteTones) ? memory.favoriteTones.slice(0, 5) : [],
+    moodFrequency: memory.moodFrequency,
+    toneFrequency: memory.toneFrequency,
+    silhouetteFrequency: memory.silhouetteFrequency,
+  };
+}
+
+function describeWeather(weather?: WeatherPayload): string {
+  if (!weather) return 'no weather supplied';
+  return [
+    weather.city ? `city=${weather.city}` : undefined,
+    weather.temperature === undefined ? undefined : `temperature=${weather.temperature}`,
+    weather.feelsLike === undefined ? undefined : `feelsLike=${weather.feelsLike}`,
+    weather.condition ? `condition=${weather.condition}` : undefined,
+    weather.isRainy ? 'rain-aware' : undefined,
+    weather.needsOuterwear ? 'outerwear-needed' : 'avoid-heavy-outerwear',
+  ].filter(Boolean).join(', ');
+}
+
 function buildPrompt(params: {
   locale: string;
   intent: string;
@@ -131,24 +172,29 @@ function buildPrompt(params: {
   wardrobe: WardrobePayloadItem[];
 }) {
   const wardrobeSummary = summarizeWardrobe(params.wardrobe);
+  const memorySummary = summarizeMemory(params.styleMemory);
   return [
-    'Persona: Stylove private editorial stylist. Refined, modern, minimal, confident. No robotic phrasing.',
-    'Task: build one complete look using only wardrobe IDs below.',
-    'Rank by: color harmony, silhouette balance, occasion relevance, weather compatibility, layering logic.',
-    'Avoid: duplicate colors/textures when alternatives exist, clashing formality, repeated hero items, generic compliments.',
-    'Negative rules: no winter layering in hot weather; no heels/suits for comfort travel; do not overuse black/white; vary accessory logic.',
-    'Selection: top+bottom when strong, otherwise dress. Shoes required if available. Outerwear only for cold/rain/evening. Bag/accessories if they improve the look.',
-    'Commentary must describe the selectedPieces item names only. Do not mention a color, tone, time of day, destination mood, or layer that is not supported by selectedPieces, weather, or intent.',
-    'For beach/coastal/hot summer intent: use grounded language about lightness, comfort, breathable styling, simple contrast, relaxed structure. Avoid evening, gala, winter, burgundy, champagne, heavy layering.',
+    'Persona: Stylove private editorial stylist. Refined, warm, observant, modern, minimal, confident. No formulaic phrasing.',
+    'Task: build one complete look using only wardrobe IDs below. The result must feel chosen for this person, this moment, and these exact pieces.',
+    'Rank by: color harmony, silhouette balance, occasion relevance, weather compatibility, comfort, and repeat-item freshness.',
+    'Use wardrobe names in the reasoning. Mention at least two selected item names in commentary when possible.',
+    'Respect memory: avoid recent item IDs when a comparable alternative works; echo repeated tones or silhouettes only when supported by the selected items.',
+    'Avoid: duplicate colors/textures when alternatives exist, clashing formality, generic compliments, invented colors, invented brands, or mood language unsupported by intent.',
+    'Negative rules: no winter layering in hot weather; no heels/suits for comfort travel unless explicitly requested; do not overuse black/white; vary accessory logic.',
+    'Selection: top+bottom when strong, otherwise dress. Shoes required if available. Outerwear only for cold/rain/evening. Bag/accessories only if they make the outfit more practical or more polished.',
+    'Commentary must describe selectedPieces item names only. Do not mention a color, tone, time of day, destination mood, or layer that is not supported by selectedPieces, weather, or intent.',
+    'For beach/coastal/hot summer intent: write about lightness, comfort, breathable styling, simple contrast, relaxed structure, and movement. Avoid evening, gala, winter, burgundy, champagne, heavy layering.',
+    'For travel/city-walk intent: prioritize shoes and bag practicality while keeping the language elevated.',
     'Missing category: write one subtle missingPiece sentence, never invent an item ID.',
+    'Locale rule: if locale starts with tr, write natural Turkish. Otherwise write polished natural English.',
     'JSON only: {"title":"","vibe":"","commentary":"","missingPiece":"","tags":[""],"weatherReason":"","stylingNotes":"","selectedPieces":[{"role":"top","itemId":""}]}',
     `locale=${params.locale}`,
     `intent=${params.intent}`,
     `mood=${params.mood ?? 'editorial minimal'}`,
-    `weather=${JSON.stringify(params.weather ?? null)}`,
+    `weather=${describeWeather(params.weather)}`,
     `wardrobeBalance=${JSON.stringify(wardrobeSummary)}`,
     `recentItemIds=${JSON.stringify(params.recentItemIds.slice(0, 12))}`,
-    `styleMemory=${JSON.stringify(params.styleMemory ?? null).slice(0, 650)}`,
+    `styleMemory=${JSON.stringify(memorySummary).slice(0, 650)}`,
     `items=${JSON.stringify(params.wardrobe)}`,
   ].join('\n');
 }
@@ -201,7 +247,7 @@ function sanitizeResponse(raw: StylistResponse, wardrobe: WardrobePayloadItem[])
   const allowedIds = new Set(wardrobe.map((item) => item.id));
   const usedIds = new Set<string>();
   const selectedPieces = (raw.selectedPieces ?? [])
-    .filter((piece) => allowedIds.has(piece.itemId) && !usedIds.has(piece.itemId))
+    .filter((piece) => VALID_ROLES.has(piece.role) && allowedIds.has(piece.itemId) && !usedIds.has(piece.itemId))
     .slice(0, 8)
     .map((piece) => {
       usedIds.add(piece.itemId);
@@ -211,11 +257,11 @@ function sanitizeResponse(raw: StylistResponse, wardrobe: WardrobePayloadItem[])
   return {
     title: truncateText(raw.title),
     vibe: truncateText(raw.vibe),
-    commentary: truncateText(raw.commentary, '').slice(0, 320),
-    missingPiece: truncateText(raw.missingPiece, '').slice(0, 220),
+    commentary: truncateLongText(raw.commentary, MAX_COMMENTARY_LENGTH),
+    missingPiece: truncateLongText(raw.missingPiece, 240),
     tags: (raw.tags ?? []).filter((item) => typeof item === 'string').slice(0, 4).map((item) => item.slice(0, 32)),
-    weatherReason: truncateText(raw.weatherReason, '').slice(0, 220),
-    stylingNotes: truncateText(raw.stylingNotes, '').slice(0, 320),
+    weatherReason: truncateLongText(raw.weatherReason, 260),
+    stylingNotes: truncateLongText(raw.stylingNotes, MAX_COMMENTARY_LENGTH),
     selectedPieces,
   };
 }
@@ -291,7 +337,7 @@ Deno.serve(async (req) => {
     const response = sanitizeResponse(parseProviderContent(data), wardrobe);
     logHook('generate_outfit_success', {
       selectedCount: response.selectedPieces?.length ?? 0,
-      missingCount: response.missingPieces?.length ?? 0,
+      hasMissingPiece: Boolean(response.missingPiece),
     });
     return jsonResponse({ ok: true, look: response });
   } catch (error) {
