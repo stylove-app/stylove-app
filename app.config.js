@@ -30,6 +30,14 @@ const notificationPlugin = [
 module.exports = {
   expo: {
     ...appJson.expo,
+    ios: {
+      bundleIdentifier: "com.stylove.app",
+    },
     plugins: [...basePlugins, notificationPlugin, sentryPlugin],
+  extra: {
+    eas: {
+      projectId: "40bafb77-1e46-468d-bd9d-eb3ec925da8e",
+    },
   },
+}
 };
