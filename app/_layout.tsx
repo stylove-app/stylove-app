@@ -16,6 +16,7 @@ import { WardrobeProvider } from '@/contexts/wardrobe-context';
 import { WeatherProvider } from '@/contexts/weather-context';
 import { AnalyticsProvider } from '@/contexts/analytics-context';
 import { NotificationsProvider } from '@/contexts/notifications-context';
+import { EditorialOnboardingColors } from '@/constants/editorial-onboarding-theme';
 import { StyloveColors } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 import { isSentryEnabled, sentryNavigationIntegration, withSentryRoot } from '@/lib/sentry';
@@ -37,6 +38,10 @@ function RootStack() {
         />
         <Stack.Screen
           name="share-look"
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="settings"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
       </Stack>
@@ -111,14 +116,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
-    backgroundColor: StyloveColors.wineDeep,
+    backgroundColor: EditorialOnboardingColors.background,
   },
   webUnsupportedText: {
     maxWidth: 360,
     fontFamily: Fonts.serif,
     fontSize: 20,
     lineHeight: 30,
-    color: StyloveColors.creamText,
+    color: EditorialOnboardingColors.burgundy,
     textAlign: 'center',
   },
 });

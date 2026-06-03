@@ -20,8 +20,8 @@ const OCCASION_SIGNALS: { occasion: OccasionId; patterns: RegExp[] }[] = [
   { occasion: 'gala', patterns: [/gala/i, /ball/i, /black tie/i] },
   { occasion: 'brunch', patterns: [/brunch/i, /lunch/i, /café/i, /cafe/i] },
   { occasion: 'meeting', patterns: [/meeting/i, /work/i, /office/i, /boardroom/i] },
-  { occasion: 'dinner', patterns: [/dinner/i, /restaurant/i, /nişantaşı/i, /nisantasi/i] },
-  { occasion: 'evening', patterns: [/evening/i, /tonight/i, /club/i, /bodrum/i, /beach/i, /party/i] },
+  { occasion: 'dinner', patterns: [/dinner/i, /restaurant/i, /yemek/i] },
+  { occasion: 'evening', patterns: [/evening/i, /tonight/i, /club/i, /beach/i, /party/i, /gece/i] },
 ];
 
 export function parseIntent(raw: string): ParsedIntent {
@@ -44,14 +44,5 @@ export function parseIntent(raw: string): ParsedIntent {
     }
   }
 
-  const label = text.length > 0 ? text : 'Evening out';
-  return { mood, occasion, label };
+  return { mood, occasion, label: text };
 }
-
-export const INTENT_SUGGESTIONS = [
-  'Dinner in Nişantaşı tonight',
-  'I want to feel confident',
-  'Beach club in Bodrum',
-  'Romantic date',
-  'Minimal and powerful',
-];

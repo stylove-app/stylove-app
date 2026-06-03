@@ -7,7 +7,7 @@ import { Fonts } from '@/constants/theme';
 
 type StyloveLogoProps = {
   size?: 'sm' | 'md' | 'lg';
-  variant?: 'dark' | 'light';
+  variant?: 'dark' | 'light' | 'editorial';
   showEmblem?: boolean;
 };
 
@@ -23,8 +23,18 @@ export function StyloveLogo({
   showEmblem = true,
 }: StyloveLogoProps) {
   const s = SIZES[size];
-  const textColor = variant === 'light' ? StyloveColors.creamText : StyloveColors.black;
-  const emblemColor = variant === 'light' ? StyloveColors.goldSoft : StyloveColors.burgundy;
+  const textColor =
+    variant === 'light'
+      ? StyloveColors.creamText
+      : variant === 'editorial'
+        ? StyloveColors.burgundy
+        : StyloveColors.black;
+  const emblemColor =
+    variant === 'light'
+      ? StyloveColors.goldSoft
+      : variant === 'editorial'
+        ? StyloveColors.wineLight
+        : StyloveColors.burgundy;
 
   return (
     <View style={[styles.row, { gap: s.gap }]} accessibilityLabel={BRAND_NAME}>

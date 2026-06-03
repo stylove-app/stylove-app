@@ -62,6 +62,11 @@ export async function runSecureOutfitGeneration({
     throw new EmptyReadyWardrobeError();
   }
 
+  const recentItemIds = [
+    ...(currentLook?.itemIds ?? []),
+    ...savedLooks.slice(-4).flatMap((lookItem) => lookItem.itemIds),
+  ];
+
   const fallbackLook = generateLook(t, {
     intent: intentText,
     wardrobe: wardrobeForLook,
@@ -69,6 +74,7 @@ export async function runSecureOutfitGeneration({
     seed: Date.now(),
     styleMemory: memory,
     moodOverride: engineMood,
+    recentItemIds,
   });
 
   const look = await generateOutfitSecurely({

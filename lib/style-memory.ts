@@ -56,7 +56,7 @@ const TONE_BY_MOOD: Record<MoodId, string> = {
 };
 
 const SILHOUETTE_BY_MOOD: Record<MoodId, string> = {
-  elegant: 'Parisian',
+  elegant: 'Refined Line',
   soft: 'Soft Contrast',
   confident: 'Urban Clean',
   oldMoney: 'Relaxed Tailoring',

@@ -42,10 +42,10 @@ export function EditorialReasoningBlock({ reasoning }: EditorialReasoningBlockPr
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: 14,
+    gap: 18,
     borderTopWidth: 1,
     borderTopColor: 'rgba(196,160,98,0.12)',
-    paddingTop: 18,
+    paddingTop: 22,
   },
   title: {
     fontSize: 10,
@@ -62,8 +62,8 @@ const styles = StyleSheet.create({
   },
   lineText: {
     fontFamily: Fonts.serif,
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 20,
     opacity: 0.92,
   },
 });

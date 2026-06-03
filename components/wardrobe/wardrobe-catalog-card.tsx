@@ -11,8 +11,6 @@ type WardrobeCatalogCardProps = {
   categoryLabel?: string;
   size?: 'sm' | 'md' | 'lg';
   isPreparing?: boolean;
-  /** True when the image is a background-removed cutout (less blur on backdrop). */
-  cutout?: boolean;
 };
 
 const SIZES = {
@@ -21,19 +19,13 @@ const SIZES = {
   lg: { aspectRatio: 4 / 5, imagePadding: 16, radius: 20, nameSize: 15 },
 } as const;
 
-/**
- * Luxury catalog card for wardrobe pieces.
- * Applies an editorial cream backdrop, soft vignette, and object-focus framing.
- * When a real background-removal API is connected via enhanceWardrobeImage(),
- * the cleaned image will sit naturally on this surface.
- */
+/** Luxury catalog card for wardrobe pieces — editorial cream backdrop and object-focus framing. */
 export function WardrobeCatalogCard({
   imageUri,
   name,
   categoryLabel,
   size = 'md',
   isPreparing = false,
-  cutout = false,
 }: WardrobeCatalogCardProps) {
   const t = useTranslation();
   const s = SIZES[size];
@@ -49,18 +41,15 @@ export function WardrobeCatalogCard({
           },
         ]}>
         <View style={styles.editorialSurface}>
-          {/* Soft blurred backdrop — mimics background removal on messy photos */}
-          {!cutout ? (
-            <Image
-              source={{ uri: imageUri }}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              blurRadius={28}
-              transition={300}
-            />
-          ) : null}
-          <View style={[styles.creamWash, cutout && styles.creamWashCutout]} />
-          <View style={[styles.warmGlow, cutout && styles.warmGlowCutout]} />
+          <Image
+            source={{ uri: imageUri }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            blurRadius={28}
+            transition={300}
+          />
+          <View style={styles.creamWash} />
+          <View style={styles.warmGlow} />
 
           {isPreparing ? (
             <View style={styles.preparingOverlay}>
@@ -78,7 +67,6 @@ export function WardrobeCatalogCard({
             </View>
           )}
 
-          {/* Editorial vignette for consistent catalog feel */}
           <View style={styles.vignetteTop} pointerEvents="none" />
           <View style={styles.vignetteBottom} pointerEvents="none" />
         </View>
@@ -119,9 +107,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(245, 240, 230, 0.88)',
   },
-  creamWashCutout: {
-    backgroundColor: 'rgba(245, 240, 230, 0.96)',
-  },
   warmGlow: {
     position: 'absolute',
     top: '18%',
@@ -130,9 +115,6 @@ const styles = StyleSheet.create({
     bottom: '22%',
     backgroundColor: 'rgba(255, 250, 242, 0.45)',
     borderRadius: 999,
-  },
-  warmGlowCutout: {
-    backgroundColor: 'rgba(255, 250, 242, 0.55)',
   },
   focusStage: {
     flex: 1,

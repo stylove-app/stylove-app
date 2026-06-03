@@ -16,7 +16,11 @@ type Feedback = {
   message: string;
 } | null;
 
-export function AccountSection() {
+type AccountSectionProps = {
+  embedded?: boolean;
+};
+
+export function AccountSection({ embedded }: AccountSectionProps = {}) {
   const t = useTranslation();
   const { colors } = useTheme();
   const { user, isAnonymous, signIn, signUp, signOut, ready } = useAuth();
@@ -143,8 +147,10 @@ export function AccountSection() {
           : null;
 
   return (
-    <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: colors.grayLight }]}>{account.title}</Text>
+    <View style={[styles.section, embedded && styles.sectionEmbedded]}>
+      {embedded ? null : (
+        <Text style={[styles.sectionTitle, { color: colors.grayLight }]}>{account.title}</Text>
+      )}
       <View
         style={[
           styles.card,
@@ -238,6 +244,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginBottom: 24,
     gap: 12,
+  },
+  sectionEmbedded: {
+    paddingHorizontal: 0,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 12,

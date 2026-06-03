@@ -167,23 +167,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   body: {
-    padding: 22,
-    gap: 22,
+    padding: 24,
+    gap: 28,
   },
   intro: {
     fontFamily: Fonts.serif,
-    fontSize: 16,
-    lineHeight: 26,
+    fontSize: 15,
+    lineHeight: 22,
     fontStyle: 'italic',
   },
   pillars: {
-    gap: 10,
+    gap: 14,
   },
   pillar: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    padding: 14,
+    padding: 16,
     borderRadius: 16,
     borderWidth: 1,
   },
@@ -204,12 +204,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   pillarDesc: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 18,
     fontStyle: 'italic',
   },
   travelSection: {
-    gap: 14,
+    gap: 16,
     paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: 'rgba(196, 160, 98, 0.14)',
@@ -242,12 +242,12 @@ const styles = StyleSheet.create({
   },
   travelIntro: {
     fontFamily: Fonts.serif,
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 20,
     fontStyle: 'italic',
   },
   travelPoints: {
-    gap: 10,
+    gap: 12,
   },
   travelPointRow: {
     flexDirection: 'row',

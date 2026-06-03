@@ -63,8 +63,8 @@ export function AboutStyloveSection({ open: controlledOpen, onOpenChange, onLayo
 const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 24,
-    marginBottom: 28,
-    gap: 12,
+    marginBottom: 32,
+    gap: 14,
   },
   sectionTitle: {
     fontSize: 11,

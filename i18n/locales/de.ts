@@ -5,7 +5,6 @@ import {
   EDITORIAL_COLOR_HARMONY,
   EDITORIAL_EMOTIONAL_TONE,
   EDITORIAL_SILHOUETTE,
-  MISSING_NOTES,
 } from '@/i18n/luxury-content';
 
 const de = {
@@ -46,18 +45,17 @@ const de = {
   intent: {
     title: 'Wohin gehen Sie?',
     subtitle: 'Teilen Sie das Ziel — oder einfach, wie Sie sich fühlen möchten.',
-    placeholder: 'Abendessen in Nişantaşı, selbstbewusst, romantisches Date…',
+    placeholder: 'Wie möchten Sie sich fühlen?',
     suggestionsLabel: 'Inspiration',
-    suggestions: [
-      'Abendessen in Nişantaşı heute Abend',
-      'Ich möchte mich selbstbewusst fühlen',
-      'Beach Club in Bodrum',
-      'Romantisches Date',
-      'Minimal und kraftvoll',
-    ],
+    suggestions: [],
+  },
+  lookCopy: {
+    neutralTitles: ['Die Auswahl des Tages', 'Raffinierte Kombination', 'Stille Haltung'],
+    defaultOccasion: 'Ihr Moment',
   },
   weather: {
     line: '{time} in {city} · {temp}°C · {condition}',
+    fallbackLocation: 'Ihre Region',
     conditions: {
       clear: 'Klarer Himmel',
       partlyCloudy: 'Teilweise bewölkt',
@@ -235,55 +233,10 @@ const de = {
     weatherWarm: '{temp}°C, {condition} — warme Heritage-Lagen in tonaler Harmonie.',
     weatherLight: '{city}, {temp}°C, {condition} — leuchtender Kontrast und mühelose Bewegung.',
   },
-  missingPieces: {
-    title: 'Fehlende Stücke',
-    subtitle: 'Subtile Finishing-Touches — für die Entdeckung kuratiert',
-    categories: {
-      watches: 'Uhren',
-      rings: 'Ringe',
-      shoes: 'Schuhe',
-      perfume: 'Parfum',
-      bags: 'Taschen',
-    },
-    notes: { ...MISSING_NOTES },
-  },
   share: {
     title: 'Teilen Sie Ihre Aura',
     shareAura: 'Aura teilen',
     message: 'Mein Stylove-Edit — exklusiv für heute Abend.',
-  },
-  privileges: {
-    title: 'STYLOVE PRIVILEGIEN',
-    subtitle: 'Exklusive Akzente, die Ihren Stil vervollständigen — für Premium-Mitglieder',
-    premiumBadge: 'PREMIUM',
-    curatedForYou: 'Für Sie kuratiert',
-    fragrance: {
-      title: 'Duft-Edit',
-      description: 'Duftempfehlungen im Einklang mit Ihrer Aura und Ihrem heutigen Look',
-      items: [
-        'Maison Francis Kurkdjian — Baccarat Rouge 540 — warm, leuchtend, abendbereit',
-        'Byredo — Bal d\'Afrique — sanft, magnetisch, nah an der Haut',
-        'Le Labo — Another 13 — leise Luxusnote für intime Momente',
-      ],
-    },
-    venues: {
-      title: 'Venue-Harmonie',
-      description: 'Empfehlungen, die Ihr Stilniveau für das Ziel ausbalancieren',
-      items: [
-        'Nişantaşı Dinner — strukturierte Seide, dezentes Gold, elegante Clutch',
-        'Bodrum Beach Club — fließender Leinen-Look, sonnenverwöhnte Töne',
-        'Paris Fashion Night — architektonische Silhouette, Noir-Basis, Statement-Stück',
-      ],
-    },
-    shopping: {
-      title: 'Look vervollständigen',
-      description: 'Kuratierte Stücke und Marken in Harmonie mit Ihrem Outfit',
-      items: [
-        'Cartier — Panthère Uhr — Gold, raffiniert, quiet luxury',
-        'Bottega Veneta — Andiamo Tasche — butterweiches Leder, tonale Harmonie',
-        'Gianvito Rossi — Gianvito 105 — verlängert die Haltung mit Anmut',
-      ],
-    },
   },
   profile: {
     title: 'Profil',

@@ -75,16 +75,16 @@ export function EmptyState({
 const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingVertical: 40,
   },
   compact: {
-    paddingVertical: 20,
+    paddingVertical: 28,
   },
   frame: {
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 36,
-    paddingHorizontal: 24,
+    gap: 14,
+    paddingVertical: 40,
+    paddingHorizontal: 28,
     borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
@@ -105,11 +105,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
     fontStyle: 'italic',
-    lineHeight: 21,
-    maxWidth: 280,
+    lineHeight: 19,
+    maxWidth: 260,
   },
   action: {
     marginTop: 8,

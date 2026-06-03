@@ -1,6 +1,5 @@
 /**
- * Localized event context for outfit generation.
- * Rule IDs map to i18n events.rules; occasions map to events.occasions.
+ * Event context from user intent + weather — no fabricated venues or cities.
  */
 
 import type { OccasionId, TranslationKeys } from '@/i18n/types';
@@ -11,6 +10,7 @@ export type LuxuryLevel = 'casual-luxe' | 'elevated' | 'haute';
 
 export type EventContext = {
   ruleId?: string;
+  /** Only set when the user explicitly referenced a place in their intent. */
   venue: string | null;
   dressCode: string;
   vibe: string;
@@ -19,17 +19,17 @@ export type EventContext = {
   occasion: OccasionId;
 };
 
-type VenueRule = {
+type MoodRule = {
   id: string;
   patterns: RegExp[];
   luxuryLevel: LuxuryLevel;
   moodBias?: import('@/i18n/types').MoodId;
 };
 
-const VENUE_RULES: VenueRule[] = [
+const MOOD_RULES: MoodRule[] = [
   {
     id: 'bodrum',
-    patterns: [/bodrum/i, /beach club/i, /yalıkavak/i, /türkbükü/i],
+    patterns: [/bodrum/i, /yalıkavak/i, /türkbükü/i],
     luxuryLevel: 'elevated',
     moodBias: 'soft',
   },
@@ -46,6 +46,12 @@ const VENUE_RULES: VenueRule[] = [
     moodBias: 'elegant',
   },
   {
+    id: 'beach',
+    patterns: [/beach club/i, /beach/i, /sahil/i, /plaj/i, /coastal/i, /deniz/i],
+    luxuryLevel: 'elevated',
+    moodBias: 'soft',
+  },
+  {
     id: 'gala',
     patterns: [/gala/i, /black tie/i, /ball/i],
     luxuryLevel: 'haute',
@@ -53,13 +59,13 @@ const VENUE_RULES: VenueRule[] = [
   },
   {
     id: 'brunch',
-    patterns: [/brunch/i, /café/i, /cafe/i],
+    patterns: [/brunch/i, /lunch/i, /café/i, /cafe/i],
     luxuryLevel: 'casual-luxe',
     moodBias: 'soft',
   },
   {
     id: 'meeting',
-    patterns: [/meeting/i, /office/i, /boardroom/i],
+    patterns: [/meeting/i, /office/i, /boardroom/i, /toplantı/i, /is\b/i],
     luxuryLevel: 'elevated',
     moodBias: 'confident',
   },
@@ -77,14 +83,38 @@ const VENUE_RULES: VenueRule[] = [
   },
 ];
 
+const MOOD_ONLY_INTENT =
+  /^(how do you|nasıl|minimal|confident|elegant|romantic|soft|i want to feel|hissetmek|tonight's mood|your plans|what's the vibe)/i;
+
+/** Extract a place phrase only when the user wrote it — never from preset catalogs. */
+export function extractUserVenuePhrase(intent: string): string | null {
+  const text = intent.trim();
+  if (!text || MOOD_ONLY_INTENT.test(text)) return null;
+
+  const inAt = text.match(/\b(?:in|at|@)\s+([A-Za-zÀ-ÿİıĞğÖöŞşÜü][\w\s'.-]{2,48})/i);
+  if (inAt?.[1]) return inAt[1].trim();
+
+  const turkishLocative = text.match(
+    /([A-Za-zÀ-ÿİıĞğÖöŞşÜü][\w\s'.-]{2,40})\s*(?:'ta|'te|'da|'de)\b/i,
+  );
+  if (turkishLocative?.[1]) return turkishLocative[1].trim();
+
+  const forPlace = text.match(/\b(?:for|için|icin)\s+([A-Za-zÀ-ÿİıĞğÖöŞşÜü][\w\s'.-]{2,40})/i);
+  if (forPlace?.[1] && !/tonight|evening|dinner|date|gala/i.test(forPlace[1])) {
+    return forPlace[1].trim();
+  }
+
+  return null;
+}
+
 function resolveRuleStrings(
   t: TranslationKeys,
   ruleId: string,
-): { venue: string; dressCode: string; vibe: string } {
+): { dressCode: string; vibe: string } {
   const rule = t.events.rules[ruleId];
-  if (rule) return rule;
+  if (rule) return { dressCode: rule.dressCode, vibe: rule.vibe };
   const fallback = t.events.rules.evening;
-  return fallback ?? { venue: '', dressCode: '', vibe: '' };
+  return fallback ?? { dressCode: '', vibe: '' };
 }
 
 function resolveOccasionStrings(
@@ -105,13 +135,14 @@ export function inferEventContext(
   const timeOfDay = weather ? getTimeOfDay(hour) : getTimeOfDay(new Date().getHours());
   const timeContext = t.events.time[timeOfDay];
   const occasion = parsedOccasion ?? 'evening';
+  const venue = extractUserVenuePhrase(intent);
 
-  for (const rule of VENUE_RULES) {
-    if (rule.patterns.some((p) => p.test(lower))) {
+  for (const rule of MOOD_RULES) {
+    if (rule.patterns.some((pattern) => pattern.test(lower))) {
       const strings = resolveRuleStrings(t, rule.id);
       return {
         ruleId: rule.id,
-        venue: strings.venue,
+        venue,
         dressCode: strings.dressCode,
         vibe: strings.vibe,
         luxuryLevel: rule.luxuryLevel,
@@ -123,7 +154,7 @@ export function inferEventContext(
 
   const occasionStrings = resolveOccasionStrings(t, occasion);
   return {
-    venue: null,
+    venue,
     dressCode: occasionStrings.dressCode,
     vibe: occasionStrings.vibe,
     luxuryLevel: occasion === 'gala' ? 'haute' : occasion === 'brunch' ? 'casual-luxe' : 'elevated',
@@ -134,12 +165,12 @@ export function inferEventContext(
 
 export function getVenueMoodBias(intent: string): import('@/i18n/types').MoodId | null {
   const lower = intent.toLowerCase();
-  for (const rule of VENUE_RULES) {
-    if (rule.patterns.some((p) => p.test(lower))) return rule.moodBias ?? null;
+  for (const rule of MOOD_RULES) {
+    if (rule.patterns.some((pattern) => pattern.test(lower))) return rule.moodBias ?? null;
   }
   return null;
 }
 
 export function getVenueMoodBiasFromRule(ruleId: string): import('@/i18n/types').MoodId | null {
-  return VENUE_RULES.find((r) => r.id === ruleId)?.moodBias ?? null;
+  return MOOD_RULES.find((rule) => rule.id === ruleId)?.moodBias ?? null;
 }

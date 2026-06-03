@@ -5,7 +5,6 @@ import { Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, useWindow
 import Animated from 'react-native-reanimated';
 
 import { EditorialReasoningBlock } from '@/components/home/editorial-reasoning';
-import { MissingPieces } from '@/components/home/missing-pieces';
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { softFadeIn, softFadeInDown, softFadeInUp } from '@/constants/luxury-motion';
 import type { CuratedLook } from '@/lib/outfit-engine';
@@ -144,24 +143,6 @@ export function OutfitResult({ look, onReplace, onSave, isSaved, isSaving, onSha
             </Animated.View>
           ) : null}
 
-          {look.missingOutfitPieces && look.missingOutfitPieces.length > 0 ? (
-            <Animated.View entering={softFadeInDown(470)} style={styles.block}>
-              <Text style={[styles.blockLabel, { color: colors.goldSoft }]}>
-                {t.completeLook.missingTitle}
-              </Text>
-              <Text style={[styles.completeLookSubtitle, { color: colors.grayLight }]}>
-                {t.completeLook.missingSubtitle}
-              </Text>
-              <View style={styles.missingTextList}>
-                {look.missingOutfitPieces.map((piece) => (
-                  <Text key={piece} style={[styles.missingText, { color: colors.creamText }]}>
-                    {piece}
-                  </Text>
-                ))}
-              </View>
-            </Animated.View>
-          ) : null}
-
           {look.editorialReasoning ? (
             <EditorialReasoningBlock reasoning={look.editorialReasoning} />
           ) : look.whyThisWorks ? (
@@ -170,8 +151,6 @@ export function OutfitResult({ look, onReplace, onSave, isSaved, isSaving, onSha
               <Text style={[styles.blockText, { color: colors.creamText }]}>{look.whyThisWorks}</Text>
             </Animated.View>
           ) : null}
-
-          {look.missingPieces ? <MissingPieces pieces={look.missingPieces} /> : null}
 
           <Animated.View entering={softFadeInDown(560)} style={styles.vibeRow}>
             {look.vibes.map((vibe) => (
@@ -458,15 +437,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-  },
-  missingTextList: {
-    gap: 8,
-  },
-  missingText: {
-    fontFamily: Fonts.serif,
-    fontSize: 14,
-    lineHeight: 22,
-    fontStyle: 'italic',
   },
   vibeRow: {
     flexDirection: 'row',

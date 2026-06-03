@@ -51,35 +51,3 @@ export function buildEditorialReasoning(
 
   return { colorHarmony, weatherCompatibility, emotionalTone, silhouetteBalance };
 }
-
-export type MissingPieceCategory = 'watches' | 'rings' | 'shoes' | 'perfume' | 'bags';
-
-export type MissingPiece = {
-  id: string;
-  category: MissingPieceCategory;
-  label: string;
-  note: string;
-};
-
-const MISSING_BY_MOOD: Record<MoodId, MissingPieceCategory[]> = {
-  elegant: ['bags', 'rings', 'perfume', 'shoes'],
-  soft: ['perfume', 'rings', 'bags', 'shoes'],
-  confident: ['watches', 'shoes', 'bags', 'rings'],
-  oldMoney: ['watches', 'bags', 'rings', 'perfume'],
-  seductive: ['perfume', 'rings', 'shoes', 'bags'],
-  minimal: ['watches', 'bags', 'shoes', 'rings'],
-};
-
-export function suggestMissingPieces(
-  t: TranslationKeys,
-  mood: MoodId,
-  seed: number,
-): MissingPiece[] {
-  const categories = MISSING_BY_MOOD[mood];
-  return categories.slice(0, 4).map((category, i) => ({
-    id: `missing-${category}-${seed + i}`,
-    category,
-    label: t.missingPieces.categories[category],
-    note: pick(t.missingPieces.notes[category], seed + i),
-  }));
-}

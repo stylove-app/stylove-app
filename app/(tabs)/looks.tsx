@@ -336,17 +336,18 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 24,
-    paddingTop: 16,
-    marginBottom: 8,
-    gap: 4,
+    paddingTop: 20,
+    marginBottom: 12,
+    gap: 8,
   },
   title: {
     fontFamily: Fonts.serif,
     fontSize: 32,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontStyle: 'italic',
+    lineHeight: 18,
   },
   skeletonWrap: {
     paddingHorizontal: 24,

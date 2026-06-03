@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from '@/contexts/locale-context';
+import { EditorialOnboardingColors } from '@/constants/editorial-onboarding-theme';
 import { StyloveColors } from '@/constants/stylove-theme';
 
 type SessionRestoreErrorProps = {
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   splash: {
-    backgroundColor: StyloveColors.wineDeep,
+    backgroundColor: EditorialOnboardingColors.background,
   },
   app: {
     backgroundColor: StyloveColors.ivory,

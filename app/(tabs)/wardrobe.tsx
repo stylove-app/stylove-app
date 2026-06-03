@@ -10,7 +10,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WardrobeCatalogCard } from '@/components/wardrobe/wardrobe-catalog-card';
 import { WardrobeItemCard } from '@/components/wardrobe/wardrobe-item-card';
 import { WardrobeTypePicker } from '@/components/wardrobe/wardrobe-type-picker';
-import { WardrobeImageProcessing } from '@/components/wardrobe/wardrobe-image-processing';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { LuxuryToast } from '@/components/ui/luxury-toast';
@@ -49,8 +47,7 @@ export default function WardrobeScreen() {
   const [pendingUri, setPendingUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [itemName, setItemName] = useState('');
-  const [itemType, setItemType] = useState<WardrobeItemTypeId>('elbise');
+  const [itemType, setItemType] = useState<WardrobeItemTypeId | null>(null);
   const [limitToastVisible, setLimitToastVisible] = useState(false);
 
   const scrollRef = useTabScrollToTop();
@@ -68,8 +65,7 @@ export default function WardrobeScreen() {
 
   const openPickerResult = (uri: string) => {
     setPendingUri(uri);
-    setItemName('');
-    setItemType('elbise');
+    setItemType(null);
     setModalVisible(true);
   };
 
@@ -116,12 +112,11 @@ export default function WardrobeScreen() {
     setModalVisible(false);
     setPendingUri(null);
     setIsSaving(false);
-    setItemName('');
-    setItemType('elbise');
+    setItemType(null);
   };
 
   const saveItem = async () => {
-    if (!pendingUri || !itemName.trim() || isSaving) return;
+    if (!pendingUri || !itemType || isSaving) return;
     if (!isPremium && stylingItems.length >= FREE_WARDROBE_ITEM_LIMIT) {
       setLimitToastVisible(true);
       return;
@@ -131,7 +126,7 @@ export default function WardrobeScreen() {
     setIsSaving(true);
     try {
       const newItem = await addItem({
-        name: itemName.trim(),
+        name: t.wardrobeTypes[itemType],
         itemType,
         localImageUri: pendingUri,
       });
@@ -259,23 +254,14 @@ export default function WardrobeScreen() {
           <View style={styles.modal}>
             {pendingUri ? (
               <View style={styles.previewWrap}>
-                <WardrobeCatalogCard imageUri={pendingUri} size="lg" />
-                {isSaving ? (
-                  <WardrobeImageProcessing
-                    visible
-                    messages={[t.wardrobe.silhouetteCleaning, ...t.wardrobe.preparingBackground]}
-                  />
-                ) : null}
+                <WardrobeCatalogCard
+                  imageUri={pendingUri}
+                  size="lg"
+                  isPreparing={isSaving}
+                  categoryLabel={itemType ? t.wardrobeTypes[itemType] : undefined}
+                />
               </View>
             ) : null}
-            <TextInput
-              value={itemName}
-              onChangeText={setItemName}
-              placeholder={t.wardrobe.pieceNamePlaceholder}
-              placeholderTextColor={StyloveColors.grayLight}
-              style={styles.modalInput}
-              editable={!isSaving}
-            />
             <WardrobeTypePicker value={itemType} onChange={setItemType} />
             <View style={styles.modalActions}>
               <LuxuryButton
@@ -289,7 +275,7 @@ export default function WardrobeScreen() {
                 label={t.common.save}
                 onPress={saveItem}
                 style={{ flex: 1 }}
-                disabled={isSaving || !itemName.trim()}
+                disabled={isSaving || !itemType}
               />
             </View>
           </View>
@@ -313,9 +299,9 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 24,
-    paddingTop: 16,
-    marginBottom: 20,
-    gap: 6,
+    paddingTop: 20,
+    marginBottom: 24,
+    gap: 8,
   },
   title: {
     fontFamily: Fonts.serif,
@@ -323,9 +309,10 @@ const styles = StyleSheet.create({
     color: StyloveColors.black,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: StyloveColors.gray,
     fontStyle: 'italic',
+    lineHeight: 18,
   },
   collectionNoteWrap: {
     marginTop: 10,
@@ -455,15 +442,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: StyloveColors.creamRich,
     ...StyloveShadow.editorial,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: StyloveColors.creamMuted,
-    borderRadius: 14,
-    padding: 14,
-    fontSize: 15,
-    color: StyloveColors.black,
-    backgroundColor: StyloveColors.ivory,
   },
   modalActions: {
     flexDirection: 'row',

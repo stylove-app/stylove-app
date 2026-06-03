@@ -75,8 +75,8 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 28,
-    marginBottom: 20,
-    gap: 8,
+    marginBottom: 28,
+    gap: 10,
   },
   eyebrow: {
     fontSize: 11,

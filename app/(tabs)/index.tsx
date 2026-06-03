@@ -19,7 +19,6 @@ import { CompleteTheLook } from '@/components/home/complete-the-look';
 import { CompactLookCard } from '@/components/home/compact-look-card';
 import { OutfitResult } from '@/components/home/outfit-result';
 import { StylingIntent } from '@/components/home/styling-intent';
-import { TodaysAura } from '@/components/home/todays-aura';
 import { WardrobePreview } from '@/components/home/wardrobe-preview';
 import { CinematicLoading } from '@/components/ui/cinematic-loading';
 import { LuxuryBackgroundDrift } from '@/components/ui/luxury-background-drift';
@@ -40,8 +39,6 @@ import { useWeather } from '@/contexts/weather-context';
 import { useWardrobe } from '@/contexts/wardrobe-context';
 import { getTodaysAura, inferWardrobeTone } from '@/lib/aura-engine';
 import { canGenerateFreeOutfit } from '@/lib/free-plan-limits';
-import { getTonightsSelection } from '@/lib/outfit-engine';
-import { INTENT_SUGGESTIONS } from '@/lib/intent-parser';
 import { styleMoodToEngine } from '@/lib/style-mood';
 import { runSecureOutfitGeneration } from '@/lib/run-secure-outfit-generation';
 import { analytics } from '@/lib/analytics';
@@ -64,7 +61,7 @@ export default function HomeScreen() {
   const { pendingTarget, clearPendingNavigation } = useAppNavigation();
   const scrollRef = useTabScrollToTop();
   const resultsY = useRef(0);
-  const auraSectionY = useRef(0);
+  const styleSectionY = useRef(0);
   const wardrobeSnapshotRef = useRef({ ready: wardrobeReady, stylingItems });
 
   const [auraIntent, setAuraIntent] = useState('');
@@ -105,11 +102,6 @@ export default function HomeScreen() {
       }),
     [t, weather, auraIntent, wardrobeTone, memory, engineMood],
   );
-
-  const tonightsSelection = useMemo(() => {
-    if (!wardrobeReady) return null;
-    return getTonightsSelection(t, stylingItems, weather);
-  }, [t, stylingItems, weather, wardrobeReady]);
 
   const isSaved = currentLook ? savedLooks.some((l) => l.id === currentLook.id) : false;
   const usageScope = userId ?? 'guest';
@@ -171,11 +163,7 @@ export default function HomeScreen() {
       Keyboard.dismiss();
 
       const moodLabel = styleMood ? t.home.moods[styleMood] : '';
-      const text =
-        intentText.trim() ||
-        moodLabel ||
-        t.intent.suggestions[0] ||
-        INTENT_SUGGESTIONS[0];
+      const text = intentText.trim() || moodLabel;
       setAuraIntent(text.trim());
 
       if (!isPremium && !(await canGenerateFreeOutfit(usageScope))) {
@@ -237,8 +225,9 @@ export default function HomeScreen() {
     }
 
     const text =
-      currentLook.intent ??
-      (styleMood ? t.home.moods[styleMood] : t.intent.suggestions[0]);
+      currentLook.intent?.trim() ||
+      (styleMood ? t.home.moods[styleMood] : '') ||
+      currentLook.occasion;
 
     setIsGenerating(true);
     try {
@@ -314,7 +303,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (pendingTarget !== 'home-aura') return;
     const timer = setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: auraSectionY.current, animated: true });
+      scrollRef.current?.scrollTo({ y: styleSectionY.current, animated: true });
       clearPendingNavigation();
     }, 300);
     return () => clearTimeout(timer);
@@ -337,10 +326,8 @@ export default function HomeScreen() {
 
         <View
           onLayout={(e) => {
-            auraSectionY.current = e.nativeEvent.layout.y;
+            styleSectionY.current = e.nativeEvent.layout.y;
           }}>
-          <TodaysAura aura={todaysAura} label={t.home.todaysAura} />
-
           <StyleMoodSelector
             value={styleMood}
             onChange={(mood) => {
@@ -381,32 +368,6 @@ export default function HomeScreen() {
             <PremiumCta label={t.home.premiumCta} />
             <CompleteTheLook />
           </View>
-        ) : null}
-
-        {!showResult && wardrobeReady && tonightsSelection ? (
-          <Animated.View entering={softFadeInDown(200)}>
-            <SectionHeader
-              title={t.home.tonightsSelection}
-              subtitle={t.home.noLookSubtitle}
-            />
-            <View style={styles.tonightWrap}>
-              <SoftEnter delay={260}>
-                <CompactLookCard
-                  look={tonightsSelection}
-                  wide
-                  onPress={() => {
-                    if (isGenerating || !wardrobeReady || wardrobeEmpty) {
-                      if (wardrobeEmpty) {
-                        Alert.alert(t.home.emptyWardrobeTitle, t.home.emptyWardrobeMessage);
-                      }
-                      return;
-                    }
-                    void handleReveal(t.intent.suggestions[0]);
-                  }}
-                />
-              </SoftEnter>
-            </View>
-          </Animated.View>
         ) : null}
 
         {savedLooks.length > 0 ? (
@@ -466,10 +427,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
-  },
-  tonightWrap: {
-    paddingHorizontal: 24,
-    marginBottom: 28,
   },
   savedRow: {
     paddingHorizontal: 24,

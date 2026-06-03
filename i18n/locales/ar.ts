@@ -5,7 +5,6 @@ import {
   EDITORIAL_COLOR_HARMONY,
   EDITORIAL_EMOTIONAL_TONE,
   EDITORIAL_SILHOUETTE,
-  MISSING_NOTES,
 } from '@/i18n/luxury-content';
 
 const ar = {
@@ -46,7 +45,7 @@ const ar = {
   intent: {
     title: 'إلى أين تذهبين؟',
     subtitle: 'شاركي الوجهة — أو ببساطة كيف تتمنين أن تشعري.',
-    placeholder: 'عشاء في نişantaşı، واثقة، موعد رومانسي…',
+    placeholder: 'كيف تريدين أن تشعري؟',
     suggestionsLabel: 'إلهام',
     suggestions: [
       'عشاء في نişantaşı الليلة',
@@ -235,55 +234,10 @@ const ar = {
     weatherWarm: '{temp}°C، {condition} — طبقات دافئة بتناغم لوني.',
     weatherLight: '{city}، {temp}°C، {condition} — تباين مضيء وحركة سلسة.',
   },
-  missingPieces: {
-    title: 'قطع مفقودة',
-    subtitle: 'لمسات نهائية — مختارة للاكتشاف',
-    categories: {
-      watches: 'ساعات',
-      rings: 'خواتم',
-      shoes: 'أحذية',
-      perfume: 'عطر',
-      bags: 'حقائب',
-    },
-    notes: { ...MISSING_NOTES },
-  },
   share: {
     title: 'شاركي هالتك',
     shareAura: 'مشاركة الهالة',
     message: 'تنسيق Stylove — مختار حصرياً لليلة.',
-  },
-  privileges: {
-    title: 'امتيازات STYLOVE',
-    subtitle: 'لمسات حصرية تكمل أسلوبك — لأعضاء Premium',
-    premiumBadge: 'PREMIUM',
-    curatedForYou: 'مختار لك',
-    fragrance: {
-      title: 'تشكيلة العطر',
-      description: 'توصيات عطرية متناسقة مع هالتك ومظهرك اليوم',
-      items: [
-        'Maison Francis Kurkdjian — Baccarat Rouge 540 — دافئ ومضيء للمساء',
-        'Byredo — Bal d\'Afrique — ناعم ومغناطيسي قريب من البشرة',
-        'Le Labo — Another 13 — فخامة هادئة للحظات الحميمة',
-      ],
-    },
-    venues: {
-      title: 'انسجام المكان',
-      description: 'توصيات توازن مستوى أسلوبك مع وجهتك',
-      items: [
-        'عشاء في Nişantaşı — حرير مهيكل، ذهب خافت، clutch أنيق',
-        'Beach club في Bodrum — كتان انسيابي، ألوان مشمسة، مجوهرات minimal',
-        'Paris fashion night — خط معماري، قاعدة سوداء، قطعة statement',
-      ],
-    },
-    shopping: {
-      title: 'أكملي الإطلالة',
-      description: 'قطع مختارة وماركات متناسقة مع تنسيقك',
-      items: [
-        'Cartier — ساعة Panthère — ذهب راقٍ، quiet luxury',
-        'Bottega Veneta — حقيبة Andiamo — جلد ناعم، تناغم لوني',
-        'Gianvito Rossi — Gianvito 105 — كعب يطيل القامة بأناقة',
-      ],
-    },
   },
   profile: {
     title: 'الملف',

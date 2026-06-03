@@ -32,11 +32,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     paddingHorizontal: 24,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   textGroup: {
     flex: 1,
-    gap: 4,
+    gap: 6,
   },
   title: {
     fontFamily: Fonts.serif,
@@ -46,10 +46,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: StyloveColors.gray,
-    letterSpacing: 0.3,
-    lineHeight: 18,
+    letterSpacing: 0.2,
+    lineHeight: 17,
   },
   action: {
     fontSize: 11,

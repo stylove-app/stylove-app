@@ -29,6 +29,7 @@ export function computeLuxuryScores(
   seed: number,
   weather?: WeatherSnapshot,
   event?: EventContext,
+  outfitCoherence?: number,
 ): LuxuryScores {
   const base = { ...MOOD_BASE[mood] };
   const mod = seed % 5;
@@ -59,6 +60,14 @@ export function computeLuxuryScores(
     if (event.dressCode.toLowerCase().includes('executive') || event.dressCode.toLowerCase().includes('sharp')) {
       base.confidence += 3;
     }
+  }
+
+  if (outfitCoherence != null && outfitCoherence > 12) {
+    const boost = Math.min(4, Math.floor((outfitCoherence - 12) / 3));
+    base.elegance += boost;
+    base.minimalism += Math.min(2, boost);
+  } else if (outfitCoherence != null && outfitCoherence < 4) {
+    base.elegance -= 2;
   }
 
   return {

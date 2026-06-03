@@ -140,6 +140,10 @@ export type TranslationKeys = {
     emptyWardrobeMessage: string;
     emptyWardrobeHint: string;
   };
+  lookCopy: {
+    neutralTitles: readonly string[];
+    defaultOccasion: string;
+  };
   intent: {
     title: string;
     subtitle: string;
@@ -155,6 +159,7 @@ export type TranslationKeys = {
   };
   weather: {
     line: string;
+    fallbackLocation: string;
     conditions: Record<
       'clear' | 'partlyCloudy' | 'cloudy' | 'rain' | 'drizzle' | 'snow' | 'fog' | 'thunderstorm',
       string
@@ -182,6 +187,23 @@ export type TranslationKeys = {
     missingOuterwearCompletion: string;
     missingBagCompletion: string;
     missingJewelryCompletion: string;
+    finalTouches: {
+      top: string;
+      bottom: string;
+      shoes: string;
+      bag: string;
+      jewelry: string;
+      sunglasses: string;
+      lightJewelry: string;
+      hairAccent: string;
+      breathable: string;
+      perfumeEvening: string;
+      compactBag: string;
+      structuredBag: string;
+      weatherCoat: string;
+      rainFootwear: string;
+      quietWatch: string;
+    };
   };
   outfit: {
     elegance: string;
@@ -224,16 +246,12 @@ export type TranslationKeys = {
     collectionNote: string;
     preparingPiece: string;
     filterAll: string;
-    pieceNamePlaceholder: string;
     removeTitle: string;
     removeConfirm: string;
     removeAction: string;
     takePhoto: string;
     chooseFromGallery: string;
     chooseType: string;
-    preparingBackground: readonly string[];
-    silhouetteCleaning: string;
-    backgroundRetryLater: string;
     filterEmptyTitle: string;
     filterEmptySubtitle: string;
     saveError: string;
@@ -359,12 +377,6 @@ export type TranslationKeys = {
     weatherWarm: string;
     weatherLight: string;
   };
-  missingPieces: {
-    title: string;
-    subtitle: string;
-    categories: Record<'watches' | 'rings' | 'shoes' | 'perfume' | 'bags', string>;
-    notes: Record<'watches' | 'rings' | 'shoes' | 'perfume' | 'bags', readonly string[]>;
-  };
   share: {
     title: string;
     shareAura: string;
@@ -387,29 +399,6 @@ export type TranslationKeys = {
     themeEspresso: string;
     itemsLabel: string;
     commentaryLabel: string;
-  };
-  privileges: {
-    title: string;
-    subtitle: string;
-    premiumBadge: string;
-    curatedForYou: string;
-    upgradeCta: string;
-    lockedNote: string;
-    fragrance: {
-      title: string;
-      description: string;
-      items: readonly string[];
-    };
-    venues: {
-      title: string;
-      description: string;
-      items: readonly string[];
-    };
-    shopping: {
-      title: string;
-      description: string;
-      items: readonly string[];
-    };
   };
   profile: {
     title: string;
@@ -437,6 +426,8 @@ export type TranslationKeys = {
     statsCurated: string;
     statsSaved: string;
     settingsTitle: string;
+    settingsAccountProfile: string;
+    settingsAppearance: string;
     premiumStatus: string;
     premiumFree: string;
     premiumActive: string;
@@ -600,6 +591,7 @@ export type TranslationKeys = {
     subtitle: string;
     destinationLabel: string;
     destinationPlaceholder: string;
+    destinationRequired: string;
     destinationHint: string;
     durationLabel: string;
     durationPlaceholder: string;

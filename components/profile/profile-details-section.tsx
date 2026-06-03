@@ -13,7 +13,11 @@ import { useUserProfile, type UserProfile } from '@/contexts/user-profile-contex
 import { useTheme, StyloveShadow } from '@/contexts/theme-context';
 import { Fonts } from '@/constants/theme';
 
-export function ProfileDetailsSection() {
+type ProfileDetailsSectionProps = {
+  embedded?: boolean;
+};
+
+export function ProfileDetailsSection({ embedded }: ProfileDetailsSectionProps = {}) {
   const t = useTranslation();
   const { colors } = useTheme();
   const { profile, saveProfile } = useUserProfile();
@@ -56,8 +60,10 @@ export function ProfileDetailsSection() {
   };
 
   return (
-    <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: colors.grayLight }]}>{t.profile.details.title}</Text>
+    <View style={[styles.section, embedded && styles.sectionEmbedded]}>
+      {embedded ? null : (
+        <Text style={[styles.sectionTitle, { color: colors.grayLight }]}>{t.profile.details.title}</Text>
+      )}
       <View
         style={[
           styles.card,
@@ -122,6 +128,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginBottom: 24,
     gap: 12,
+  },
+  sectionEmbedded: {
+    paddingHorizontal: 0,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 12,

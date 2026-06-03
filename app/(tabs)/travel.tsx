@@ -2,6 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { useCallback, useState } from 'react';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 import {
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -70,7 +71,11 @@ export default function TravelScreen() {
 
   const handlePrepare = useCallback(async () => {
     Keyboard.dismiss();
-    const dest = destination.trim() || 'Paris';
+    const dest = destination.trim();
+    if (!dest) {
+      Alert.alert(t.travel.destinationLabel, t.travel.destinationRequired);
+      return;
+    }
     const duration = parseTripDays(durationInput);
     setIsPreparing(true);
     if (process.env.EXPO_OS === 'ios') {
@@ -238,12 +243,12 @@ const styles = StyleSheet.create({
   },
   hero: {
     paddingHorizontal: 24,
-    paddingBottom: 32,
-    marginBottom: 24,
+    paddingBottom: 36,
+    marginBottom: 28,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     overflow: 'hidden',
     ...StyloveShadow.editorial,
   },

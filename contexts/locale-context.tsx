@@ -3,13 +3,13 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 
 import { getTranslations, interpolate, isRtl } from '@/i18n';
 import type { Locale, TranslationKeys } from '@/i18n/types';
+import {
+  DEFAULT_LOCALE,
+  detectDeviceLocale,
+  isSupportedLocale,
+} from '@/lib/resolve-initial-locale';
 
 const LOCALE_KEY = '@stylove/locale';
-const SUPPORTED_LOCALES: readonly Locale[] = ['tr', 'en', 'de', 'fr', 'es', 'it', 'ar', 'ru'];
-
-function isSupportedLocale(value: string | null): value is Locale {
-  return value !== null && (SUPPORTED_LOCALES as readonly string[]).includes(value);
-}
 
 type LocaleContextValue = {
   locale: Locale;
@@ -22,18 +22,27 @@ type LocaleContextValue = {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
+async function resolveInitialLocale(): Promise<Locale> {
+  const stored = await AsyncStorage.getItem(LOCALE_KEY);
+  if (isSupportedLocale(stored)) {
+    return stored;
+  }
+
+  const detected = detectDeviceLocale();
+  await AsyncStorage.setItem(LOCALE_KEY, detected);
+  return detected;
+}
+
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('tr');
+  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    void AsyncStorage.getItem(LOCALE_KEY).then((stored) => {
+    void resolveInitialLocale().then((initial) => {
       if (!mounted) return;
-      if (isSupportedLocale(stored)) {
-        setLocaleState(stored);
-      }
+      setLocaleState(initial);
       setReady(true);
     });
 

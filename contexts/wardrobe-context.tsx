@@ -1,9 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/contexts/auth-context';
 import type { WardrobeCategoryId } from '@/i18n/types';
 import { type WardrobeItem } from '@/lib/outfit-engine';
-import { isTerminalProcessingStatus } from '@/lib/wardrobe-display';
 import { getCategoryForItemType, normalizeWardrobeItems } from '@/lib/wardrobe-item-types';
 import { getStylingWardrobe, isDemoWardrobeItem, stripDemoWardrobe } from '@/lib/wardrobe-utils';
 import type { WardrobeItemTypeId } from '@/i18n/types';
@@ -16,12 +15,7 @@ import {
   createWardrobeItemFromLocalImage,
   deleteWardrobeItem,
   fetchWardrobeItems,
-  fetchWardrobeItemById,
-  invokeWardrobeBackgroundRemoval,
 } from '@/services/wardrobe-db';
-
-const PROCESSING_POLL_MS = 2500;
-const PROCESSING_POLL_MAX_MS = 120000;
 
 type WardrobeContextValue = {
   items: WardrobeItem[];
@@ -45,7 +39,6 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<WardrobeItem[]>([]);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const pollTimersRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
   const storageScope = isRegistered && userId ? userId : GUEST_STORAGE_SCOPE;
 
@@ -56,58 +49,6 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
       await writeScopedWardrobe(storageScope, cleaned);
     },
     [storageScope],
-  );
-
-  const refreshItem = useCallback(
-    async (itemId: string) => {
-      if (!isRegistered || !userId) return;
-      const updated = await fetchWardrobeItemById(userId, itemId);
-      if (!updated) return;
-      setItems((current) => {
-        const next = current.map((item) => (item.id === itemId ? updated : item));
-        void writeScopedWardrobe(storageScope, next);
-        return next;
-      });
-    },
-    [userId, isRegistered, storageScope],
-  );
-
-  const stopPolling = useCallback((itemId: string) => {
-    const timer = pollTimersRef.current.get(itemId);
-    if (timer) {
-      clearInterval(timer);
-      pollTimersRef.current.delete(itemId);
-    }
-  }, []);
-
-  const startPolling = useCallback(
-    (itemId: string) => {
-      if (!isRegistered || !userId) return;
-      stopPolling(itemId);
-
-      const startedAt = Date.now();
-      const timer = setInterval(() => {
-        void (async () => {
-          const updated = await fetchWardrobeItemById(userId, itemId);
-          if (updated) {
-            setItems((current) => {
-              const next = current.map((item) => (item.id === itemId ? updated : item));
-              void writeScopedWardrobe(storageScope, next);
-              return next;
-            });
-            if (isTerminalProcessingStatus(updated.processingStatus)) {
-              stopPolling(itemId);
-            }
-          }
-          if (Date.now() - startedAt > PROCESSING_POLL_MAX_MS) {
-            stopPolling(itemId);
-          }
-        })();
-      }, PROCESSING_POLL_MS);
-
-      pollTimersRef.current.set(itemId, timer);
-    },
-    [userId, isRegistered, storageScope, stopPolling],
   );
 
   const loadRegisteredWardrobe = useCallback(
@@ -121,31 +62,19 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
         setItems(cleaned);
         setLoadError(false);
         await writeScopedWardrobe(userId, cleaned);
-        cleaned
-          .filter((item) => item.processingStatus === 'processing')
-          .forEach((item) => startPolling(item.id));
       } catch {
         if (cancelled()) return;
         setItems([]);
         setLoadError(true);
       }
     },
-    [isRegistered, userId, startPolling],
+    [isRegistered, userId],
   );
-
-  useEffect(() => {
-    return () => {
-      pollTimersRef.current.forEach((timer) => clearInterval(timer));
-      pollTimersRef.current.clear();
-    };
-  }, []);
 
   useEffect(() => {
     if (!authReady) return;
 
     let cancelled = false;
-    pollTimersRef.current.forEach((timer) => clearInterval(timer));
-    pollTimersRef.current.clear();
     setReady(false);
     setLoadError(false);
     setItems([]);
@@ -191,13 +120,6 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
 
         const next = [created, ...items];
         await persistLocal(next);
-
-        const itemId = created.id;
-        void invokeWardrobeBackgroundRemoval(itemId).catch(() => {
-          void refreshItem(itemId);
-        });
-        startPolling(itemId);
-
         return created;
       }
 
@@ -209,7 +131,6 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
         category,
         originalImageUri: item.localImageUri,
         imageUri: item.localImageUri,
-        processingStatus: 'done',
         createdAt: Date.now(),
       };
 
@@ -220,18 +141,17 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
       await persistLocal([payload, ...items]);
       return payload;
     },
-    [userId, isRegistered, items, persistLocal, refreshItem, startPolling],
+    [userId, isRegistered, items, persistLocal],
   );
 
   const removeItem = useCallback(
     async (id: string) => {
-      stopPolling(id);
       if (isRegistered && userId) {
         await deleteWardrobeItem(userId, id);
       }
       await persistLocal(items.filter((item) => item.id !== id));
     },
-    [userId, isRegistered, items, persistLocal, stopPolling],
+    [userId, isRegistered, items, persistLocal],
   );
 
   const stylingItems = useMemo(() => getStylingWardrobe(items), [items]);

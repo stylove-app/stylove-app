@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { PremiumOnboardingFlow } from '@/components/onboarding/premium-onboarding-flow';
+import { EditorialOnboardingFlow } from '@/components/onboarding/editorial-onboarding-flow';
 import { SessionRestoreError } from '@/components/auth/session-restore-error';
 import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from '@/contexts/locale-context';
@@ -62,7 +62,7 @@ export default function TabLayout() {
   }
 
   if (!isRegistered) {
-    return <PremiumOnboardingFlow />;
+    return <EditorialOnboardingFlow />;
   }
 
   return (

@@ -12,9 +12,7 @@ export {
 } from '@/services/auth';
 export {
   fetchWardrobeItems,
-  fetchWardrobeItemById,
   createWardrobeItemFromLocalImage,
-  invokeWardrobeBackgroundRemoval,
   deleteWardrobeItem,
   syncLocalWardrobeToRemote,
 } from '@/services/wardrobe-db';
@@ -22,18 +20,12 @@ export {
   uploadWardrobeOriginal,
   getWardrobeStoragePublicUrl,
   WARDROBE_ORIGINALS_BUCKET,
-  WARDROBE_CLEANED_BUCKET,
 } from '@/services/wardrobe-storage';
 export { fetchProfile, upsertProfile, syncLocalProfileToRemote } from '@/services/profile-db';
 export { getTodaysAura, inferWardrobeTone } from '@/lib/aura-engine';
 export { computeLuxuryScores, type LuxuryScores } from '@/lib/luxury-scores';
 export { inferEventContext, getVenueMoodBias, type EventContext } from '@/lib/event-intelligence';
-export {
-  buildEditorialReasoning,
-  suggestMissingPieces,
-  type EditorialReasoning,
-  type MissingPiece,
-} from '@/lib/editorial-reasoning';
+export { buildEditorialReasoning, type EditorialReasoning } from '@/lib/editorial-reasoning';
 export {
   EMPTY_STYLE_MEMORY,
   recordLookGenerated,
@@ -42,15 +34,6 @@ export {
   getSignatureFromMemory,
   type StyleMemory,
 } from '@/lib/style-memory';
-export {
-  PREMIUM_PRIVILEGES,
-  getPrivilegeRecommendations,
-  getFragranceRecommendations,
-  getVenueRecommendations,
-  getShoppingRecommendations,
-  type PremiumPrivilegeId,
-} from '@/lib/premium-privileges';
-
 export {
   purchaseWeekly,
   purchaseMonthly,

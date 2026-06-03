@@ -1,6 +1,5 @@
 import type { WardrobeCategoryId } from '@/i18n/types';
-import type { WardrobeItem, WardrobeProcessingStatus } from '@/lib/outfit-engine';
-import { getWardrobeDisplayUri } from '@/lib/wardrobe-display';
+import type { WardrobeItem } from '@/lib/outfit-engine';
 import { getCategoryForItemType, normalizeWardrobeItems } from '@/lib/wardrobe-item-types';
 import { isDemoWardrobeItem, stripDemoWardrobe } from '@/lib/wardrobe-utils';
 import { supabase } from '@/services/supabase';
@@ -14,9 +13,6 @@ type WardrobeRow = {
   item_type: string | null;
   image_uri: string;
   original_image_uri: string | null;
-  cleaned_image_uri: string | null;
-  processing_status: string;
-  processing_error: string | null;
   created_at: number;
 };
 
@@ -24,29 +20,21 @@ type WardrobeRow = {
 const PENDING_IMAGE_URI = 'pending';
 
 function rowToItem(row: WardrobeRow): WardrobeItem {
-  const originalImageUri = row.original_image_uri ?? row.image_uri;
-  const cleanedImageUri = row.cleaned_image_uri ?? undefined;
-  const processingStatus = row.processing_status as WardrobeProcessingStatus;
+  const imageUri = row.original_image_uri ?? row.image_uri;
 
-  const item: WardrobeItem = {
+  return {
     id: row.id,
     name: row.name,
     itemType: (row.item_type ?? row.category) as WardrobeItem['itemType'],
     category: row.category as WardrobeCategoryId,
-    originalImageUri,
-    cleanedImageUri,
-    processingStatus,
-    processingError: row.processing_error ?? undefined,
-    imageUri: '',
+    originalImageUri: imageUri,
+    imageUri,
     createdAt: row.created_at,
   };
-
-  item.imageUri = getWardrobeDisplayUri(item);
-  return item;
 }
 
 const WARDROBE_SELECT =
-  'id, user_id, name, category, item_type, image_uri, original_image_uri, cleaned_image_uri, processing_status, processing_error, created_at';
+  'id, user_id, name, category, item_type, image_uri, original_image_uri, created_at';
 
 export async function fetchWardrobeItems(userId: string): Promise<WardrobeItem[]> {
   const { data, error } = await supabase
@@ -59,19 +47,6 @@ export async function fetchWardrobeItems(userId: string): Promise<WardrobeItem[]
   return normalizeWardrobeItems(
     stripDemoWardrobe((data ?? []).map((row) => rowToItem(row as WardrobeRow))),
   );
-}
-
-export async function fetchWardrobeItemById(userId: string, itemId: string): Promise<WardrobeItem | null> {
-  const { data, error } = await supabase
-    .from('wardrobe_items')
-    .select(WARDROBE_SELECT)
-    .eq('user_id', userId)
-    .eq('id', itemId)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) return null;
-  return normalizeWardrobeItems([rowToItem(data as WardrobeRow)])[0];
 }
 
 /** Deletes demo/sample rows for this user (idempotent). */
@@ -103,7 +78,7 @@ export type CreateWardrobeItemFromImageInput = {
 
 /**
  * Inserts a wardrobe row (Supabase-generated UUID), uploads the original to Storage,
- * then updates URIs and returns the row for background removal.
+ * then updates URIs and marks the item ready for styling.
  */
 export async function createWardrobeItemFromLocalImage(
   userId: string,
@@ -122,7 +97,7 @@ export async function createWardrobeItemFromLocalImage(
       image_uri: PENDING_IMAGE_URI,
       original_image_uri: null,
       cleaned_image_uri: null,
-      processing_status: 'processing',
+      processing_status: 'done',
       processing_error: null,
       created_at: createdAt,
     })
@@ -153,7 +128,7 @@ export async function createWardrobeItemFromLocalImage(
       .update({
         original_image_uri: publicUrl,
         image_uri: publicUrl,
-        processing_status: 'processing',
+        processing_status: 'done',
         processing_error: null,
       })
       .eq('id', itemId)
@@ -175,14 +150,6 @@ export async function createWardrobeItemFromLocalImage(
     }
     throw error;
   }
-}
-
-/** Invokes the Supabase Edge Function (remove.bg runs server-side only). */
-export async function invokeWardrobeBackgroundRemoval(itemId: string): Promise<void> {
-  const { error } = await supabase.functions.invoke('remove-wardrobe-background', {
-    body: { itemId },
-  });
-  if (error) throw error;
 }
 
 export async function deleteWardrobeItem(userId: string, itemId: string): Promise<void> {

@@ -7,7 +7,7 @@ import { StyloveColors } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 
 type WardrobeTypePickerProps = {
-  value: WardrobeItemTypeId;
+  value: WardrobeItemTypeId | null;
   onChange: (type: WardrobeItemTypeId) => void;
 };
 
@@ -27,7 +27,7 @@ export function WardrobeTypePicker({ value, onChange }: WardrobeTypePickerProps)
             <Text style={styles.sectionTitle}>{t.categories[group.category]}</Text>
             <View style={styles.chipGrid}>
               {group.types.map((type) => {
-                const active = value === type;
+                const active = value !== null && value === type;
                 return (
                   <Pressable
                     key={type}

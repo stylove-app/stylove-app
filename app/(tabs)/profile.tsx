@@ -5,65 +5,38 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AccountSection } from '@/components/profile/account-section';
-import { PremiumPrivilegesSection } from '@/components/profile/premium-privileges-section';
-import { ProfileDetailsSection } from '@/components/profile/profile-details-section';
 import { LegalTrustSection } from '@/components/profile/legal-trust-section';
 import { AboutStyloveSection } from '@/components/profile/about-stylove-section';
-import { PushNotificationsSetting } from '@/components/profile/push-notifications-setting';
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { LuxuryModalFrame } from '@/components/ui/luxury-modal-frame';
 import { PremiumCta } from '@/components/ui/premium-cta';
 import { StyloveFooter } from '@/components/ui/stylove-footer';
-import { LOCALES } from '@/i18n';
 import { useAppNavigation } from '@/contexts/app-navigation-context';
 import { useAuth } from '@/contexts/auth-context';
-import { useLocale, useTranslation } from '@/contexts/locale-context';
-import { useLooks } from '@/contexts/looks-context';
+import { useTranslation } from '@/contexts/locale-context';
 import { usePremium } from '@/contexts/premium-context';
 import { useStyleMemory } from '@/contexts/style-memory-context';
 import { useTheme, StyloveShadow } from '@/contexts/theme-context';
 import { useUserProfile } from '@/contexts/user-profile-context';
 import { Fonts } from '@/constants/theme';
-import type { Locale } from '@/i18n/types';
-import type { PremiumPrivilegeId } from '@/lib/premium-privileges';
+import { hapticLight } from '@/lib/haptics';
 import { deleteOwnAccount } from '@/services/account-deletion';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 
-const PROFILE_LANGUAGES = LOCALES.filter((language) =>
-  ['tr', 'en', 'de', 'fr', 'es', 'it', 'ar', 'ru'].includes(language.id),
-);
-
 export default function ProfileScreen() {
   const t = useTranslation();
-  const { locale, setLocale } = useLocale();
   const insets = useSafeAreaInsets();
-  const { colors, isDark, toggleDark } = useTheme();
+  const { colors } = useTheme();
   const { clearLocalSession } = useAuth();
-  const { savedLooks } = useLooks();
   const { isPremium } = usePremium();
-  const { signature, memory } = useStyleMemory();
+  const { signature } = useStyleMemory();
   const { displayName, avatarUri, profile } = useUserProfile();
   const { pendingTarget, clearPendingNavigation } = useAppNavigation();
   const scrollRef = useTabScrollToTop();
-  const privilegesY = useRef(0);
   const aboutY = useRef(0);
-  const [privilegeToOpen, setPrivilegeToOpen] = useState<PremiumPrivilegeId | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
-
-  const handlePrivilegeOpened = useCallback(() => setPrivilegeToOpen(null), []);
-
-  useEffect(() => {
-    if (pendingTarget !== 'profile-fragrance') return;
-    const timer = setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: privilegesY.current, animated: true });
-      setPrivilegeToOpen('fragrance');
-      clearPendingNavigation();
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [pendingTarget, clearPendingNavigation]);
 
   useEffect(() => {
     if (pendingTarget !== 'profile-about') return;
@@ -114,12 +87,34 @@ export default function ProfileScreen() {
           <Text style={[styles.subtitle, { color: colors.gray }]}>{usernameLine}</Text>
         </View>
 
-        <AccountSection />
-
-        <ProfileDetailsSection />
+        <View style={styles.section}>
+          <Pressable
+            onPress={() => {
+              void hapticLight();
+              router.push('/settings');
+            }}
+            style={({ pressed }) => [
+              styles.settingsButton,
+              {
+                backgroundColor: colors.white,
+                borderColor: colors.creamMuted,
+              },
+              pressed && styles.settingsButtonPressed,
+              StyloveShadow.soft,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={t.profile.settingsTitle}>
+            <View style={[styles.settingsIconWrap, { backgroundColor: colors.wineDeep }]}>
+              <Ionicons name="settings-outline" size={18} color={colors.goldSoft} />
+            </View>
+            <Text style={[styles.settingsButtonLabel, { color: colors.black }]}>
+              {t.profile.settingsTitle}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.grayLight} />
+          </Pressable>
+        </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.grayLight }]}>{t.profile.settingsTitle}</Text>
           <View
             style={[
               styles.membershipCard,
@@ -147,39 +142,6 @@ export default function ProfileScreen() {
               </Pressable>
             ) : null}
           </View>
-
-          <View style={[styles.settingsCard, { backgroundColor: colors.white, borderColor: colors.creamMuted }]}>
-            <Text style={[styles.settingsLabel, { color: colors.grayLight }]}>{t.profile.language}</Text>
-            <View style={styles.languageGrid}>
-              {PROFILE_LANGUAGES.map((language) => {
-                const selected = language.id === locale;
-                return (
-                  <Pressable
-                    key={language.id}
-                    onPress={() => void setLocale(language.id as Locale)}
-                    style={[
-                      styles.languageChip,
-                      {
-                        backgroundColor: selected ? colors.cream : colors.ivory,
-                        borderColor: selected ? colors.burgundy : colors.creamMuted,
-                      },
-                    ]}>
-                    <Text
-                      style={[
-                        styles.languageText,
-                        { color: selected ? colors.burgundy : colors.black },
-                      ]}>
-                      {language.native}
-                    </Text>
-                    {selected ? <Ionicons name="checkmark" size={15} color={colors.burgundy} /> : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          <PushNotificationsSetting />
-
         </View>
 
         <AboutStyloveSection
@@ -242,46 +204,6 @@ export default function ProfileScreen() {
         </View>
 
         <PremiumCta label={t.profile.premiumCta} variant="card" />
-
-        <View
-          onLayout={(e) => {
-            privilegesY.current = e.nativeEvent.layout.y;
-          }}>
-          <PremiumPrivilegesSection
-            openPrivilegeId={privilegeToOpen}
-            onPrivilegeOpened={handlePrivilegeOpened}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.grayLight }]}>{t.profile.preferences}</Text>
-          <Pressable
-            onPress={toggleDark}
-            style={[
-              styles.themeRow,
-              { backgroundColor: colors.white, borderColor: colors.creamMuted },
-            ]}>
-            <View style={styles.themeLeft}>
-              <Ionicons name={isDark ? 'moon' : 'sunny'} size={18} color={colors.burgundy} />
-              <Text style={[styles.themeLabel, { color: colors.black }]}>
-                {isDark ? t.profile.themeDark : t.profile.themeLight}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.grayLight} />
-          </Pressable>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.grayLight }]}>{t.profile.savedLooks}</Text>
-          <View style={[styles.statRow, { backgroundColor: colors.white, borderColor: colors.creamMuted }]}>
-            <Text style={[styles.statValue, { color: colors.burgundy }]}>{savedLooks.length}</Text>
-            <Text style={[styles.statLabel, { color: colors.gray }]}>{t.looks.saved}</Text>
-            <Text style={[styles.statMeta, { color: colors.grayLight }]}>
-              {memory.totalLooksGenerated} {t.profile.statsCurated} · {memory.totalLooksSaved}{' '}
-              {t.profile.statsSaved}
-            </Text>
-          </View>
-        </View>
 
         <LegalTrustSection />
 
@@ -419,17 +341,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 13,
   },
-  settingsCard: {
-    borderRadius: 20,
+  settingsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    padding: 16,
-    gap: 12,
-    ...StyloveShadow.soft,
   },
-  settingsLabel: {
-    fontSize: 12,
-    letterSpacing: 0.3,
-    fontWeight: '500',
+  settingsButtonPressed: {
+    opacity: 0.92,
+  },
+  settingsIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsButtonLabel: {
+    flex: 1,
+    fontFamily: Fonts.serif,
+    fontSize: 17,
+    letterSpacing: 0.2,
   },
   signatureCard: {
     marginHorizontal: 24,
@@ -487,44 +422,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     fontWeight: '500',
   },
-  themeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  themeLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  themeLabel: {
-    fontSize: 15,
-  },
-  languageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  languageChip: {
-    minWidth: '45%',
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  languageText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
   deleteRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -574,25 +471,5 @@ const styles = StyleSheet.create({
   },
   deleteCancelText: {
     fontSize: 13,
-  },
-  statRow: {
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  statValue: {
-    fontFamily: Fonts.serif,
-    fontSize: 36,
-  },
-  statLabel: {
-    fontSize: 12,
-    letterSpacing: 0.5,
-  },
-  statMeta: {
-    fontSize: 11,
-    fontStyle: 'italic',
-    marginTop: 4,
   },
 });

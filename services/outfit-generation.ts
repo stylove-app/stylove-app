@@ -1,4 +1,6 @@
+import { getTranslations } from '@/i18n';
 import type { Locale, MoodId } from '@/i18n/types';
+import { buildPersonalizedTitle } from '@/lib/personalized-look-copy';
 import type { StyleMemory } from '@/lib/style-memory';
 import type {
   CuratedLook,
@@ -215,12 +217,15 @@ function roleItemName(pieces: OutfitPiece[], role: OutfitPieceRole): string | un
   return pieces.find((piece) => piece.role === role)?.item.name;
 }
 
-function fallbackTitle(locale: Locale, intent: string, weather: WeatherSnapshot | undefined): string {
-  const isTurkish = locale === 'tr';
-  if (BEACH_INTENT_PATTERN.test(intent) || isWarmWeather(weather)) {
-    return isTurkish ? 'Sıcak Hava İçin Sade Denge' : 'Clean Warm-Weather Balance';
-  }
-  return isTurkish ? 'Net ve Dengeli Görünüm' : 'Clean Balanced Look';
+function fallbackTitle(
+  t: ReturnType<typeof getTranslations>,
+  intent: string,
+  mood: MoodId,
+  weather: WeatherSnapshot | undefined,
+  pieces: OutfitPiece[],
+  seed: number,
+): string {
+  return buildPersonalizedTitle({ t, intent, mood, weather, pieces, seed });
 }
 
 function fallbackVibe(locale: Locale, intent: string, weather: WeatherSnapshot | undefined): string {
@@ -236,7 +241,10 @@ function buildContextualFallback(params: {
   intent: string;
   pieces: OutfitPiece[];
   weather?: WeatherSnapshot;
+  mood: MoodId;
+  seed: number;
 }) {
+  const t = getTranslations(params.locale);
   const isTurkish = params.locale === 'tr';
   const top = roleItemName(params.pieces, 'top') ?? roleItemName(params.pieces, 'dress') ?? params.pieces[0]?.item.name;
   const bottom = roleItemName(params.pieces, 'bottom');
@@ -255,7 +263,7 @@ function buildContextualFallback(params: {
       ? `${top ?? 'Seçilen üst parça'} görünümü hafif tutarken ${bottom ?? 'alt parça'} sade ve rahat bir denge kuruyor. ${shoes ?? 'Ayakkabı seçimi'} sıcak havada hareketi kolaylaştırıyor; ${bag ?? accessory ?? 'son dokunuş'} görünümü fazla ağırlaştırmadan tamamlıyor.`
       : `${top ?? 'Seçilen ana parça'} görünümün merkezini kuruyor; ${bottom ?? 'tamamlayıcı parça'} silueti dengeli ve sakin tutuyor. ${shoes ?? 'Ayakkabı seçimi'} kombini pratik ama özenli bir çizgide tamamlıyor${outerwear ? `, ${outerwear} ise havaya karşı rafine bir katman ekliyor` : ''}.`;
     return {
-      title: fallbackTitle(params.locale, params.intent, params.weather),
+      title: fallbackTitle(t, params.intent, params.mood, params.weather, params.pieces, params.seed),
       vibe: fallbackVibe(params.locale, params.intent, params.weather),
       commentary,
       weatherReason: warmOrBeach
@@ -278,7 +286,7 @@ function buildContextualFallback(params: {
     ? `${top ?? 'The main piece'} keeps the look light while ${bottom ?? 'the lower half'} creates a clean, relaxed balance. ${shoes ?? 'The shoes'} keep movement easy in warm weather, and ${bag ?? accessory ?? 'the final detail'} finishes the outfit without adding weight.`
     : `${top ?? 'The main piece'} anchors the outfit while ${bottom ?? 'the supporting piece'} keeps the silhouette clean and balanced. ${shoes ?? 'The shoes'} finish it with a practical polished line${outerwear ? `, while ${outerwear} adds a refined weather layer` : ''}.`;
   return {
-    title: fallbackTitle(params.locale, params.intent, params.weather),
+    title: fallbackTitle(t, params.intent, params.mood, params.weather, params.pieces, params.seed),
     vibe: fallbackVibe(params.locale, params.intent, params.weather),
     commentary,
     weatherReason: warmOrBeach
@@ -335,14 +343,20 @@ function applyRemoteLook(
   const image = completeOutfit[0]?.item.imageUri ?? fallback.image;
   const tones = detectedTones(completeOutfit);
   const textContext = { tones, pieces: completeOutfit, weather, intent };
-  const fallbackCopy = buildContextualFallback({ locale, intent, pieces: completeOutfit, weather });
+  const touchSeed = itemIds.join('-').length > 0 ? hashString(itemIds.join('-')) : Date.now();
+  const fallbackCopy = buildContextualFallback({
+    locale,
+    intent,
+    pieces: completeOutfit,
+    weather,
+    mood: fallback.mood,
+    seed: touchSeed,
+  });
 
-  const remoteTitle = remote.title?.trim();
   const remoteVibe = remote.vibe?.trim();
   const remoteCommentary = remote.commentary?.trim();
   const remoteWeatherReason = remote.weatherReason?.trim();
   const remoteStylingNotes = remote.stylingNotes?.trim();
-  const remoteMissingPiece = remote.missingPiece?.trim();
   const commentary = remoteCommentary && !hasContextConflict(remoteCommentary, textContext)
     ? remoteCommentary
     : fallbackCopy.commentary;
@@ -352,12 +366,10 @@ function applyRemoteLook(
   const stylingNotes = remoteStylingNotes && !hasContextConflict(remoteStylingNotes, textContext)
     ? remoteStylingNotes
     : fallbackCopy.stylingNotes;
-  const fallbackMissingPieces = fallback.missingOutfitPieces?.filter((piece) => !hasContextConflict(piece, textContext));
   const remoteTags = remote.tags?.filter((tag) => !hasContextConflict(tag, textContext)).slice(0, 4);
-
   return {
     ...fallback,
-    title: remoteTitle && !hasContextConflict(remoteTitle, textContext) ? remoteTitle : fallbackCopy.title,
+    title: fallbackCopy.title,
     occasion: remoteVibe && !hasContextConflict(remoteVibe, textContext) ? remoteVibe : fallbackCopy.vibe,
     description: commentary,
     weatherStyling: weatherReason,
@@ -368,11 +380,16 @@ function applyRemoteLook(
     image,
     usesWardrobeImage: true,
     completeOutfit,
-    missingOutfitPieces:
-      remoteMissingPiece && !hasContextConflict(remoteMissingPiece, textContext)
-        ? [remoteMissingPiece]
-        : fallbackMissingPieces,
   };
+}
+
+function hashString(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
 }
 
 export async function generateOutfitSecurely(params: {

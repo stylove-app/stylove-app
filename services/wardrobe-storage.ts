@@ -1,13 +1,15 @@
 import { supabase } from '@/services/supabase';
 
 export const WARDROBE_ORIGINALS_BUCKET = 'wardrobe-originals';
-export const WARDROBE_CLEANED_BUCKET = 'wardrobe-cleaned';
+
+/** Orphan object cleanup for legacy storage paths (best-effort on item removal). */
+const LEGACY_STORAGE_BUCKET = 'wardrobe-cleaned';
 
 export function wardrobeOriginalPath(userId: string, itemId: string): string {
   return `${userId}/${itemId}.jpg`;
 }
 
-export function wardrobeCleanedPath(userId: string, itemId: string): string {
+function wardrobeLegacyCleanedPath(userId: string, itemId: string): string {
   return `${userId}/${itemId}.png`;
 }
 
@@ -47,9 +49,10 @@ export async function uploadWardrobeOriginal(
 }
 
 export async function deleteWardrobeStorageObjects(userId: string, itemId: string): Promise<void> {
-  const paths = [wardrobeOriginalPath(userId, itemId), wardrobeCleanedPath(userId, itemId)];
+  const originalPath = wardrobeOriginalPath(userId, itemId);
+  const legacyCleanedPath = wardrobeLegacyCleanedPath(userId, itemId);
   await Promise.all([
-    supabase.storage.from(WARDROBE_ORIGINALS_BUCKET).remove([paths[0]]),
-    supabase.storage.from(WARDROBE_CLEANED_BUCKET).remove([paths[1]]),
+    supabase.storage.from(WARDROBE_ORIGINALS_BUCKET).remove([originalPath]),
+    supabase.storage.from(LEGACY_STORAGE_BUCKET).remove([legacyCleanedPath]),
   ]);
 }

@@ -29,7 +29,7 @@ const WeatherContext = createContext<WeatherContextValue | null>(null);
 export function WeatherProvider({ children }: { children: React.ReactNode }) {
   const t = useTranslation();
   const { locale } = useLocale();
-  const fallbackCity = locale === 'tr' ? 'İstanbul' : 'Paris';
+  const fallbackCity = t.weather.fallbackLocation;
   const [weather, setWeather] = useState<WeatherSnapshot>(() => getFallbackWeather(fallbackCity));
   const [loading, setLoading] = useState(true);
 

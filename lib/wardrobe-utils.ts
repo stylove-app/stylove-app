@@ -16,7 +16,6 @@ const DEMO_NAME_SET = new Set<string>(DEMO_WARDROBE_NAMES.map((n) => n.toLowerCa
 export function isDemoWardrobeItem(item: WardrobeItem): boolean {
   const normalized = normalizeWardrobeItem({
     ...item,
-    processingStatus: item.processingStatus ?? 'done',
     originalImageUri: item.originalImageUri ?? item.imageUri,
   });
   if (normalized.id.startsWith('default-') || normalized.id.startsWith('item-')) return true;
@@ -30,9 +29,12 @@ export function getStylingWardrobe(items: WardrobeItem[]): WardrobeItem[] {
   return items.filter((item) => !isDemoWardrobeItem(item));
 }
 
-/** Styling wardrobe with processing-complete pieces only (outfit engines). */
+/** Styling wardrobe with a stored image URI (outfit engines). */
 export function getReadyStylingWardrobe(items: WardrobeItem[]): WardrobeItem[] {
-  return getStylingWardrobe(items).filter((item) => (item.processingStatus ?? 'done') === 'done');
+  return getStylingWardrobe(items).filter((item) => {
+    const uri = item.originalImageUri ?? item.imageUri;
+    return uri.length > 0 && uri !== 'pending';
+  });
 }
 
 export function stripDemoWardrobe(items: WardrobeItem[]): WardrobeItem[] {

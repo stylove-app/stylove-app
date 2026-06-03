@@ -23,7 +23,9 @@ export function WeeklyStyleSummaryCard({ summary, onPress, expanded }: WeeklySty
       <Text style={[styles.eyebrow, { color: colors.goldMuted }]}>{t.weeklySummary.cardEyebrow}</Text>
       <GoldShimmerLine width={38} />
       <Text style={[styles.title, { color: colors.creamText }]}>{summary.aura}</Text>
-      <Text style={[styles.subtitle, { color: colors.grayLight }]}>{summary.editorialSummary}</Text>
+      {summary.editorialSummary ? (
+        <Text style={[styles.subtitle, { color: colors.grayLight }]}>{summary.editorialSummary}</Text>
+      ) : null}
 
       <View style={styles.metricsGrid}>
         <Metric value={summary.metrics.looksCreated} label={t.weeklySummary.looksCreated} />

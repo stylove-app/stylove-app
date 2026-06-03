@@ -40,9 +40,6 @@ export function AboutStyloveHintCard() {
             <Text style={[styles.subtitle, { color: colors.gray }]} numberOfLines={2}>
               {t.about.homeSubtitle}
             </Text>
-            <Text style={[styles.travelLine, { color: colors.goldMuted }]} numberOfLines={1}>
-              {t.about.homeTravelLine}
-            </Text>
           </View>
           <View style={[styles.ctaPill, { borderColor: colors.burgundy }]}>
             <Text style={[styles.cta, { color: colors.burgundy }]}>{t.about.homeCta}</Text>
@@ -56,14 +53,14 @@ export function AboutStyloveHintCard() {
 const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: 24,
-    marginBottom: 20,
+    marginBottom: 28,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     borderRadius: 14,
     borderWidth: 1,
   },
@@ -72,7 +69,7 @@ const styles = StyleSheet.create({
   },
   copy: {
     flex: 1,
-    gap: 2,
+    gap: 6,
   },
   title: {
     fontFamily: Fonts.serif,
@@ -83,12 +80,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
     fontStyle: 'italic',
-  },
-  travelLine: {
-    fontSize: 10,
-    lineHeight: 13,
-    fontStyle: 'italic',
-    letterSpacing: 0.1,
   },
   ctaPill: {
     paddingVertical: 5,

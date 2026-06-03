@@ -80,6 +80,26 @@ export default function PremiumScreen() {
           <Text style={styles.subtitle}>{t.premium.subtitle}</Text>
         </View>
 
+        <View style={styles.pricingSection}>
+          <Text style={styles.plansIntro}>{t.premium.plansIntro}</Text>
+          <Text style={styles.sameFeaturesNote}>{t.premium.sameFeaturesNote}</Text>
+          <PlanCard
+            title={t.premium.monthlyPlanTitle}
+            subtitle={t.premium.monthlyPlanSubtitle}
+            price={t.premium.monthlyPrice}
+            cadence={t.premium.perMonth}
+            cta={t.premium.inactiveCta}
+            recommended={t.premium.recommended}
+          />
+          <PlanCard
+            title={t.premium.weeklyPlanTitle}
+            subtitle={t.premium.weeklyPlanSubtitle}
+            price={t.premium.weeklyPrice}
+            cadence={t.premium.perWeek}
+            cta={t.premium.inactiveCta}
+          />
+        </View>
+
         <View style={styles.comingSoonBanner} accessibilityRole="text">
           <Ionicons name="sparkles-outline" size={18} color={StyloveColors.goldSoft} />
           <View style={styles.comingSoonCopy}>
@@ -117,26 +137,6 @@ export default function PremiumScreen() {
               <Text style={styles.benefitText}>{benefit}</Text>
             </View>
           ))}
-        </View>
-
-        <View style={styles.plans}>
-          <Text style={styles.plansIntro}>{t.premium.plansIntro}</Text>
-          <Text style={styles.sameFeaturesNote}>{t.premium.sameFeaturesNote}</Text>
-          <PlanCard
-            title={t.premium.weeklyPlanTitle}
-            subtitle={t.premium.weeklyPlanSubtitle}
-            price={t.premium.weeklyPrice}
-            cadence={t.premium.perWeek}
-            cta={t.premium.inactiveCta}
-          />
-          <PlanCard
-            title={t.premium.monthlyPlanTitle}
-            subtitle={t.premium.monthlyPlanSubtitle}
-            price={t.premium.monthlyPrice}
-            cadence={t.premium.perMonth}
-            cta={t.premium.inactiveCta}
-            recommended={t.premium.recommended}
-          />
         </View>
 
         <View style={styles.comparison}>
@@ -181,14 +181,18 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     gap: 12,
+  },
+  pricingSection: {
+    gap: 14,
+    marginBottom: 24,
   },
   comingSoonBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    marginBottom: 28,
+    marginBottom: 22,
     padding: 16,
     borderRadius: 20,
     borderWidth: 1,
@@ -226,11 +230,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 13,
     color: 'rgba(248,244,237,0.75)',
     textAlign: 'center',
     fontStyle: 'italic',
-    lineHeight: 22,
+    lineHeight: 19,
   },
   planGrid: {
     gap: 14,
@@ -277,183 +281,182 @@ const styles = StyleSheet.create({
     gap: 14,
     marginBottom: 22,
     padding: 22,
-    borderRadius: 26,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: StyloveColors.goldMuted,
-    backgroundColor: 'rgba(255,250,242,0.06)',
+    borderColor: 'rgba(196,160,98,0.22)',
+    backgroundColor: 'rgba(255,250,242,0.05)',
     overflow: 'hidden',
   },
   featureGlow: {
     position: 'absolute',
-    top: -80,
-    right: -60,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(196,160,98,0.16)',
+    top: -60,
+    right: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(196,160,98,0.12)',
   },
   benefitRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
+    alignItems: 'flex-start',
+    gap: 10,
   },
   benefitText: {
-    fontSize: 15,
-    color: 'rgba(248,244,237,0.85)',
-    letterSpacing: 0.2,
     flex: 1,
-  },
-  plans: {
-    gap: 14,
-    marginBottom: 24,
+    color: 'rgba(248,244,237,0.88)',
+    fontSize: 14,
+    lineHeight: 21,
   },
   plansIntro: {
-    fontFamily: Fonts.serif,
-    fontSize: 18,
-    color: StyloveColors.ivory,
+    color: StyloveColors.goldSoft,
+    fontSize: 12,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
     textAlign: 'center',
-    lineHeight: 24,
-  },
-  sameFeaturesNote: {
-    fontSize: 13,
-    color: 'rgba(248,244,237,0.62)',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    lineHeight: 19,
     marginBottom: 4,
   },
+  sameFeaturesNote: {
+    color: 'rgba(248,244,237,0.62)',
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
   planCard: {
-    borderRadius: 26,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(248,244,237,0.13)',
-    backgroundColor: 'rgba(255,250,242,0.05)',
+    borderColor: 'rgba(248,244,237,0.14)',
+    backgroundColor: 'rgba(255,250,242,0.06)',
     padding: 20,
-    gap: 12,
-    opacity: 0.92,
+    gap: 8,
   },
   planCardRecommended: {
-    borderColor: 'rgba(196,160,98,0.58)',
+    borderColor: 'rgba(196,160,98,0.45)',
     backgroundColor: 'rgba(196,160,98,0.12)',
+    transform: [{ scale: 1.02 }],
   },
   planTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 8,
   },
   planTitle: {
-    flex: 1,
     fontFamily: Fonts.serif,
+    fontSize: 22,
     color: StyloveColors.ivory,
-    fontSize: 21,
+    flex: 1,
   },
   recommendedPill: {
-    borderRadius: 999,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: StyloveColors.goldSoft,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(196,160,98,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(196,160,98,0.35)',
   },
   recommendedText: {
-    color: StyloveColors.wineDeep,
+    color: StyloveColors.goldSoft,
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.7,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
+    fontWeight: '700',
   },
   planSubtitle: {
-    color: 'rgba(248,244,237,0.68)',
+    color: 'rgba(248,244,237,0.65)',
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 18,
     fontStyle: 'italic',
   },
   priceRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 6,
+    alignItems: 'baseline',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 4,
   },
   planPrice: {
     fontFamily: Fonts.serif,
-    color: StyloveColors.ivory,
-    fontSize: 30,
+    fontSize: 36,
+    color: StyloveColors.goldSoft,
+    letterSpacing: 0.3,
   },
   planCadence: {
-    color: 'rgba(248,244,237,0.58)',
+    color: 'rgba(248,244,237,0.55)',
     fontSize: 13,
-    paddingBottom: 5,
   },
   inactiveCta: {
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(196,160,98,0.22)',
-    backgroundColor: 'rgba(255,250,242,0.06)',
+    marginTop: 8,
     paddingVertical: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(248,244,237,0.2)',
     alignItems: 'center',
   },
   inactiveCtaRecommended: {
-    backgroundColor: 'rgba(196,160,98,0.22)',
-    borderColor: 'rgba(196,160,98,0.35)',
+    borderColor: 'rgba(196,160,98,0.4)',
+    backgroundColor: 'rgba(196,160,98,0.1)',
   },
   inactiveCtaText: {
-    color: StyloveColors.goldSoft,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    color: 'rgba(248,244,237,0.55)',
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    fontWeight: '600',
   },
   inactiveCtaTextRecommended: {
-    color: 'rgba(248,244,237,0.78)',
+    color: StyloveColors.goldSoft,
   },
   comparison: {
-    borderRadius: 22,
+    marginBottom: 24,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(196,160,98,0.22)',
+    borderColor: 'rgba(248,244,237,0.1)',
     overflow: 'hidden',
-    marginBottom: 22,
   },
   compareHeader: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
     backgroundColor: 'rgba(255,250,242,0.06)',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   comparePlan: {
-    width: 82,
-    color: 'rgba(248,244,237,0.7)',
+    flex: 1,
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: 'rgba(248,244,237,0.55)',
   },
   comparePremium: {
     color: StyloveColors.goldSoft,
-    fontWeight: '600',
   },
   compareRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(196,160,98,0.14)',
-    gap: 10,
+    borderTopColor: 'rgba(248,244,237,0.08)',
   },
   compareLabel: {
-    flex: 1,
-    color: StyloveColors.creamText,
-    fontSize: 13,
-    lineHeight: 18,
+    flex: 1.2,
+    color: 'rgba(248,244,237,0.75)',
+    fontSize: 12,
   },
   compareValue: {
-    width: 82,
-    color: 'rgba(248,244,237,0.64)',
+    flex: 1,
     textAlign: 'center',
+    color: 'rgba(248,244,237,0.55)',
     fontSize: 12,
   },
   note: {
-    fontSize: 12,
-    color: 'rgba(248,244,237,0.45)',
+    marginTop: 16,
     textAlign: 'center',
-    marginTop: 8,
+    color: 'rgba(248,244,237,0.5)',
+    fontSize: 11,
+    lineHeight: 16,
     fontStyle: 'italic',
-    lineHeight: 18,
   },
 });

@@ -17,11 +17,11 @@ type NotificationsModalProps = {
 
 const NAV_BY_ACTION: Record<
   NotificationActionId,
-  { route: '/(tabs)' | '/(tabs)/looks' | '/(tabs)/profile'; target?: 'home-aura' | 'profile-fragrance' }
+  { route: '/(tabs)' | '/(tabs)/looks' | '/(tabs)/profile'; target?: 'home-aura' | 'profile-about' }
 > = {
   aura: { route: '/(tabs)', target: 'home-aura' },
   savedLook: { route: '/(tabs)/looks' },
-  fragrance: { route: '/(tabs)/profile', target: 'profile-fragrance' },
+  fragrance: { route: '/(tabs)/looks' },
 };
 
 export function NotificationsModal({ visible, onClose }: NotificationsModalProps) {

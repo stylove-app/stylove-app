@@ -1,5 +1,4 @@
 import type { WardrobeCategoryId, WardrobeItemTypeId } from '@/i18n/types';
-import { getWardrobeDisplayUri } from '@/lib/wardrobe-display';
 import type { WardrobeItem } from '@/lib/outfit-engine';
 
 /** Detailed types grouped for the add-piece picker (order preserved). */
@@ -108,20 +107,15 @@ export function normalizeWardrobeItem(item: WardrobeItem): WardrobeItem {
     category = getCategoryForItemType(itemType);
   }
 
-  const originalImageUri = item.originalImageUri ?? item.imageUri;
-  const processingStatus = item.processingStatus ?? 'done';
+  const imageUri = item.originalImageUri ?? item.imageUri;
 
-  const normalized: WardrobeItem = {
+  return {
     ...item,
     itemType,
     category,
-    originalImageUri,
-    processingStatus,
-    imageUri: '',
+    originalImageUri: imageUri,
+    imageUri,
   };
-  normalized.imageUri = getWardrobeDisplayUri(normalized);
-
-  return normalized;
 }
 
 export function normalizeWardrobeItems(items: WardrobeItem[]): WardrobeItem[] {

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,12 +30,6 @@ export function BrandHeader() {
         : t.home.greetingEvening;
 
   const name = profile.firstName.trim() || displayName;
-
-  const subGreeting = useMemo(() => {
-    if (timeOfDay === 'morning') return t.home.subGreetingMorning;
-    if (timeOfDay === 'afternoon') return t.home.subGreetingAfternoon;
-    return t.home.subGreetingEvening;
-  }, [timeOfDay, t.home.subGreetingMorning, t.home.subGreetingAfternoon, t.home.subGreetingEvening]);
 
   const greetingLine = `${greeting}, ${name}.`;
 
@@ -76,7 +70,6 @@ export function BrandHeader() {
           </View>
 
           <Text style={styles.greeting}>{greetingLine}</Text>
-          <Text style={styles.subGreeting}>{subGreeting}</Text>
           {loading ? (
             <View style={styles.weatherSkeleton}>
               <SkeletonWeatherLine />
@@ -84,8 +77,6 @@ export function BrandHeader() {
           ) : (
             <Text style={styles.weather}>{weatherLine}</Text>
           )}
-          <View style={styles.divider} />
-          <Text style={styles.prepared}>{t.home.preparedForYou}</Text>
         </View>
       </View>
 
@@ -114,8 +105,8 @@ const styles = StyleSheet.create({
   },
   inner: {
     paddingHorizontal: 24,
-    paddingBottom: 28,
-    paddingTop: 12,
+    paddingBottom: 32,
+    paddingTop: 14,
   },
   topRow: {
     flexDirection: 'row',
@@ -165,32 +156,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     lineHeight: 34,
   },
-  subGreeting: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: 'rgba(245,237,224,0.72)',
-    fontStyle: 'italic',
-    marginTop: 6,
-  },
   weather: {
     fontSize: 12,
     letterSpacing: 0.8,
     color: StyloveColors.goldSoft,
-    marginTop: 14,
+    marginTop: 12,
     textTransform: 'uppercase',
   },
   weatherSkeleton: {
     marginTop: 14,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(212,184,120,0.22)',
-    marginVertical: 16,
-  },
-  prepared: {
-    fontSize: 11,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: 'rgba(245,237,224,0.55)',
   },
 });

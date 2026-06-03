@@ -1,12 +1,11 @@
 import { parseIntent } from '@/lib/intent-parser';
 import { inferEventContext, getVenueMoodBias } from '@/lib/event-intelligence';
 import { computeLuxuryScores, type LuxuryScores } from '@/lib/luxury-scores';
+import { buildEditorialReasoning, type EditorialReasoning } from '@/lib/editorial-reasoning';
 import {
-  buildEditorialReasoning,
-  suggestMissingPieces,
-  type EditorialReasoning,
-  type MissingPiece,
-} from '@/lib/editorial-reasoning';
+  buildPersonalizedOccasion,
+  buildPersonalizedTitle,
+} from '@/lib/personalized-look-copy';
 import type { EventContext } from '@/lib/event-intelligence';
 import type { StyleMemory } from '@/lib/style-memory';
 import type { MoodId, OutfitVariant, WardrobeCategoryId, WardrobeItemTypeId } from '@/i18n/types';
@@ -15,8 +14,16 @@ import type { WeatherSnapshot } from '@/lib/weather';
 import { weatherMoodBoost } from '@/lib/weather';
 import { getStylingWardrobe } from '@/lib/wardrobe-utils';
 import { WARDROBE_ENGINE_CATEGORIES } from '@/lib/wardrobe-item-types';
-
-export type WardrobeProcessingStatus = 'pending' | 'processing' | 'done' | 'failed';
+import {
+  analyzeWardrobeItem,
+  needsOuterwearForContext,
+  OUTFIT_CANDIDATE_COUNT,
+  pickBestPiece,
+  preferredTypesForSlot,
+  scoreOutfitPieces,
+  type ItemStylingProfile,
+  type OutfitStylingContext,
+} from '@/lib/outfit-styling-intelligence';
 
 export type WardrobeItem = {
   id: string;
@@ -25,14 +32,10 @@ export type WardrobeItem = {
   itemType: WardrobeItemTypeId;
   /** Mapped engine category for outfit / travel generation. */
   category: WardrobeCategoryId;
-  /** Display URI — prefers cleaned_image_uri when processing is done. */
+  /** Display URI — wardrobe-originals upload. */
   imageUri: string;
-  /** Original upload in wardrobe-originals (backup). */
+  /** Same as imageUri; kept for wardrobe row mapping. */
   originalImageUri: string;
-  /** Background-removed cutout in wardrobe-cleaned. */
-  cleanedImageUri?: string;
-  processingStatus: WardrobeProcessingStatus;
-  processingError?: string;
   createdAt: number;
 };
 
@@ -53,13 +56,11 @@ export type CuratedLook = {
   weatherStyling?: string;
   whyThisWorks?: string;
   editorialReasoning?: EditorialReasoning;
-  missingPieces?: MissingPiece[];
   eventContext?: EventContext;
   intent?: string;
   wardrobeHint?: string;
   usesWardrobeImage?: boolean;
   completeOutfit?: OutfitPiece[];
-  missingOutfitPieces?: string[];
   archiveCategory?: string;
 };
 
@@ -80,7 +81,7 @@ export type OutfitPiece = {
   item: WardrobeItem;
 };
 
-export type { LuxuryScores, EditorialReasoning, MissingPiece, EventContext };
+export type { LuxuryScores, EditorialReasoning, EventContext };
 
 const MOOD_IMAGES: Record<MoodId, string[]> = {
   elegant: [
@@ -139,84 +140,10 @@ function pick<T>(arr: T[], seed: number): T {
   return arr[seed % arr.length];
 }
 
-const NEUTRAL_TONES = new Set(['black', 'white', 'cream', 'ivory', 'beige', 'camel', 'gray', 'navy']);
-
-const TONE_PATTERNS: { tone: string; patterns: RegExp[] }[] = [
-  { tone: 'black', patterns: [/\bblack\b/i, /\bsiyah\b/i] },
-  { tone: 'white', patterns: [/\bwhite\b/i, /\bbeyaz\b/i] },
-  { tone: 'cream', patterns: [/\bcream\b/i, /\bkrem\b/i, /\bivory\b/i, /\bfildisi\b/i, /\bfildişi\b/i] },
-  { tone: 'burgundy', patterns: [/\bburgundy\b/i, /\bbordo\b/i, /\bwine\b/i, /\bşarap\b/i] },
-  { tone: 'beige', patterns: [/\bbeige\b/i, /\bbej\b/i, /\btaupe\b/i, /\bvizon\b/i] },
-  { tone: 'camel', patterns: [/\bcamel\b/i, /\bkahve\b/i, /\btaba\b/i] },
-  { tone: 'gray', patterns: [/\bgray\b/i, /\bgrey\b/i, /\bgri\b/i, /\bantrasit\b/i] },
-  { tone: 'navy', patterns: [/\bnavy\b/i, /\blacivert\b/i] },
-  { tone: 'blue', patterns: [/\bblue\b/i, /\bmavi\b/i] },
-  { tone: 'pink', patterns: [/\bpink\b/i, /\bpembe\b/i, /\bblush\b/i] },
-  { tone: 'green', patterns: [/\bgreen\b/i, /\byeşil\b/i, /\byesil\b/i] },
-  { tone: 'gold', patterns: [/\bgold\b/i, /\baltın\b/i, /\baltin\b/i] },
-  { tone: 'silver', patterns: [/\bsilver\b/i, /\bgümüş\b/i, /\bgumus\b/i] },
-];
-
-const COLD_INTENT_PATTERN =
-  /\b(cold|winter|snow|rain|rainy|evening|night|outdoor|outside|soğuk|soguk|kış|kis|kar|yağmur|yagmur|akşam|aksam|gece|dışarı|disari)\b/i;
-const COMFORT_FOOTWEAR_INTENT_PATTERN =
-  /\b(city walk|walk|travel|airport|explore|sightseeing|seyahat|yürüyüş|yuruyus|gezmek|keşif|kesif|havalimanı|havalimani)\b/i;
-
-function detectTone(item: WardrobeItem): string | null {
-  const source = `${item.name} ${item.itemType}`.trim();
-  return TONE_PATTERNS.find((entry) => entry.patterns.some((pattern) => pattern.test(source)))?.tone ?? null;
-}
-
-function toneScore(item: WardrobeItem, anchorTone: string | null): number {
-  const tone = detectTone(item);
-  if (!tone || !anchorTone) return 1;
-  if (tone === anchorTone) return 4;
-  if (NEUTRAL_TONES.has(tone) || NEUTRAL_TONES.has(anchorTone)) return 3;
-  return 0;
-}
-
-function rotateBySeed<T>(items: T[], seed: number): T[] {
-  if (items.length <= 1) return items;
-  const offset = seed % items.length;
-  return [...items.slice(offset), ...items.slice(0, offset)];
-}
-
-function choosePiece(
-  items: WardrobeItem[],
-  seed: number,
-  anchorTone: string | null,
-  preferredTypes: WardrobeItem['itemType'][] = [],
-): WardrobeItem | undefined {
-  return rotateBySeed(items, seed)
-    .map((item, index) => {
-      const typeScore = preferredTypes.includes(item.itemType) ? 3 : 0;
-      return { item, score: toneScore(item, anchorTone) + typeScore - index * 0.01 };
-    })
-    .sort((a, b) => b.score - a.score)[0]?.item;
-}
-
-function needsOuterwear(intent: string, weather: WeatherSnapshot | undefined): boolean {
-  if (!weather) return COLD_INTENT_PATTERN.test(intent);
-  if (!weather.needsOuterwear && weather.temperature >= 22 && !weather.isRainy) return false;
-  if (weather.needsOuterwear) return true;
-  if (COLD_INTENT_PATTERN.test(intent)) return true;
-  if (weather.temperature <= 18) return true;
-  return ['rain', 'drizzle', 'snow', 'fog', 'thunderstorm'].includes(weather.condition);
-}
-
-function buildCompleteOutfit(
-  t: TranslationKeys,
-  params: {
-    intent: string;
-    wardrobe: WardrobeItem[];
-    weather?: WeatherSnapshot;
-    mood: MoodId;
-    seed: number;
-  },
-): { pieces: OutfitPiece[]; missing: string[] } {
-  const byCategory = WARDROBE_ENGINE_CATEGORIES.reduce<Record<WardrobeCategoryId, WardrobeItem[]>>(
+function partitionWardrobe(wardrobe: WardrobeItem[]): Record<WardrobeCategoryId, WardrobeItem[]> {
+  return WARDROBE_ENGINE_CATEGORIES.reduce<Record<WardrobeCategoryId, WardrobeItem[]>>(
     (acc, category) => {
-      acc[category] = params.wardrobe.filter((item) => item.category === category);
+      acc[category] = wardrobe.filter((item) => item.category === category);
       return acc;
     },
     {
@@ -229,54 +156,129 @@ function buildCompleteOutfit(
       accessory: [],
     },
   );
-  const pieces: OutfitPiece[] = [];
-  const missing: string[] = [];
-  const preferElegant = params.mood === 'elegant' || params.mood === 'oldMoney' || params.mood === 'seductive';
-  const preferMinimal = params.mood === 'minimal';
+}
 
-  const top = choosePiece(
-    byCategory.upper,
-    params.seed + 1,
-    null,
-    preferElegant || preferMinimal ? ['gomlek', 'kazak'] : ['tisort', 'gomlek'],
-  );
-  const anchorTone = top ? detectTone(top) : null;
-  const bottom = choosePiece(
-    byCategory.bottom,
-    params.seed + 2,
-    anchorTone,
-    preferElegant || preferMinimal ? ['pantolon', 'etek'] : ['jean', 'pantolon'],
-  );
-  const dress = !top || !bottom ? choosePiece(byCategory.dress, params.seed + 3, anchorTone) : undefined;
-  const shoes = choosePiece(
-    byCategory.shoes,
-    params.seed + 4,
-    anchorTone,
-    COMFORT_FOOTWEAR_INTENT_PATTERN.test(params.intent)
-      ? ['ayakkabi', 'bot']
-      : preferElegant
-        ? ['topuklu', 'bot']
-        : ['ayakkabi', 'bot'],
-  );
-  const shouldLayer = needsOuterwear(params.intent, params.weather);
+function stylingContextBase(
+  params: {
+    intent: string;
+    weather?: WeatherSnapshot;
+    mood: MoodId;
+    seed: number;
+    recentItemIds?: string[];
+    styleMemory?: StyleMemory;
+  },
+): Omit<OutfitStylingContext, 'anchor' | 'selected' | 'preferredTypes'> {
+  return {
+    mood: params.mood,
+    intent: params.intent,
+    weather: params.weather,
+    recentItemIds: new Set(params.recentItemIds ?? []),
+    styleMemory: params.styleMemory,
+    seed: params.seed,
+  };
+}
+
+function assembleOutfitCandidate(
+  t: TranslationKeys,
+  byCategory: Record<WardrobeCategoryId, WardrobeItem[]>,
+  params: {
+    intent: string;
+    weather?: WeatherSnapshot;
+    mood: MoodId;
+    seed: number;
+    recentItemIds?: string[];
+    styleMemory?: StyleMemory;
+  },
+): OutfitPiece[] {
+  const base = stylingContextBase(params);
+  const selected: ItemStylingProfile[] = [];
+
+  const top = pickBestPiece(byCategory.upper, {
+    ...base,
+    anchor: null,
+    selected,
+    preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'upper-anchor'),
+    seed: params.seed + 1,
+  });
+  const anchor = top ? analyzeWardrobeItem(top) : null;
+  if (anchor) selected.push(anchor);
+
+  const bottom = pickBestPiece(byCategory.bottom, {
+    ...base,
+    anchor,
+    selected,
+    preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'bottom'),
+    seed: params.seed + 2,
+  });
+  if (bottom) selected.push(analyzeWardrobeItem(bottom));
+
+  const dress =
+    !top || !bottom
+      ? pickBestPiece(byCategory.dress, {
+          ...base,
+          anchor,
+          selected,
+          preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'dress'),
+          seed: params.seed + 3,
+        })
+      : undefined;
+  if (dress) selected.push(analyzeWardrobeItem(dress));
+
+  const shoes = pickBestPiece(byCategory.shoes, {
+    ...base,
+    anchor,
+    selected,
+    preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'shoes'),
+    seed: params.seed + 4,
+  });
+  if (shoes) selected.push(analyzeWardrobeItem(shoes));
+
+  const shouldLayer = needsOuterwearForContext(params.intent, params.weather);
   const outerwear = shouldLayer
-    ? choosePiece(byCategory.outerwear, params.seed + 5, anchorTone, ['trenchcoat', 'ceket', 'kaban', 'mont'])
+    ? pickBestPiece(byCategory.outerwear, {
+        ...base,
+        anchor,
+        selected,
+        preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'outerwear'),
+        seed: params.seed + 5,
+      })
     : undefined;
-  const bag = choosePiece(byCategory.bag, params.seed + 6, anchorTone);
+  if (outerwear) selected.push(analyzeWardrobeItem(outerwear));
+
+  const bag = pickBestPiece(byCategory.bag, {
+    ...base,
+    anchor,
+    selected,
+    preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'bag'),
+    seed: params.seed + 6,
+  });
+  if (bag) selected.push(analyzeWardrobeItem(bag));
+
   const accessoryItems = byCategory.accessory;
-  const jewelry = choosePiece(
+  const jewelry = pickBestPiece(
     accessoryItems.filter((item) => item.itemType === 'saat' || item.itemType === 'aksesuar'),
-    params.seed + 7,
-    anchorTone,
-    ['saat', 'aksesuar'],
+    {
+      ...base,
+      anchor,
+      selected,
+      preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'jewelry'),
+      seed: params.seed + 7,
+    },
   );
-  const accessory = choosePiece(
+  if (jewelry) selected.push(analyzeWardrobeItem(jewelry));
+
+  const accessory = pickBestPiece(
     accessoryItems.filter((item) => item.id !== jewelry?.id),
-    params.seed + 8,
-    anchorTone,
-    ['kemer', 'gozluk', 'sapka'],
+    {
+      ...base,
+      anchor,
+      selected,
+      preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'accessory'),
+      seed: params.seed + 8,
+    },
   );
 
+  const pieces: OutfitPiece[] = [];
   if (top) pieces.push({ id: `${top.id}-top`, role: 'top', label: t.completeLook.top, item: top });
   if (bottom) pieces.push({ id: `${bottom.id}-bottom`, role: 'bottom', label: t.completeLook.bottom, item: bottom });
   if (!top && !bottom && dress) {
@@ -294,14 +296,43 @@ function buildCompleteOutfit(
     pieces.push({ id: `${jewelry.id}-jewelry`, role: 'jewelry', label: t.completeLook.jewelry, item: jewelry });
   }
 
-  if (!top && !dress) missing.push(t.completeLook.missingTopCompletion);
-  if (!bottom && !dress) missing.push(t.completeLook.missingBottomCompletion);
-  if (!shoes) missing.push(t.completeLook.missingShoeCompletion);
-  if (shouldLayer && !outerwear) missing.push(t.completeLook.missingOuterwearCompletion);
-  if (!bag) missing.push(t.completeLook.missingBagCompletion);
-  if (!accessory && !jewelry) missing.push(t.completeLook.missingJewelryCompletion);
+  return pieces;
+}
 
-  return { pieces, missing };
+function buildCompleteOutfit(
+  t: TranslationKeys,
+  params: {
+    intent: string;
+    wardrobe: WardrobeItem[];
+    weather?: WeatherSnapshot;
+    mood: MoodId;
+    seed: number;
+    recentItemIds?: string[];
+    styleMemory?: StyleMemory;
+  },
+): { pieces: OutfitPiece[] } {
+  const byCategory = partitionWardrobe(params.wardrobe);
+  let bestPieces: OutfitPiece[] = [];
+  let bestScore = -Infinity;
+
+  for (let attempt = 0; attempt < OUTFIT_CANDIDATE_COUNT; attempt += 1) {
+    const candidateSeed = params.seed + attempt * 19;
+    const pieces = assembleOutfitCandidate(t, byCategory, {
+      ...params,
+      seed: candidateSeed,
+    });
+    const coherence = scoreOutfitPieces(pieces, {
+      mood: params.mood,
+      weather: params.weather,
+      intent: params.intent,
+    });
+    if (coherence > bestScore) {
+      bestScore = coherence;
+      bestPieces = pieces;
+    }
+  }
+
+  return { pieces: bestPieces };
 }
 
 function resolveStockImage(mood: MoodId, weather: WeatherSnapshot | undefined, seed: number): string {
@@ -404,6 +435,7 @@ export function generateLook(
     seed?: number;
     styleMemory?: StyleMemory;
     moodOverride?: MoodId;
+    recentItemIds?: string[];
   },
 ): CuratedLook {
   const { intent, wardrobe, weather, variant = 'default', styleMemory, moodOverride } = params;
@@ -420,12 +452,11 @@ export function generateLook(
   }
 
   const effectiveMood = variant === 'default' ? mood : VARIANT_MOOD[variant];
-  const { label } = parsed;
+  const label = buildPersonalizedOccasion(intent, t);
   const seed =
     params.seed ??
     hashSeed(`${intent}-${effectiveMood}-${variant}-${weather?.temperature ?? 0}-${Date.now()}`);
 
-  const titles = t.outfit.titles[effectiveMood];
   const descriptions = t.outfit.descriptions[effectiveMood];
   const vibes = [...t.outfit.vibes[effectiveMood]];
 
@@ -445,6 +476,8 @@ export function generateLook(
     weather,
     mood: effectiveMood,
     seed,
+    styleMemory,
+    recentItemIds: params.recentItemIds,
   });
   const wardrobeHint =
     stylingWardrobe.length === 1 ? t.home.wardrobeHintSingle : undefined;
@@ -459,10 +492,14 @@ export function generateLook(
     image = completeOutfit.pieces[0].item.imageUri;
     usesWardrobeImage = true;
   }
-  const luxuryScores = computeLuxuryScores(effectiveMood, seed, weather, eventContext);
+  const outfitCoherence = scoreOutfitPieces(completeOutfit.pieces, {
+    mood: effectiveMood,
+    weather,
+    intent,
+  });
+  const luxuryScores = computeLuxuryScores(effectiveMood, seed, weather, eventContext, outfitCoherence);
   const eleganceScore = luxuryScores.elegance;
   const editorialReasoning = buildEditorialReasoning(t, effectiveMood, seed, weather, eventContext);
-  const missingPieces = suggestMissingPieces(t, effectiveMood, seed);
   const wardrobeCopy = buildWardrobeLedCopy(t, completeOutfit.pieces, weather);
   const whyThisWorks = [
     editorialReasoning.colorHarmony,
@@ -514,9 +551,19 @@ export function generateLook(
     }
   }
 
+  const title = buildPersonalizedTitle({
+    t,
+    intent,
+    mood: effectiveMood,
+    weather,
+    pieces: completeOutfit.pieces,
+    seed,
+    styleMemory,
+  });
+
   return {
     id: `look-${seed}-${Date.now()}`,
-    title: pick(titles, seed),
+    title,
     occasion: label,
     description,
     eleganceScore,
@@ -532,25 +579,10 @@ export function generateLook(
     weatherStyling,
     whyThisWorks: wardrobeCopy.whyThisWorks ?? whyThisWorks,
     editorialReasoning,
-    missingPieces: stylingWardrobe.length > 0 ? [] : missingPieces,
     completeOutfit: completeOutfit.pieces,
-    missingOutfitPieces: completeOutfit.missing,
     eventContext,
     intent,
   };
-}
-
-export function getTonightsSelection(
-  t: TranslationKeys,
-  wardrobe: WardrobeItem[],
-  weather?: WeatherSnapshot,
-): CuratedLook {
-  return generateLook(t, {
-    intent: t.home.subGreeting,
-    wardrobe,
-    weather,
-    seed: 42,
-  });
 }
 
 export { WARDROBE_ENGINE_CATEGORIES as WARDROBE_CATEGORIES } from '@/lib/wardrobe-item-types';
