@@ -1,12 +1,23 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Modal,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { softFadeIn, softFadeInDown, softFadeInUp } from '@/constants/luxury-motion';
 import type { CuratedLook } from '@/lib/outfit-engine';
 import { hapticSuccess } from '@/lib/haptics';
+import { isQaTestMode } from '@/lib/qa-test-mode';
 import { useTheme, StyloveShadow } from '@/contexts/theme-context';
 import { Fonts } from '@/constants/theme';
 import { useTranslation } from '@/contexts/locale-context';
@@ -24,6 +35,29 @@ type OutfitResultProps = {
 export function OutfitResult({ look, onReplace, onSave, isSaved, isSaving, onShare }: OutfitResultProps) {
   const t = useTranslation();
   const { colors, isDark } = useTheme();
+  const { height, width } = useWindowDimensions();
+  const [preview, setPreview] = useState<{ uri: string; name: string } | null>(null);
+  const pieces = look.completeOutfit ?? [];
+  const previewImageHeight = Math.min(height * 0.68, width * 1.25);
+
+  useEffect(() => {
+    if (!__DEV__ && !isQaTestMode()) return;
+    console.log(
+      `[Stylove Outfit UI] completeOutfit.length=${pieces.length} lookId=${look.id} itemIds=${look.itemIds.length}`,
+    );
+  }, [look.id, look.itemIds.length, pieces.length]);
+
+  const previewPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          Math.abs(gesture.dy) > 18 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onPanResponderRelease: (_event, gesture) => {
+          if (gesture.dy > 80) setPreview(null);
+        },
+      }),
+    [],
+  );
 
   const handleShare = () => {
     if (onShare) {
@@ -79,7 +113,40 @@ export function OutfitResult({ look, onReplace, onSave, isSaved, isSaving, onSha
         </Animated.View>
 
         <View style={styles.body}>
-          <Animated.View entering={softFadeInDown(320)} style={styles.actions}>
+          {pieces.length > 0 ? (
+            <Animated.View entering={softFadeInDown(300)} style={styles.piecesBlock}>
+              <View style={styles.outfitGrid}>
+                {pieces.map((piece) => (
+                  <Pressable
+                    key={piece.id}
+                    onPress={() => setPreview({ uri: piece.item.imageUri, name: piece.item.name })}
+                    accessibilityRole="imagebutton"
+                    accessibilityLabel={piece.item.name}
+                    style={[
+                      styles.outfitPiece,
+                      {
+                        backgroundColor: colors.cardElevated,
+                        borderColor: 'rgba(196,160,98,0.16)',
+                      },
+                    ]}>
+                    <View style={styles.outfitImageWrap}>
+                      <Image
+                        source={{ uri: piece.item.imageUri }}
+                        style={styles.outfitImage}
+                        contentFit="contain"
+                      />
+                    </View>
+                    <Text style={[styles.outfitRole, { color: colors.goldMuted }]}>{piece.label}</Text>
+                    <Text style={[styles.outfitName, { color: colors.creamText }]} numberOfLines={2}>
+                      {piece.item.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Animated.View>
+          ) : null}
+
+          <Animated.View entering={softFadeInDown(360)} style={styles.actions}>
             <LuxuryButton
               label={t.outfit.replaceLook}
               onPress={onReplace}
@@ -98,11 +165,63 @@ export function OutfitResult({ look, onReplace, onSave, isSaved, isSaving, onSha
               disabled={isSaved || isSaving}
             />
           </Animated.View>
-          <Animated.View entering={softFadeInDown(400)}>
+          <Animated.View entering={softFadeInDown(440)}>
             <LuxuryButton label={t.share.shareAura} onPress={handleShare} variant="secondary" small />
           </Animated.View>
         </View>
       </Animated.View>
+
+      <Modal
+        visible={preview !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setPreview(null)}>
+        <View style={styles.lightbox}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPreview(null)} />
+          <Animated.View
+            entering={softFadeInDown(40)}
+            style={[
+              styles.lightboxFrame,
+              {
+                borderColor: 'rgba(196,160,98,0.24)',
+                backgroundColor: isDark ? colors.cardDark : colors.cardDark,
+              },
+            ]}
+            {...previewPanResponder.panHandlers}>
+            <View style={styles.lightboxHeader}>
+              <Text style={[styles.lightboxTitle, { color: colors.creamText }]} numberOfLines={1}>
+                {preview?.name}
+              </Text>
+              <Pressable
+                onPress={() => setPreview(null)}
+                accessibilityRole="button"
+                accessibilityLabel={t.common.close}
+                style={[styles.lightboxClose, { borderColor: 'rgba(196,160,98,0.28)' }]}>
+                <Text style={[styles.lightboxCloseText, { color: colors.goldMuted }]}>×</Text>
+              </Pressable>
+            </View>
+            <ScrollView
+              style={styles.lightboxScroll}
+              contentContainerStyle={styles.lightboxScrollContent}
+              maximumZoomScale={3}
+              minimumZoomScale={1}
+              bouncesZoom
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}>
+              {preview ? (
+                <Image
+                  source={{ uri: preview.uri }}
+                  style={[styles.lightboxImage, { height: previewImageHeight }]}
+                  contentFit="contain"
+                  transition={300}
+                />
+              ) : null}
+            </ScrollView>
+            <Text style={[styles.lightboxHint, { color: colors.grayLight }]}>{t.common.close}</Text>
+          </Animated.View>
+        </View>
+      </Modal>
     </Animated.View>
   );
 }
@@ -171,11 +290,105 @@ const styles = StyleSheet.create({
     padding: 26,
     gap: 14,
   },
+  piecesBlock: {
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(196,160,98,0.12)',
+    paddingTop: 16,
+  },
+  outfitGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  outfitPiece: {
+    width: '47%',
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 10,
+    gap: 6,
+  },
+  outfitImageWrap: {
+    height: 112,
+    borderRadius: 14,
+    backgroundColor: '#F5F0E6',
+    overflow: 'hidden',
+  },
+  outfitImage: {
+    width: '100%',
+    height: '100%',
+  },
+  outfitRole: {
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  outfitName: {
+    fontFamily: Fonts.serif,
+    fontSize: 14,
+    lineHeight: 18,
+  },
   actions: {
     flexDirection: 'row',
     gap: 10,
   },
   btn: {
     flex: 1,
+  },
+  lightbox: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    backgroundColor: 'rgba(8,7,8,0.92)',
+  },
+  lightboxFrame: {
+    borderRadius: 28,
+    borderWidth: 1,
+    overflow: 'hidden',
+    padding: 14,
+  },
+  lightboxHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingBottom: 12,
+  },
+  lightboxTitle: {
+    flex: 1,
+    fontFamily: Fonts.serif,
+    fontSize: 18,
+    letterSpacing: 0.2,
+  },
+  lightboxClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,250,242,0.06)',
+  },
+  lightboxCloseText: {
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  lightboxScroll: {
+    borderRadius: 22,
+    backgroundColor: '#F5F0E6',
+  },
+  lightboxScrollContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxImage: {
+    width: '100%',
+  },
+  lightboxHint: {
+    textAlign: 'center',
+    marginTop: 10,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
 });

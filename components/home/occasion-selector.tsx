@@ -15,11 +15,33 @@ import { SELECTED_OCCASION_ORDER, type SelectedOccasionId } from '@/lib/selected
 import { StyloveColors, StyloveShadow } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 
-/** Luxury bordo fill for occasion tiles (home grid). */
-const OCCASION_CARD_BORDO = '#6B1F32';
-const OCCASION_CARD_BORDO_ACTIVE = '#7A2840';
+/** Occasion tile palette — rich burgundy (selectable) vs lifted selected state + gold. */
+const OCCASION_CARD_BORDO = '#5C1826';
+const OCCASION_CARD_BORDO_ACTIVE = '#7D2A3F';
 const OCCASION_CARD_CREAM = '#F8F4EC';
-const OCCASION_CARD_CREAM_MUTED = 'rgba(248, 244, 236, 0.72)';
+const OCCASION_CARD_SUBTITLE = 'rgba(248, 244, 236, 0.82)';
+const OCCASION_CARD_BORDER_IDLE = 'rgba(248, 244, 236, 0.22)';
+const OCCASION_GOLD_BORDER = StyloveColors.goldSoft;
+const OCCASION_GOLD_RING = 'rgba(212, 184, 120, 0.58)';
+
+const OCCASION_SHADOW_IDLE = {
+  shadowColor: StyloveColors.wineDeep,
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.2,
+  shadowRadius: 14,
+  elevation: 5,
+} as const;
+
+const OCCASION_SHADOW_SELECTED = {
+  shadowColor: StyloveColors.wineDeep,
+  shadowOffset: { width: 0, height: 14 },
+  shadowOpacity: 0.32,
+  shadowRadius: 22,
+  elevation: 10,
+} as const;
+
+const SELECTED_SCALE = 1.06;
+const IDLE_SCALE = 1;
 
 const CARD_HEIGHT = 124;
 const GRID_GAP = 12;
@@ -65,10 +87,10 @@ type OccasionGridCardProps = {
 };
 
 function OccasionGridCard({ id, active, title, subtitle, index, onPress }: OccasionGridCardProps) {
-  const scale = useSharedValue(active ? 1.05 : 1);
+  const scale = useSharedValue(active ? SELECTED_SCALE : IDLE_SCALE);
 
   useEffect(() => {
-    scale.value = withSpring(active ? 1.05 : 1, PRESS_SPRING);
+    scale.value = withSpring(active ? SELECTED_SCALE : IDLE_SCALE, PRESS_SPRING);
   }, [active, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -80,7 +102,7 @@ function OccasionGridCard({ id, active, title, subtitle, index, onPress }: Occas
   }, [active, scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(active ? 1.05 : 1, PRESS_SPRING);
+    scale.value = withSpring(active ? SELECTED_SCALE : IDLE_SCALE, PRESS_SPRING);
   }, [active, scale]);
 
   return (
@@ -93,25 +115,18 @@ function OccasionGridCard({ id, active, title, subtitle, index, onPress }: Occas
         onPressOut={handlePressOut}
         accessibilityRole="button"
         accessibilityState={{ selected: active }}
-        style={[
-          styles.occasionCard,
-          !active && styles.occasionCardInactive,
-          active && styles.occasionCardActive,
-        ]}>
-        {active ? <View style={styles.selectedRing} pointerEvents="none" /> : null}
-        <Ionicons
-          name={OCCASION_ICONS[id]}
-          size={active ? 30 : 26}
-          color={active ? OCCASION_CARD_CREAM : OCCASION_CARD_CREAM_MUTED}
-        />
-        <Text
-          style={[styles.occasionTitle, !active && styles.occasionTitleInactive]}
-          numberOfLines={2}>
+        style={[styles.occasionCard, active ? styles.occasionCardActive : styles.occasionCardIdle]}>
+        {active ? (
+          <>
+            <View style={styles.selectedGoldRing} pointerEvents="none" />
+            <View style={styles.selectedInnerRing} pointerEvents="none" />
+          </>
+        ) : null}
+        <Ionicons name={OCCASION_ICONS[id]} size={active ? 32 : 28} color={OCCASION_CARD_CREAM} />
+        <Text style={[styles.occasionTitle, active && styles.occasionTitleActive]} numberOfLines={2}>
           {title}
         </Text>
-        <Text
-          style={[styles.occasionSubtitle, !active && styles.occasionSubtitleInactive]}
-          numberOfLines={2}>
+        <Text style={styles.occasionSubtitle} numberOfLines={2}>
           {subtitle}
         </Text>
       </Pressable>
@@ -229,58 +244,59 @@ const styles = StyleSheet.create({
     height: CARD_HEIGHT,
     width: '100%',
     borderRadius: 18,
-    backgroundColor: OCCASION_CARD_BORDO,
     paddingHorizontal: 10,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(248, 244, 236, 0.1)',
     overflow: 'hidden',
-    ...StyloveShadow.soft,
   },
-  occasionCardInactive: {
-    opacity: 0.72,
+  occasionCardIdle: {
+    backgroundColor: OCCASION_CARD_BORDO,
+    borderWidth: 1.5,
+    borderColor: OCCASION_CARD_BORDER_IDLE,
+    ...OCCASION_SHADOW_IDLE,
   },
   occasionCardActive: {
     backgroundColor: OCCASION_CARD_BORDO_ACTIVE,
-    borderColor: OCCASION_CARD_CREAM,
-    borderWidth: 3,
-    opacity: 1,
-    ...StyloveShadow.editorial,
+    borderColor: OCCASION_GOLD_BORDER,
+    borderWidth: 3.5,
+    ...OCCASION_SHADOW_SELECTED,
   },
-  selectedRing: {
+  selectedGoldRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: OCCASION_GOLD_RING,
+    margin: 2,
+  },
+  selectedInnerRing: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: 'rgba(248, 244, 236, 0.35)',
-    margin: 3,
+    borderColor: 'rgba(248, 244, 236, 0.42)',
+    margin: 5,
   },
   occasionTitle: {
     fontFamily: Fonts.serif,
-    fontSize: 16,
-    lineHeight: 19,
+    fontSize: 15,
+    lineHeight: 18,
     color: OCCASION_CARD_CREAM,
     textAlign: 'center',
     width: '100%',
-    fontWeight: '600',
+    fontWeight: '500',
   },
-  occasionTitleInactive: {
-    fontSize: 14,
-    lineHeight: 17,
-    fontWeight: '400',
-    color: OCCASION_CARD_CREAM_MUTED,
+  occasionTitleActive: {
+    fontSize: 16,
+    lineHeight: 19,
+    fontWeight: '600',
   },
   occasionSubtitle: {
     fontSize: 11,
     lineHeight: 14,
-    color: OCCASION_CARD_CREAM_MUTED,
+    color: OCCASION_CARD_SUBTITLE,
     textAlign: 'center',
     width: '100%',
-  },
-  occasionSubtitleInactive: {
-    opacity: 0.85,
   },
   hint: {
     fontSize: 12,
