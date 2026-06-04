@@ -6,6 +6,11 @@ import { generateLook } from '@/lib/outfit-engine';
 import { getStylingWardrobe } from '@/lib/wardrobe-utils';
 import type { SelectedOccasionId } from '@/lib/selected-occasion';
 import { outfitItemSignature } from '@/lib/styling-bible';
+import {
+  buildOutfitDecisionReport,
+  isOutfitDecisionDebugEnabled,
+  logOutfitDecisionReport,
+} from '@/lib/outfit-decision-debug';
 
 export type DestinationWeather = {
   city: string;
@@ -344,6 +349,20 @@ export function generateTravelPlan(
       sessionRecentSets.push(itemIds);
       sessionRecentIds.push(...itemIds);
       sessionSeenSignatures.add(outfitItemSignature(itemIds));
+    }
+
+    if (isOutfitDecisionDebugEnabled() && look.completeOutfit?.length) {
+      logOutfitDecisionReport(
+        buildOutfitDecisionReport({
+          path: 'travel_local',
+          pieces: look.completeOutfit,
+          occasion: travelOccasion,
+          weather: dayWeatherSnapshot,
+          recentOutfitSets: sessionRecentSets,
+          seenSignatures: sessionSeenSignatures,
+          extraNotes: [`travel day=${day} temp=${temp}°C`],
+        }),
+      );
     }
 
     return {

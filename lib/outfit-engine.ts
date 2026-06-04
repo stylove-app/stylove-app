@@ -57,6 +57,12 @@ import {
   validateOutfitStructure,
   type WardrobePools,
 } from '@/lib/outfit-assembly-rules';
+import {
+  buildOutfitDecisionReport,
+  isOutfitDecisionDebugEnabled,
+  logOutfitCandidateRejection,
+  logOutfitDecisionReport,
+} from '@/lib/outfit-decision-debug';
 
 export type WardrobeItem = {
   id: string;
@@ -596,6 +602,11 @@ function buildCompleteOutfit(
     const validation = validateOutfitStructure(pieces, params.selectedOccasion);
     if (!validation.valid) {
       logInvalidOutfitCandidate(validation.reason ?? 'unknown', attempt);
+      logOutfitCandidateRejection({
+        attempt,
+        reason: validation.reason ?? 'unknown',
+        pieceCount: pieces.length,
+      });
       continue;
     }
 
@@ -626,6 +637,26 @@ function buildCompleteOutfit(
       bestScore = score;
       bestPieces = pieces;
     }
+  }
+
+  if (isOutfitDecisionDebugEnabled()) {
+    const report = buildOutfitDecisionReport({
+      path: 'local_engine',
+      pieces: bestPieces,
+      occasion: params.selectedOccasion,
+      weather: params.weather,
+      recentOutfitSets: params.recentOutfitSets,
+      recentCoreSets: params.recentCoreSets,
+      seenSignatures: params.seenSignatures,
+      stylingWardrobe,
+      extraNotes: [
+        bestPieces.length === 0
+          ? 'WARNING: no valid candidate survived validation — UI may show empty or fallback pieces'
+          : `attempts=${attemptCount} bestScore=${bestScore.toFixed(2)}`,
+        `poolSizes tops=${pools.tops.length} bottoms=${pools.bottoms.length} onePieces=${pools.onePieces.length} outerwear=${pools.outerwear.length}`,
+      ],
+    });
+    logOutfitDecisionReport(report);
   }
 
   return { pieces: bestPieces };
@@ -819,6 +850,27 @@ export function generateLook(
   const eleganceScore = luxuryScores.elegance;
   const editorialReasoning = buildEditorialReasoning(t, effectiveMood, seed, weather, eventContext);
   const wardrobeCopy = buildWardrobeLedCopy(t, completeOutfit.pieces, weather, selectedOccasion);
+
+  if (isOutfitDecisionDebugEnabled()) {
+    logOutfitDecisionReport(
+      buildOutfitDecisionReport({
+        path: 'local_engine',
+        pieces: completeOutfit.pieces,
+        occasion: selectedOccasion,
+        weather,
+        recentOutfitSets: params.recentOutfitSets,
+        recentCoreSets: params.recentCoreSets,
+        seenSignatures: params.seenSignatures,
+        stylingWardrobe: stylingWardrobe.map((item) => ({
+          id: item.id,
+          name: item.name,
+          itemType: item.itemType,
+          category: item.category,
+        })),
+        extraNotes: ['generateLook local assembly complete (OpenAI may merge copy only)'],
+      }),
+    );
+  }
   const bibleProfiles = completeOutfit.pieces.map((piece) =>
     analyzeWardrobeItem(toStylingWardrobeItem(piece.item)),
   );

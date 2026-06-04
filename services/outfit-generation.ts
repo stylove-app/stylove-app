@@ -10,12 +10,6 @@ import type {
 } from '@/lib/outfit-engine';
 import type { WeatherSnapshot } from '@/lib/weather';
 import { supabase } from '@/services/supabase';
-
-type RemotePiece = {
-  role: OutfitPieceRole;
-  itemId: string;
-};
-
 type RemoteLook = {
   title?: string;
   vibe?: string;
@@ -24,7 +18,8 @@ type RemoteLook = {
   tags?: string[];
   weatherReason?: string;
   stylingNotes?: string;
-  selectedPieces?: RemotePiece[];
+  /** Ignored — local engine owns piece selection. */
+  selectedPieces?: { role?: string; itemId?: string }[];
 };
 
 type GenerateOutfitResponse = {
@@ -73,27 +68,6 @@ const GENDERED_LANGUAGE_PATTERN =
   /\b(feminine|masculine|feminen|maskülen|maskulen|kadınsı|kadinsi|erkeksi)\b/i;
 const GENERIC_STYLING_PATTERN =
   /\b(perfect outfit|perfect look|looks great|çok güzel|harika görün|mükemmel kombin|ideal kombin)\b/i;
-const VALID_ROLES = new Set<OutfitPieceRole>([
-  'top',
-  'bottom',
-  'dress',
-  'shoes',
-  'outerwear',
-  'bag',
-  'accessory',
-  'jewelry',
-]);
-const ROLE_ORDER: Record<OutfitPieceRole, number> = {
-  top: 0,
-  bottom: 1,
-  dress: 2,
-  shoes: 3,
-  outerwear: 4,
-  bag: 5,
-  accessory: 6,
-  jewelry: 7,
-};
-
 const TONE_RULES = [
   {
     id: 'black',
@@ -305,80 +279,60 @@ function buildContextualFallback(params: {
   };
 }
 
-function buildRemotePieces(
+/** Merges OpenAI copy only. `selectedPieces` from the edge response are ignored. */
+function mergeRemoteOutfitCopy(
+  localLook: CuratedLook,
   remote: RemoteLook,
-  wardrobe: WardrobeItem[],
-  roleLabels: Record<OutfitPieceRole, string>,
-): OutfitPiece[] {
-  const itemById = new Map(wardrobe.map((item) => [item.id, item]));
-  const used = new Set<string>();
-  return (remote.selectedPieces ?? [])
-    .filter((piece) => VALID_ROLES.has(piece.role) && itemById.has(piece.itemId) && !used.has(piece.itemId))
-    .slice(0, 8)
-    .map((piece) => {
-      used.add(piece.itemId);
-      const item = itemById.get(piece.itemId) as WardrobeItem;
-      return {
-        id: `${item.id}-${piece.role}`,
-        role: piece.role,
-        label: roleLabels[piece.role],
-        item,
-      };
-    })
-    .sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
-}
-
-function applyRemoteLook(
-  fallback: CuratedLook,
-  remote: RemoteLook,
-  wardrobe: WardrobeItem[],
-  roleLabels: Record<OutfitPieceRole, string>,
   locale: Locale,
   intent: string,
   weather: WeatherSnapshot | undefined,
 ): CuratedLook {
-  const completeOutfit = buildRemotePieces(remote, wardrobe, roleLabels);
-  if (completeOutfit.length === 0) return fallback;
+  const completeOutfit = localLook.completeOutfit ?? [];
+  if (completeOutfit.length === 0) return localLook;
+
   const itemIds = completeOutfit.map((piece) => piece.item.id);
-  const image = completeOutfit[0]?.item.imageUri ?? fallback.image;
   const tones = detectedTones(completeOutfit);
   const textContext = { tones, pieces: completeOutfit, weather, intent };
   const touchSeed = itemIds.join('-').length > 0 ? hashString(itemIds.join('-')) : Date.now();
-  const fallbackCopy = buildContextualFallback({
+  const localCopy = buildContextualFallback({
     locale,
     intent,
     pieces: completeOutfit,
     weather,
-    mood: fallback.mood,
+    mood: localLook.mood,
     seed: touchSeed,
   });
 
+  const remoteTitle = remote.title?.trim();
   const remoteVibe = remote.vibe?.trim();
   const remoteCommentary = remote.commentary?.trim();
   const remoteWeatherReason = remote.weatherReason?.trim();
   const remoteStylingNotes = remote.stylingNotes?.trim();
-  const commentary = remoteCommentary && !hasContextConflict(remoteCommentary, textContext)
-    ? remoteCommentary
-    : fallbackCopy.commentary;
-  const weatherReason = remoteWeatherReason && !hasContextConflict(remoteWeatherReason, textContext)
-    ? remoteWeatherReason
-    : fallbackCopy.weatherReason;
-  const stylingNotes = remoteStylingNotes && !hasContextConflict(remoteStylingNotes, textContext)
-    ? remoteStylingNotes
-    : fallbackCopy.stylingNotes;
+  const commentary =
+    remoteCommentary && !hasContextConflict(remoteCommentary, textContext)
+      ? remoteCommentary
+      : localLook.description || localCopy.commentary;
+  const weatherReason =
+    remoteWeatherReason && !hasContextConflict(remoteWeatherReason, textContext)
+      ? remoteWeatherReason
+      : localLook.weatherStyling ?? localCopy.weatherReason;
+  const stylingNotes =
+    remoteStylingNotes && !hasContextConflict(remoteStylingNotes, textContext)
+      ? remoteStylingNotes
+      : localLook.whyThisWorks ?? localCopy.stylingNotes;
   const remoteTags = remote.tags?.filter((tag) => !hasContextConflict(tag, textContext)).slice(0, 4);
+
   return {
-    ...fallback,
-    title: fallbackCopy.title,
-    occasion: remoteVibe && !hasContextConflict(remoteVibe, textContext) ? remoteVibe : fallbackCopy.vibe,
+    ...localLook,
+    title:
+      remoteTitle && !hasContextConflict(remoteTitle, textContext) ? remoteTitle : localLook.title,
+    occasion:
+      remoteVibe && !hasContextConflict(remoteVibe, textContext) ? remoteVibe : localLook.occasion,
     description: commentary,
     weatherStyling: weatherReason,
     whyThisWorks: stylingNotes,
-    editorialReasoning: undefined,
-    vibes: remoteTags?.length ? remoteTags : fallbackCopy.tags,
+    vibes: remoteTags?.length ? remoteTags : localLook.vibes,
     itemIds,
-    image,
-    usesWardrobeImage: true,
     completeOutfit,
   };
 }
@@ -392,6 +346,12 @@ function hashString(input: string): number {
   return Math.abs(hash);
 }
 
+export type SecureOutfitGenerationResult = {
+  look: CuratedLook;
+  /** True when Supabase `generate-outfit` returned ok and copy fields were merged. */
+  remoteOk: boolean;
+};
+
 export async function generateOutfitSecurely(params: {
   locale: Locale;
   intent: string;
@@ -402,7 +362,7 @@ export async function generateOutfitSecurely(params: {
   recentItemIds?: string[];
   roleLabels: Record<OutfitPieceRole, string>;
   fallback: CuratedLook;
-}): Promise<CuratedLook> {
+}): Promise<SecureOutfitGenerationResult> {
   try {
     const { data, error } = await supabase.functions.invoke<GenerateOutfitResponse>('generate-outfit', {
       body: {
@@ -416,17 +376,14 @@ export async function generateOutfitSecurely(params: {
       },
     });
 
-    if (error || !data?.ok || !data.look) return params.fallback;
-    return applyRemoteLook(
-      params.fallback,
-      data.look,
-      params.wardrobe,
-      params.roleLabels,
-      params.locale,
-      params.intent,
-      params.weather,
-    );
+    if (error || !data?.ok || !data.look) {
+      return { look: params.fallback, remoteOk: false };
+    }
+    return {
+      look: mergeRemoteOutfitCopy(params.fallback, data.look, params.locale, params.intent, params.weather),
+      remoteOk: true,
+    };
   } catch {
-    return params.fallback;
+    return { look: params.fallback, remoteOk: false };
   }
 }

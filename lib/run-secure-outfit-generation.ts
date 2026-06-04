@@ -12,6 +12,8 @@ import { generateOutfitSecurely } from '@/services/outfit-generation';
 import { buildOutfitDiversityContext } from '@/lib/styling-bible';
 import type { SelectedOccasionId } from '@/lib/selected-occasion';
 import { enginePhraseForOccasion } from '@/lib/selected-occasion';
+import { logSecureOutfitFinalDiagnostic } from '@/lib/outfit-decision-debug';
+import { validateOutfitStructure } from '@/lib/outfit-assembly-rules';
 
 export const OUTFIT_GENERATION_MS = 5500;
 
@@ -104,7 +106,7 @@ export async function runSecureOutfitGeneration({
       : undefined,
   });
 
-  const look = await generateOutfitSecurely({
+  const { look, remoteOk } = await generateOutfitSecurely({
     locale,
     intent: intentText,
     wardrobe: wardrobeForLook,
@@ -124,6 +126,21 @@ export async function runSecureOutfitGeneration({
     },
     fallback: fallbackLook,
   });
+
+  const isHomeFlow = analyticsSource === 'home' || analyticsSource === 'replace';
+  if (isHomeFlow) {
+    const finalPieces = look.completeOutfit ?? [];
+    const finalValidation = validateOutfitStructure(finalPieces, selectedOccasion);
+
+    logSecureOutfitFinalDiagnostic({
+      path: remoteOk ? 'local_validated_openai_copy_only' : 'local_validated',
+      occasion: selectedOccasion,
+      temp: resolvedWeather?.temperature,
+      remoteOk,
+      localValidation: finalValidation.valid ? 'PASS' : 'FAIL',
+      finalPieces,
+    });
+  }
 
   if (!isPremium) {
     await recordFreeOutfitGeneration(usageScope);
