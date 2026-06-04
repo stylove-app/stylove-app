@@ -402,18 +402,25 @@ function scoreForbiddenPairs(
 }
 
 function scoreCategoryCompleteness(profiles: ItemStylingProfile[]): number {
-  const hasTop = profiles.some((p) => p.item.category === 'upper' || p.item.category === 'outerwear');
   const hasDress = profiles.some((p) => p.item.category === 'dress');
+  const hasRealTop = profiles.some(
+    (p) =>
+      p.item.category === 'upper' &&
+      !['saat', 'kemer', 'gozluk', 'canta', 'sapka', 'aksesuar'].includes(p.item.itemType),
+  );
   const hasBottom = profiles.some((p) => p.item.category === 'bottom');
   const hasShoes = profiles.some((p) => p.item.category === 'shoes');
+  const outerwearOnly =
+    profiles.some((p) => p.item.category === 'outerwear') && !hasRealTop && !hasDress;
 
   let score = 0;
   if (hasDress) score += 6;
   else {
-    if (hasTop) score += 3;
+    if (hasRealTop) score += 3;
     if (hasBottom) score += 3;
   }
   if (hasShoes) score += 4;
+  if (outerwearOnly) score -= 6;
   return Math.min(10, score);
 }
 
@@ -455,19 +462,31 @@ export function scoreOutfitDiversity(
   itemIds: string[],
   recentOutfitSets: string[][],
   seenSignatures: Set<string>,
+  recentCoreSets?: string[][],
 ): number {
   const signature = outfitItemSignature(itemIds);
   if (seenSignatures.has(signature)) return -40;
 
   let score = 5;
   const recent = recentOutfitSets.slice(-3);
-  for (const prior of recent) {
+  const recentCore = (recentCoreSets ?? recentOutfitSets).slice(-3);
+  for (let i = 0; i < recent.length; i += 1) {
+    const prior = recent[i];
+    const priorCore = recentCore[i] ?? prior;
     const overlap = prior.filter((id) => itemIds.includes(id)).length;
     if (overlap >= itemIds.length) score -= 25;
     else if (overlap >= Math.max(1, itemIds.length - 1)) score -= 12;
     const diff = countOutfitPieceDifference(itemIds, prior);
     if (diff < 2) score -= 15;
     else if (diff >= 2) score += 2;
+
+    if (priorCore.length > 0) {
+      const coreOverlap = priorCore.filter((id) => itemIds.includes(id)).length;
+      const coreRatio = coreOverlap / Math.max(priorCore.length, 1);
+      if (coreRatio >= 0.5) score -= 22;
+      else if (coreRatio >= 0.34) score -= 10;
+      else if (coreRatio === 0) score += 3;
+    }
   }
 
   const uniqueItems = new Set(itemIds);
@@ -486,6 +505,7 @@ export function scoreOutfitBible(
   wardrobe: StylingWardrobeItem[],
   options?: {
     recentOutfitSets?: string[][];
+    recentCoreSets?: string[][];
     seenSignatures?: Set<string>;
   },
 ): OutfitBibleScoreBreakdown {
@@ -538,6 +558,7 @@ export function scoreOutfitBible(
     itemIds,
     options?.recentOutfitSets ?? [],
     options?.seenSignatures ?? new Set(),
+    options?.recentCoreSets,
   );
 
   const forbiddenPairPenalty = scoreForbiddenPairs(profiles, occasion, wardrobe);
@@ -632,16 +653,31 @@ export function buildBibleOutfitExplanation(
   };
 }
 
-export function buildOutfitDiversityContext(looks: { itemIds: string[] }[]): {
+export function buildOutfitDiversityContext(
+  looks: {
+    itemIds: string[];
+    completeOutfit?: { role: string; item: { id: string } }[];
+  }[],
+): {
   recentOutfitSets: string[][];
+  recentCoreSets: string[][];
   seenSignatures: Set<string>;
   recentItemIds: string[];
 } {
   const sets = looks.map((look) => look.itemIds.filter(Boolean)).filter((ids) => ids.length > 0);
   const recentOutfitSets = sets.slice(-5);
+  const recentCoreSets = looks
+    .map((look) => {
+      if (!look.completeOutfit?.length) return look.itemIds.filter(Boolean);
+      return look.completeOutfit
+        .filter((piece) => piece.role === 'top' || piece.role === 'bottom' || piece.role === 'dress')
+        .map((piece) => piece.item.id);
+    })
+    .filter((ids) => ids.length > 0)
+    .slice(-5);
   const seenSignatures = new Set(recentOutfitSets.map((ids) => outfitItemSignature(ids)));
   const recentItemIds = [...new Set(recentOutfitSets.slice(-3).flat())];
-  return { recentOutfitSets, seenSignatures, recentItemIds };
+  return { recentOutfitSets, recentCoreSets, seenSignatures, recentItemIds };
 }
 
 export function scoreOutfitPiecesWithBible(
@@ -650,6 +686,7 @@ export function scoreOutfitPiecesWithBible(
   wardrobe: StylingWardrobeItem[],
   options?: {
     recentOutfitSets?: string[][];
+    recentCoreSets?: string[][];
     seenSignatures?: Set<string>;
   },
 ): number {

@@ -1,5 +1,9 @@
 import type { WardrobeCategoryId, WardrobeItemTypeId } from '@/i18n/types';
 import type { WardrobeItem } from '@/lib/outfit-engine';
+import {
+  deriveEngineCategoryFromProfile,
+  deriveItemTypeFromProfile,
+} from '@/lib/wardrobe-style-profile';
 
 /** Detailed types grouped for the add-piece picker (order preserved). */
 export const WARDROBE_TYPE_GROUPS: ReadonlyArray<{
@@ -105,6 +109,11 @@ export function normalizeWardrobeItem(item: WardrobeItem): WardrobeItem {
     category = LEGACY_CATEGORY_TO_ENGINE[legacyCategory];
   } else if (!TYPE_TO_CATEGORY[category as WardrobeItemTypeId]) {
     category = getCategoryForItemType(itemType);
+  }
+
+  if (item.styleProfile) {
+    itemType = deriveItemTypeFromProfile(item.styleProfile);
+    category = deriveEngineCategoryFromProfile(item.styleProfile);
   }
 
   const imageUri = item.originalImageUri ?? item.imageUri;

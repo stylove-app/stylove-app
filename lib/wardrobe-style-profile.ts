@@ -382,8 +382,14 @@ const LEGACY_SUBCATEGORY: Partial<Record<WardrobeItemTypeId, string>> = {
   bot: 'boot',
 };
 
+export type StyleProfileSourceItem = {
+  itemType: WardrobeItem['itemType'];
+  name: string;
+  styleProfile?: WardrobeStyleProfile;
+};
+
 /** Fallback when DB/local item has no style_profile (legacy uploads). */
-export function fallbackStyleProfileFromItem(item: WardrobeItem): WardrobeStyleProfile {
+export function fallbackStyleProfileFromItem(item: StyleProfileSourceItem): WardrobeStyleProfile {
   if (item.styleProfile?.genderMode === 'women') {
     return item.styleProfile;
   }
@@ -411,7 +417,7 @@ export function fallbackStyleProfileFromItem(item: WardrobeItem): WardrobeStyleP
   });
 }
 
-export function getEffectiveStyleProfile(item: WardrobeItem): WardrobeStyleProfile {
+export function getEffectiveStyleProfile(item: StyleProfileSourceItem): WardrobeStyleProfile {
   return fallbackStyleProfileFromItem(item);
 }
 

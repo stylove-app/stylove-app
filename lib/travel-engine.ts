@@ -4,6 +4,8 @@ import { styleMoodToEngine } from '@/lib/style-mood';
 import { normalizeWeather, type DailyWeatherSummary, type WeatherCondition } from '@/lib/weather';
 import { generateLook } from '@/lib/outfit-engine';
 import { getStylingWardrobe } from '@/lib/wardrobe-utils';
+import type { SelectedOccasionId } from '@/lib/selected-occasion';
+import { outfitItemSignature } from '@/lib/styling-bible';
 
 export type DestinationWeather = {
   city: string;
@@ -92,6 +94,21 @@ const VIBE_MOOD: Record<TravelVibeId, StyleMoodId> = {
   luxuryEscape: 'elegant',
   minimalTravel: 'minimal',
 };
+
+function travelOccasionForVibe(vibe: TravelVibeId): SelectedOccasionId {
+  switch (vibe) {
+    case 'beachClub':
+      return 'beach';
+    case 'businessTrip':
+      return 'office';
+    case 'romanticEscape':
+      return 'date';
+    case 'luxuryEscape':
+      return 'dinner';
+    default:
+      return 'travel';
+  }
+}
 
 function hashString(value: string): number {
   let hash = 0;
@@ -276,14 +293,14 @@ export function generateTravelPlan(
     t.travel.layeringHint,
     shouldPackOuterwear ? t.completeLook.missingOuterwearCompletion : t.completeLook.missingBagCompletion,
   ];
+  const travelOccasion = travelOccasionForVibe(vibe);
+  const sessionRecentSets: string[][] = [];
+  const sessionSeenSignatures = new Set<string>();
+  const sessionRecentIds: string[] = [];
+
   const dailyLooks: TravelDayPlan[] = Array.from({ length: duration }, (_, index) => {
     const day = index + 1;
     const daySeed = seed + day * 17;
-    const dayItems = pickItems(
-      packedItems.length ? packedItems : stylingWardrobe,
-      Math.min(3, stylingWardrobe.length || 0),
-      daySeed,
-    );
     const titleTemplate = dayTitles[index % dayTitles.length];
     const title = titleTemplate.replace('{day}', String(day));
     const mood = t.travel.moodLabels[(daySeed + index) % t.travel.moodLabels.length];
@@ -294,34 +311,48 @@ export function generateTravelPlan(
       .replace('{temp}', String(temp))
       .replace('{condition}', t.weather.conditions[conditionKey]);
 
+    const dayWeatherSnapshot = {
+      city: destination,
+      temperature: temp,
+      feelsLike: dayWeather.feelsLike,
+      precipitation: dayWeather.precipitation,
+      wind: dayWeather.wind,
+      condition: conditionKey,
+      summary: conditionKey,
+      isDay: daySeed % 2 === 0,
+      hour: daySeed % 2 === 0 ? 14 : 21,
+      isCold: dayWeather.isCold,
+      isRainy: dayWeather.isRainy,
+      needsOuterwear: dayWeather.needsOuterwear,
+    };
+
     const look = generateLook(t, {
       intent: `${destination} — ${title}`,
-      wardrobe: dayItems.length ? dayItems : stylingWardrobe,
-      weather: {
-        city: destination,
-        temperature: temp,
-        feelsLike: dayWeather.feelsLike,
-        precipitation: dayWeather.precipitation,
-        wind: dayWeather.wind,
-        condition: conditionKey,
-        summary: conditionKey,
-        isDay: daySeed % 2 === 0,
-        hour: daySeed % 2 === 0 ? 14 : 21,
-        isCold: dayWeather.isCold,
-        isRainy: dayWeather.isRainy,
-        needsOuterwear: dayWeather.needsOuterwear,
-      },
+      wardrobe: stylingWardrobe,
+      weather: dayWeatherSnapshot,
       seed: daySeed,
       moodOverride: moodEngine,
+      selectedOccasion: travelOccasion,
+      recentOutfitSets: sessionRecentSets,
+      recentItemIds: sessionRecentIds,
+      seenSignatures: sessionSeenSignatures,
     });
+
+    const outfitItems = look.completeOutfit?.map((piece) => piece.item) ?? [];
+    const itemIds = outfitItems.map((item) => item.id);
+    if (itemIds.length > 0) {
+      sessionRecentSets.push(itemIds);
+      sessionRecentIds.push(...itemIds);
+      sessionSeenSignatures.add(outfitItemSignature(itemIds));
+    }
 
     return {
       day,
       title,
       mood,
       weatherNote,
-      items: dayItems,
-      lookImage: dayItems[0]?.imageUri ?? look.image,
+      items: outfitItems.length > 0 ? outfitItems : stylingWardrobe.slice(0, Math.min(4, stylingWardrobe.length)),
+      lookImage: outfitItems[0]?.imageUri ?? look.image,
       lookTitle: look.title,
     };
   });

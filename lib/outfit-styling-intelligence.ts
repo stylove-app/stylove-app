@@ -35,6 +35,11 @@ export type ItemStylingProfile = {
 };
 
 import type { ResolvedIntent } from '@/lib/intent-engine';
+import type { SelectedOccasionId } from '@/lib/selected-occasion';
+import {
+  scoreHotWeatherItem,
+  scoreItemUsageDiversity,
+} from '@/lib/outfit-assembly-rules';
 
 export type OutfitStylingContext = {
   mood: MoodId;
@@ -45,6 +50,8 @@ export type OutfitStylingContext = {
   selected: ItemStylingProfile[];
   preferredTypes: WardrobeItemTypeId[];
   recentItemIds: Set<string>;
+  recentOutfitSets?: string[][];
+  selectedOccasion?: SelectedOccasionId;
   wardrobe?: StylingWardrobeItem[];
   styleMemory?: StyleMemory;
   seed: number;
@@ -259,13 +266,9 @@ export function analyzeWardrobeItem(item: StylingWardrobeItem): ItemStylingProfi
   const profile =
     item.styleProfile ??
     fallbackStyleProfileFromItem({
-      id: item.id,
       name: item.name,
       itemType: item.itemType,
-      category: item.category,
-      imageUri: '',
-      originalImageUri: '',
-      createdAt: 0,
+      styleProfile: item.styleProfile,
     });
   const typeStyle = TYPE_STYLE[item.itemType] ?? TYPE_STYLE.aksesuar;
   const tone = toneFromStyleProfile(profile) ?? detectToneFromName(item.name);
@@ -400,14 +403,23 @@ function scoreWeatherFit(profiles: ItemStylingProfile[], weather?: WeatherSnapsh
   let score = 2;
   const { layerHint } = weatherMoodBoost(weather.condition, weather.temperature);
   const hot = weather.temperature >= 24 && layerHint !== 'warm';
+  const veryHot = weather.temperature >= 29;
   const cold = weather.needsOuterwear || weather.temperature <= 14 || layerHint === 'warm';
 
   const outerwear = profiles.some((p) => p.item.category === 'outerwear');
   const heavyLayers = profiles.filter((p) => p.item.category === 'outerwear' || p.volume >= 0.7).length;
+  const heavyShoes = profiles.some(
+    (p) => p.item.itemType === 'bot' || p.item.itemType === 'topuklu',
+  );
 
   if (hot) {
     if (heavyLayers >= 2) score -= 4;
     if (outerwear && !weather.isRainy) score -= 2;
+  }
+  if (veryHot) {
+    if (outerwear && !weather.isRainy) score -= 5;
+    if (heavyShoes) score -= 4;
+    if (heavyLayers >= 1) score -= 3;
   }
   if (cold && !outerwear) score -= 2;
   if ((weather.isRainy || weather.condition === 'rain') && outerwear) score += 2;
@@ -459,6 +471,14 @@ export function scorePieceCandidate(profile: ItemStylingProfile, context: Outfit
   if (moodBias.penalize.includes(profile.item.itemType)) score -= 4;
 
   if (context.recentItemIds.has(profile.item.id)) score -= 8;
+
+  if (context.recentOutfitSets?.length) {
+    score += scoreItemUsageDiversity(profile.item, context.recentOutfitSets, context.recentItemIds);
+  }
+
+  if (context.selectedOccasion || context.weather) {
+    score += scoreHotWeatherItem(profile.item, context.weather, context.selectedOccasion);
+  }
 
   if (context.wardrobe?.length) {
     score += scorePieceWithBible(profile, context, context.wardrobe);

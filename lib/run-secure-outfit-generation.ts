@@ -75,7 +75,8 @@ export async function runSecureOutfitGeneration({
     ...(currentLook ? [currentLook] : []),
     ...savedLooks.slice(-4),
   ];
-  const { recentOutfitSets, seenSignatures, recentItemIds } = buildOutfitDiversityContext(diversityLooks);
+  const { recentOutfitSets, recentCoreSets, seenSignatures, recentItemIds } =
+    buildOutfitDiversityContext(diversityLooks);
 
   const generationSeed = isRegenerate
     ? Date.now() + Math.floor(Math.random() * 1_000_000)
@@ -94,6 +95,7 @@ export async function runSecureOutfitGeneration({
     moodOverride: engineMood,
     recentItemIds,
     recentOutfitSets,
+    recentCoreSets,
     seenSignatures,
     regenerate: isRegenerate,
     selectedOccasion,
