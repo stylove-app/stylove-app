@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { WardrobeCatalogCard } from '@/components/wardrobe/wardrobe-catalog-card';
@@ -9,7 +10,7 @@ type WardrobeItemCardProps = {
   size?: 'sm' | 'md' | 'lg';
 };
 
-export function WardrobeItemCard({ item, categoryLabel, size = 'md' }: WardrobeItemCardProps) {
+function WardrobeItemCardComponent({ item, categoryLabel, size = 'md' }: WardrobeItemCardProps) {
   return (
     <View style={styles.wrap}>
       <WardrobeCatalogCard
@@ -21,6 +22,8 @@ export function WardrobeItemCard({ item, categoryLabel, size = 'md' }: WardrobeI
     </View>
   );
 }
+
+export const WardrobeItemCard = memo(WardrobeItemCardComponent);
 
 const styles = StyleSheet.create({
   wrap: {

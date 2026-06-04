@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Tabs, usePathname } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from '@/contexts/locale-context';
 import { useTheme, StyloveShadow } from '@/contexts/theme-context';
 
-function TabIcon({
+const TabIcon = memo(function TabIcon({
   name,
   outlineName,
   color,
@@ -26,7 +26,7 @@ function TabIcon({
       <Ionicons name={focused ? name : outlineName} size={22} color={color} />
     </View>
   );
-}
+});
 
 export default function TabLayout() {
   const t = useTranslation();
@@ -69,12 +69,15 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        lazy: true,
+        freezeOnBlur: true,
         tabBarButton: HapticTab,
         tabBarActiveTintColor: colors.burgundy,
         tabBarInactiveTintColor: colors.grayLight,
         tabBarStyle: [styles.tabBar, { backgroundColor: colors.white, borderTopColor: colors.creamRich }],
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarItemStyle: styles.tabBarItem,
+        sceneStyle: { backgroundColor: colors.ivory },
       }}>
       <Tabs.Screen
         name="index"

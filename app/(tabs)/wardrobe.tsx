@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useState, useCallback } from 'react';
-import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
+import { useScrollToTop } from '@react-navigation/native';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  FlatList,
   Keyboard,
   Modal,
   Pressable,
@@ -21,7 +22,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { LuxuryToast } from '@/components/ui/luxury-toast';
 import { SkeletonShimmer } from '@/components/ui/skeleton-shimmer';
-import { SoftEnter } from '@/components/ui/soft-enter';
 import { StyloveFooter } from '@/components/ui/stylove-footer';
 import { useWardrobe } from '@/contexts/wardrobe-context';
 import { useStyleMemory } from '@/contexts/style-memory-context';
@@ -30,7 +30,7 @@ import { usePremium } from '@/contexts/premium-context';
 import { FREE_WARDROBE_ITEM_LIMIT } from '@/lib/free-plan-limits';
 import { WARDROBE_IMAGE_PICKER_OPTIONS } from '@/lib/wardrobe-image-picker';
 import { hapticLight } from '@/lib/haptics';
-import { WARDROBE_CATEGORIES } from '@/lib/outfit-engine';
+import { WARDROBE_CATEGORIES, type WardrobeItem } from '@/lib/outfit-engine';
 import { StyloveColors, StyloveShadow } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 import type { WardrobeCategoryId, WardrobeItemTypeId } from '@/i18n/types';
@@ -50,8 +50,12 @@ export default function WardrobeScreen() {
   const [itemType, setItemType] = useState<WardrobeItemTypeId | null>(null);
   const [limitToastVisible, setLimitToastVisible] = useState(false);
 
-  const scrollRef = useTabScrollToTop();
-  const filtered = filter === 'all' ? stylingItems : getByCategory(filter);
+  const scrollRef = useRef<FlatList<WardrobeItem>>(null);
+  useScrollToTop(scrollRef);
+  const filtered = useMemo(
+    () => (filter === 'all' ? stylingItems : getByCategory(filter)),
+    [filter, stylingItems, getByCategory],
+  );
 
   const handleRetryLoad = useCallback(async () => {
     if (isRetrying) return;
@@ -63,13 +67,13 @@ export default function WardrobeScreen() {
     }
   }, [isRetrying, retryLoad]);
 
-  const openPickerResult = (uri: string) => {
+  const openPickerResult = useCallback((uri: string) => {
     setPendingUri(uri);
     setItemType(null);
     setModalVisible(true);
-  };
+  }, []);
 
-  const pickFromLibrary = async () => {
+  const pickFromLibrary = useCallback(async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(t.wardrobe.permissionDeniedTitle, t.wardrobe.permissionDeniedBody);
@@ -80,9 +84,9 @@ export default function WardrobeScreen() {
     if (!result.canceled && result.assets[0]) {
       openPickerResult(result.assets[0].uri);
     }
-  };
+  }, [openPickerResult, t]);
 
-  const pickFromCamera = async () => {
+  const pickFromCamera = useCallback(async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(t.wardrobe.permissionDeniedTitle, t.wardrobe.permissionDeniedBody);
@@ -93,9 +97,9 @@ export default function WardrobeScreen() {
     if (!result.canceled && result.assets[0]) {
       openPickerResult(result.assets[0].uri);
     }
-  };
+  }, [openPickerResult, t]);
 
-  const showUploadOptions = () => {
+  const showUploadOptions = useCallback(() => {
     if (!isPremium && stylingItems.length >= FREE_WARDROBE_ITEM_LIMIT) {
       setLimitToastVisible(true);
       return;
@@ -106,14 +110,14 @@ export default function WardrobeScreen() {
       { text: t.wardrobe.chooseFromGallery, onPress: () => void pickFromLibrary() },
       { text: t.common.cancel, style: 'cancel' },
     ]);
-  };
+  }, [isPremium, stylingItems.length, t, pickFromCamera, pickFromLibrary]);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setModalVisible(false);
     setPendingUri(null);
     setIsSaving(false);
     setItemType(null);
-  };
+  }, []);
 
   const saveItem = async () => {
     if (!pendingUri || !itemType || isSaving) return;
@@ -139,31 +143,47 @@ export default function WardrobeScreen() {
     }
   };
 
-  const confirmRemove = (id: string) => {
-    Alert.alert(t.wardrobe.removeTitle, t.wardrobe.removeConfirm, [
-      { text: t.common.decline, style: 'cancel' },
-      {
-        text: t.wardrobe.removeAction,
-        style: 'destructive',
-        onPress: () => {
-          void hapticLight();
-          void removeItem(id).catch(() => {
-            Alert.alert(t.profile.account.errorTitle, t.wardrobe.removeError);
-          });
+  const confirmRemove = useCallback(
+    (id: string) => {
+      Alert.alert(t.wardrobe.removeTitle, t.wardrobe.removeConfirm, [
+        { text: t.common.decline, style: 'cancel' },
+        {
+          text: t.wardrobe.removeAction,
+          style: 'destructive',
+          onPress: () => {
+            void hapticLight();
+            void removeItem(id).catch(() => {
+              Alert.alert(t.profile.account.errorTitle, t.wardrobe.removeError);
+            });
+          },
         },
-      },
-    ]);
-  };
+      ]);
+    },
+    [t, removeItem],
+  );
 
-  return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        onScrollBeginDrag={Keyboard.dismiss}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+  const renderWardrobeItem = useCallback(
+    ({ item }: { item: WardrobeItem }) => (
+      <View style={styles.gridItem}>
+        <WardrobeItemCard
+          item={item}
+          categoryLabel={t.wardrobeTypes[item.itemType]}
+          size="md"
+        />
+        <Pressable
+          onPress={() => confirmRemove(item.id)}
+          style={({ pressed }) => [styles.deleteBtn, pressed && styles.deletePressed]}
+          hitSlop={8}>
+          <Ionicons name="trash-outline" size={15} color={StyloveColors.burgundyRich} />
+        </Pressable>
+      </View>
+    ),
+    [confirmRemove, t.wardrobeTypes],
+  );
+
+  const listHeader = useMemo(
+    () => (
+      <>
         <View style={styles.header}>
           <Text style={styles.title}>{t.wardrobe.title}</Text>
           <Text style={styles.subtitle}>{t.wardrobe.subtitle}</Text>
@@ -179,7 +199,11 @@ export default function WardrobeScreen() {
           contentContainerStyle={styles.filters}>
           <Pressable
             onPress={() => setFilter('all')}
-            style={({ pressed }) => [styles.filterChip, filter === 'all' && styles.filterActive, pressed && styles.chipPressed]}>
+            style={({ pressed }) => [
+              styles.filterChip,
+              filter === 'all' && styles.filterActive,
+              pressed && styles.chipPressed,
+            ]}>
             <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
               {t.wardrobe.filterAll}
             </Text>
@@ -188,7 +212,11 @@ export default function WardrobeScreen() {
             <Pressable
               key={cat}
               onPress={() => setFilter(cat)}
-              style={({ pressed }) => [styles.filterChip, filter === cat && styles.filterActive, pressed && styles.chipPressed]}>
+              style={({ pressed }) => [
+                styles.filterChip,
+                filter === cat && styles.filterActive,
+                pressed && styles.chipPressed,
+              ]}>
               <Text style={[styles.filterText, filter === cat && styles.filterTextActive]}>
                 {t.categories[cat]}
               </Text>
@@ -224,29 +252,49 @@ export default function WardrobeScreen() {
         ) : filtered.length === 0 ? (
           <EmptyState
             title={stylingItems.length === 0 ? t.wardrobe.emptyTitle : t.wardrobe.filterEmptyTitle}
-            subtitle={stylingItems.length === 0 ? t.wardrobe.emptySubtitle : t.wardrobe.filterEmptySubtitle}
+            subtitle={
+              stylingItems.length === 0 ? t.wardrobe.emptySubtitle : t.wardrobe.filterEmptySubtitle
+            }
           />
-        ) : (
-          <View style={styles.grid}>
-            {filtered.map((item, index) => (
-              <SoftEnter key={item.id} delay={index * 40} style={styles.gridItem}>
-                <WardrobeItemCard
-                  item={item}
-                  categoryLabel={t.wardrobeTypes[item.itemType]}
-                  size="md"
-                />
-                <Pressable
-                  onPress={() => confirmRemove(item.id)}
-                  style={({ pressed }) => [styles.deleteBtn, pressed && styles.deletePressed]}
-                  hitSlop={8}>
-                  <Ionicons name="trash-outline" size={15} color={StyloveColors.burgundyRich} />
-                </Pressable>
-              </SoftEnter>
-            ))}
-          </View>
-        )}
-        <StyloveFooter />
-      </ScrollView>
+        ) : null}
+      </>
+    ),
+    [
+      t,
+      filter,
+      ready,
+      loadError,
+      filtered.length,
+      stylingItems.length,
+      isRetrying,
+      handleRetryLoad,
+      showUploadOptions,
+    ],
+  );
+
+  const listFooter = useMemo(() => <StyloveFooter />, []);
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <FlatList
+        ref={scrollRef}
+        data={ready && !loadError ? filtered : []}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
+        renderItem={renderWardrobeItem}
+        ListHeaderComponent={listHeader}
+        ListFooterComponent={listFooter}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        onScrollBeginDrag={Keyboard.dismiss}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        initialNumToRender={6}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        removeClippedSubviews
+      />
 
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -257,6 +305,7 @@ export default function WardrobeScreen() {
                 <WardrobeCatalogCard
                   imageUri={pendingUri}
                   size="lg"
+                  editorialBackdrop
                   isPreparing={isSaving}
                   categoryLabel={itemType ? t.wardrobeTypes[itemType] : undefined}
                 />
@@ -398,8 +447,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     gap: 14,
   },
+  gridRow: {
+    paddingHorizontal: 18,
+    gap: 14,
+    marginBottom: 14,
+  },
   gridItem: {
-    width: '47%',
+    flex: 1,
+    maxWidth: '48%',
     position: 'relative',
   },
   deleteBtn: {

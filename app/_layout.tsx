@@ -25,9 +25,15 @@ function RootStack() {
   const { isDark } = useTheme();
   return (
     <>
-      <Stack screenOptions={{ headerShown: false, animation: 'fade', animationDuration: 280 }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'fade',
+          animationDuration: 180,
+          freezeOnBlur: true,
+        }}>
         <Stack.Screen name="index" options={{ animation: 'fade' }} />
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade_from_bottom' }} />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen
           name="premium"
           options={{ presentation: 'modal', animation: 'slide_from_bottom' }}

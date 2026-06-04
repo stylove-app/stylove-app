@@ -1,3 +1,4 @@
+
 const appJson = require('./app.json');
 
 const sentryOrg = process.env.SENTRY_ORG;
@@ -18,7 +19,7 @@ const sentryPlugin =
           project: sentryProject,
         },
       ]
-    : '@sentry/react-native';
+    : null;
 
 const notificationPlugin = [
   'expo-notifications',
@@ -31,13 +32,20 @@ module.exports = {
   expo: {
     ...appJson.expo,
     ios: {
-      bundleIdentifier: "com.stylove.app",
+      ...appJson.expo.ios,
+      bundleIdentifier: 'com.stylove.app',
+      infoPlist: {
+        ...appJson.expo.ios?.infoPlist,
+        ITSAppUsesNonExemptEncryption: false,
+      },
     },
-    plugins: [...basePlugins, notificationPlugin, sentryPlugin],
-  extra: {
-    eas: {
-      projectId: "40bafb77-1e46-468d-bd9d-eb3ec925da8e",
+    plugins: [...basePlugins, notificationPlugin, ...(sentryPlugin ? [sentryPlugin] : [])],
+    extra: {
+      ...appJson.expo.extra,
+      eas: {
+        ...appJson.expo.extra?.eas,
+        projectId: '40bafb77-1e46-468d-bd9d-eb3ec925da8e',
+      },
     },
   },
-}
 };

@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { memo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { StyloveColors, StyloveShadow } from '@/constants/stylove-theme';
@@ -11,6 +12,8 @@ type WardrobeCatalogCardProps = {
   categoryLabel?: string;
   size?: 'sm' | 'md' | 'lg';
   isPreparing?: boolean;
+  /** Blurred editorial backdrop — off in grids for smoother scrolling. */
+  editorialBackdrop?: boolean;
 };
 
 const SIZES = {
@@ -19,13 +22,13 @@ const SIZES = {
   lg: { aspectRatio: 4 / 5, imagePadding: 16, radius: 20, nameSize: 15 },
 } as const;
 
-/** Luxury catalog card for wardrobe pieces — editorial cream backdrop and object-focus framing. */
-export function WardrobeCatalogCard({
+function WardrobeCatalogCardComponent({
   imageUri,
   name,
   categoryLabel,
   size = 'md',
   isPreparing = false,
+  editorialBackdrop = false,
 }: WardrobeCatalogCardProps) {
   const t = useTranslation();
   const s = SIZES[size];
@@ -41,15 +44,22 @@ export function WardrobeCatalogCard({
           },
         ]}>
         <View style={styles.editorialSurface}>
-          <Image
-            source={{ uri: imageUri }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            blurRadius={28}
-            transition={300}
-          />
-          <View style={styles.creamWash} />
-          <View style={styles.warmGlow} />
+          {editorialBackdrop ? (
+            <>
+              <Image
+                source={{ uri: imageUri }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                blurRadius={28}
+                cachePolicy="memory-disk"
+                recyclingKey={`${imageUri}-blur`}
+              />
+              <View style={styles.creamWash} />
+              <View style={styles.warmGlow} />
+            </>
+          ) : (
+            <View style={styles.plainBackdrop} />
+          )}
 
           {isPreparing ? (
             <View style={styles.preparingOverlay}>
@@ -62,13 +72,19 @@ export function WardrobeCatalogCard({
                 source={{ uri: imageUri }}
                 style={styles.focusImage}
                 contentFit="contain"
-                transition={400}
+                cachePolicy="memory-disk"
+                recyclingKey={imageUri}
+                transition={editorialBackdrop ? 400 : 0}
               />
             </View>
           )}
 
-          <View style={styles.vignetteTop} pointerEvents="none" />
-          <View style={styles.vignetteBottom} pointerEvents="none" />
+          {editorialBackdrop ? (
+            <>
+              <View style={styles.vignetteTop} pointerEvents="none" />
+              <View style={styles.vignetteBottom} pointerEvents="none" />
+            </>
+          ) : null}
         </View>
 
         {categoryLabel && !isPreparing ? (
@@ -87,6 +103,8 @@ export function WardrobeCatalogCard({
   );
 }
 
+export const WardrobeCatalogCard = memo(WardrobeCatalogCardComponent);
+
 const styles = StyleSheet.create({
   wrapper: {
     width: '100%',
@@ -102,6 +120,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: StyloveColors.ivory,
     overflow: 'hidden',
+  },
+  plainBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: StyloveColors.ivory,
   },
   creamWash: {
     ...StyleSheet.absoluteFillObject,
