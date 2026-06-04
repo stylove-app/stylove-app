@@ -142,15 +142,29 @@ export function LooksProvider({ children }: { children: React.ReactNode }) {
 
   const removeLook = useCallback(
     async (id: string) => {
-      if (isRegistered && userId) {
-        await deleteSavedOutfit(userId, id);
-      }
+      let rollbackLooks: CuratedLook[] = [];
+      let rollbackCurrent: CuratedLook | null = null;
+
       setLooks((prev) => {
+        rollbackLooks = prev;
         const next = prev.filter((l) => l.id !== id);
         if (!isRegistered) void writeScopedLooks(storageScope, next);
         return next;
       });
-      setCurrentLookState((current) => (current?.id === id ? null : current));
+      setCurrentLookState((current) => {
+        rollbackCurrent = current;
+        return current?.id === id ? null : current;
+      });
+
+      try {
+        if (isRegistered && userId) {
+          await deleteSavedOutfit(userId, id);
+        }
+      } catch (error) {
+        setLooks(rollbackLooks);
+        setCurrentLookState(rollbackCurrent);
+        throw error;
+      }
     },
     [isRegistered, storageScope, userId],
   );

@@ -9,6 +9,7 @@ import type { Locale, MoodId, TranslationKeys } from '@/i18n/types';
 import type { WeatherSnapshot } from '@/lib/weather';
 import type { WardrobeItem } from '@/lib/outfit-engine';
 import { generateOutfitSecurely } from '@/services/outfit-generation';
+import { buildOutfitDiversityContext } from '@/lib/styling-bible';
 
 export const OUTFIT_GENERATION_MS = 5500;
 
@@ -28,6 +29,7 @@ type RunSecureOutfitGenerationParams = {
   styleMood: boolean;
   currentLook: CuratedLook | null;
   savedLooks: CuratedLook[];
+  sessionLooks?: CuratedLook[];
   isPremium: boolean;
   usageScope: string;
   recordGeneratedLook: (look: CuratedLook) => void;
@@ -45,12 +47,14 @@ export async function runSecureOutfitGeneration({
   styleMood,
   currentLook,
   savedLooks,
+  sessionLooks = [],
   isPremium,
   usageScope,
   recordGeneratedLook,
   getWardrobeSnapshot,
 }: RunSecureOutfitGenerationParams): Promise<CuratedLook> {
   const resolvedWeather = weather ?? undefined;
+  const isRegenerate = analyticsSource === 'replace' || analyticsSource === 'looks';
 
   const [{ stylingItems: wardrobeSnapshot }] = await Promise.all([
     waitForWardrobeReady(getWardrobeSnapshot),
@@ -62,19 +66,28 @@ export async function runSecureOutfitGeneration({
     throw new EmptyReadyWardrobeError();
   }
 
-  const recentItemIds = [
-    ...(currentLook?.itemIds ?? []),
-    ...savedLooks.slice(-4).flatMap((lookItem) => lookItem.itemIds),
+  const diversityLooks = [
+    ...sessionLooks,
+    ...(currentLook ? [currentLook] : []),
+    ...savedLooks.slice(-4),
   ];
+  const { recentOutfitSets, seenSignatures, recentItemIds } = buildOutfitDiversityContext(diversityLooks);
+
+  const generationSeed = isRegenerate
+    ? Date.now() + Math.floor(Math.random() * 1_000_000)
+    : undefined;
 
   const fallbackLook = generateLook(t, {
     intent: intentText,
     wardrobe: wardrobeForLook,
     weather: resolvedWeather,
-    seed: Date.now(),
+    seed: generationSeed,
     styleMemory: memory,
     moodOverride: engineMood,
     recentItemIds,
+    recentOutfitSets,
+    seenSignatures,
+    regenerate: isRegenerate,
   });
 
   const look = await generateOutfitSecurely({
@@ -84,10 +97,7 @@ export async function runSecureOutfitGeneration({
     weather: resolvedWeather,
     mood: engineMood,
     styleMemory: memory,
-    recentItemIds: [
-      ...(currentLook?.itemIds ?? []),
-      ...savedLooks.slice(-4).flatMap((lookItem) => lookItem.itemIds),
-    ],
+    recentItemIds,
     roleLabels: {
       top: t.completeLook.top,
       bottom: t.completeLook.bottom,

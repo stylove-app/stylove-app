@@ -14,6 +14,7 @@ export type StylingOutfitPiece = {
 };
 import type { WeatherSnapshot } from '@/lib/weather';
 import { weatherMoodBoost } from '@/lib/weather';
+import { scorePieceWithBible } from '@/lib/styling-bible';
 
 export type StyleFamily = 'sport' | 'casual' | 'smart' | 'formal' | 'luxe';
 
@@ -27,14 +28,18 @@ export type ItemStylingProfile = {
   isStatementColor: boolean;
 };
 
+import type { ResolvedIntent } from '@/lib/intent-engine';
+
 export type OutfitStylingContext = {
   mood: MoodId;
   intent: string;
+  resolvedIntent?: ResolvedIntent;
   weather?: WeatherSnapshot;
   anchor: ItemStylingProfile | null;
   selected: ItemStylingProfile[];
   preferredTypes: WardrobeItemTypeId[];
   recentItemIds: Set<string>;
+  wardrobe?: StylingWardrobeItem[];
   styleMemory?: StyleMemory;
   seed: number;
 };
@@ -215,6 +220,7 @@ const COMFORT_FOOTWEAR_INTENT_PATTERN =
   /\b(city walk|walk|travel|airport|explore|sightseeing|seyahat|yürüyüş|yuruyus|gezmek|keşif|kesif|havalimanı|havalimani)\b/i;
 
 export const OUTFIT_CANDIDATE_COUNT = 12;
+export const REGENERATE_OUTFIT_CANDIDATE_COUNT = 24;
 
 function detectToneFromName(name: string): string | null {
   return TONE_PATTERNS.find((entry) => entry.patterns.some((pattern) => pattern.test(name)))?.tone ?? null;
@@ -374,7 +380,7 @@ function scoreWeatherFit(profiles: ItemStylingProfile[], weather?: WeatherSnapsh
 
 export function scoreOutfitCoherence(
   profiles: ItemStylingProfile[],
-  context: Pick<OutfitStylingContext, 'mood' | 'weather' | 'intent'>,
+  context: Pick<OutfitStylingContext, 'mood' | 'weather' | 'intent' | 'resolvedIntent'>,
 ): number {
   if (profiles.length === 0) return -100;
 
@@ -415,7 +421,11 @@ export function scorePieceCandidate(profile: ItemStylingProfile, context: Outfit
   if (moodBias.boost.includes(profile.item.itemType)) score += 2.5;
   if (moodBias.penalize.includes(profile.item.itemType)) score -= 4;
 
-  if (context.recentItemIds.has(profile.item.id)) score -= 5;
+  if (context.recentItemIds.has(profile.item.id)) score -= 8;
+
+  if (context.wardrobe?.length) {
+    score += scorePieceWithBible(profile, context, context.wardrobe);
+  }
 
   if (context.styleMemory?.favoriteTones.length) {
     const tone = profile.tone;
@@ -459,7 +469,7 @@ export function pickBestPiece<T extends StylingWardrobeItem>(
 
 export function scoreOutfitPieces(
   pieces: StylingOutfitPiece[],
-  context: Pick<OutfitStylingContext, 'mood' | 'weather' | 'intent'>,
+  context: Pick<OutfitStylingContext, 'mood' | 'weather' | 'intent' | 'resolvedIntent'>,
 ): number {
   return scoreOutfitCoherence(
     pieces.map((piece) => analyzeWardrobeItem(piece.item)),

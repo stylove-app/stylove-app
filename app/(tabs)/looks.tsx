@@ -167,6 +167,7 @@ function LooksScreen() {
         styleMood: false,
         currentLook: activeLook,
         savedLooks,
+        sessionLooks: looks,
         isPremium,
         usageScope,
         recordGeneratedLook,

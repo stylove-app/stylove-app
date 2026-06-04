@@ -1,4 +1,5 @@
 import { parseIntent } from '@/lib/intent-parser';
+import { analyzeIntent, type ResolvedIntent } from '@/lib/intent-engine';
 import { inferEventContext, getVenueMoodBias } from '@/lib/event-intelligence';
 import { computeLuxuryScores, type LuxuryScores } from '@/lib/luxury-scores';
 import { buildEditorialReasoning, type EditorialReasoning } from '@/lib/editorial-reasoning';
@@ -20,10 +21,16 @@ import {
   OUTFIT_CANDIDATE_COUNT,
   pickBestPiece,
   preferredTypesForSlot,
+  REGENERATE_OUTFIT_CANDIDATE_COUNT,
   scoreOutfitPieces,
   type ItemStylingProfile,
   type OutfitStylingContext,
 } from '@/lib/outfit-styling-intelligence';
+import {
+  buildBibleOutfitExplanation,
+  preferredTypesForOccasion,
+  scoreOutfitPiecesWithBible,
+} from '@/lib/styling-bible';
 
 export type WardrobeItem = {
   id: string;
@@ -161,6 +168,7 @@ function partitionWardrobe(wardrobe: WardrobeItem[]): Record<WardrobeCategoryId,
 function stylingContextBase(
   params: {
     intent: string;
+    resolvedIntent?: ResolvedIntent;
     weather?: WeatherSnapshot;
     mood: MoodId;
     seed: number;
@@ -171,6 +179,7 @@ function stylingContextBase(
   return {
     mood: params.mood,
     intent: params.intent,
+    resolvedIntent: params.resolvedIntent,
     weather: params.weather,
     recentItemIds: new Set(params.recentItemIds ?? []),
     styleMemory: params.styleMemory,
@@ -178,11 +187,34 @@ function stylingContextBase(
   };
 }
 
+type BibleSlotRole = 'top' | 'bottom' | 'dress' | 'shoes' | 'outerwear';
+
+function biblePreferredTypes(
+  resolvedIntent: import('@/lib/intent-engine').ResolvedIntent,
+  wardrobe: WardrobeItem[],
+  role: BibleSlotRole,
+  mood: MoodId,
+  slotRole: Parameters<typeof preferredTypesForSlot>[2],
+): WardrobeItemTypeId[] {
+  const occasion = resolvedIntent.occasion;
+  const stylingWardrobe = wardrobe.map((item) => ({
+    id: item.id,
+    name: item.name,
+    itemType: item.itemType,
+    category: item.category,
+  }));
+  const bibleTypes = preferredTypesForOccasion(occasion, role, stylingWardrobe);
+  const moodTypes = preferredTypesForSlot(mood, resolvedIntent.rawText, slotRole);
+  return [...new Set([...bibleTypes, ...moodTypes])];
+}
+
 function assembleOutfitCandidate(
   t: TranslationKeys,
   byCategory: Record<WardrobeCategoryId, WardrobeItem[]>,
   params: {
     intent: string;
+    resolvedIntent: ResolvedIntent;
+    wardrobe: WardrobeItem[];
     weather?: WeatherSnapshot;
     mood: MoodId;
     seed: number;
@@ -190,14 +222,29 @@ function assembleOutfitCandidate(
     styleMemory?: StyleMemory;
   },
 ): OutfitPiece[] {
-  const base = stylingContextBase(params);
+  const stylingWardrobe = params.wardrobe.map((item) => ({
+    id: item.id,
+    name: item.name,
+    itemType: item.itemType,
+    category: item.category,
+  }));
+  const base: Omit<OutfitStylingContext, 'anchor' | 'selected' | 'preferredTypes'> = {
+    ...stylingContextBase(params),
+    wardrobe: stylingWardrobe,
+  };
   const selected: ItemStylingProfile[] = [];
 
   const top = pickBestPiece(byCategory.upper, {
     ...base,
     anchor: null,
     selected,
-    preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'upper-anchor'),
+    preferredTypes: biblePreferredTypes(
+      params.resolvedIntent,
+      params.wardrobe,
+      'top',
+      params.mood,
+      'upper-anchor',
+    ),
     seed: params.seed + 1,
   });
   const anchor = top ? analyzeWardrobeItem(top) : null;
@@ -207,7 +254,7 @@ function assembleOutfitCandidate(
     ...base,
     anchor,
     selected,
-    preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'bottom'),
+    preferredTypes: biblePreferredTypes(params.resolvedIntent, params.wardrobe, 'bottom', params.mood, 'bottom'),
     seed: params.seed + 2,
   });
   if (bottom) selected.push(analyzeWardrobeItem(bottom));
@@ -218,7 +265,7 @@ function assembleOutfitCandidate(
           ...base,
           anchor,
           selected,
-          preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'dress'),
+          preferredTypes: biblePreferredTypes(params.resolvedIntent, params.wardrobe, 'dress', params.mood, 'dress'),
           seed: params.seed + 3,
         })
       : undefined;
@@ -228,7 +275,7 @@ function assembleOutfitCandidate(
     ...base,
     anchor,
     selected,
-    preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'shoes'),
+    preferredTypes: biblePreferredTypes(params.resolvedIntent, params.wardrobe, 'shoes', params.mood, 'shoes'),
     seed: params.seed + 4,
   });
   if (shoes) selected.push(analyzeWardrobeItem(shoes));
@@ -239,7 +286,7 @@ function assembleOutfitCandidate(
         ...base,
         anchor,
         selected,
-        preferredTypes: preferredTypesForSlot(params.mood, params.intent, 'outerwear'),
+        preferredTypes: biblePreferredTypes(params.resolvedIntent, params.wardrobe, 'outerwear', params.mood, 'outerwear'),
         seed: params.seed + 5,
       })
     : undefined;
@@ -303,31 +350,50 @@ function buildCompleteOutfit(
   t: TranslationKeys,
   params: {
     intent: string;
+    resolvedIntent: ResolvedIntent;
     wardrobe: WardrobeItem[];
     weather?: WeatherSnapshot;
     mood: MoodId;
     seed: number;
     recentItemIds?: string[];
+    recentOutfitSets?: string[][];
+    seenSignatures?: Set<string>;
+    regenerate?: boolean;
     styleMemory?: StyleMemory;
   },
 ): { pieces: OutfitPiece[] } {
   const byCategory = partitionWardrobe(params.wardrobe);
+  const stylingWardrobe = params.wardrobe.map((item) => ({
+    id: item.id,
+    name: item.name,
+    itemType: item.itemType,
+    category: item.category,
+  }));
   let bestPieces: OutfitPiece[] = [];
   let bestScore = -Infinity;
+  const attemptCount = params.regenerate ? REGENERATE_OUTFIT_CANDIDATE_COUNT : OUTFIT_CANDIDATE_COUNT;
+  const bibleContext = {
+    mood: params.mood,
+    weather: params.weather,
+    intent: params.intent,
+    resolvedIntent: params.resolvedIntent,
+  };
+  const diversityOptions = {
+    recentOutfitSets: params.recentOutfitSets,
+    seenSignatures: params.seenSignatures,
+  };
 
-  for (let attempt = 0; attempt < OUTFIT_CANDIDATE_COUNT; attempt += 1) {
+  for (let attempt = 0; attempt < attemptCount; attempt += 1) {
     const candidateSeed = params.seed + attempt * 19;
     const pieces = assembleOutfitCandidate(t, byCategory, {
       ...params,
       seed: candidateSeed,
     });
-    const coherence = scoreOutfitPieces(pieces, {
-      mood: params.mood,
-      weather: params.weather,
-      intent: params.intent,
-    });
-    if (coherence > bestScore) {
-      bestScore = coherence;
+    const bibleScore = scoreOutfitPiecesWithBible(pieces, bibleContext, stylingWardrobe, diversityOptions);
+    const coherence = scoreOutfitPieces(pieces, bibleContext);
+    const score = bibleScore * 0.8 + coherence * 0.2;
+    if (score > bestScore) {
+      bestScore = score;
       bestPieces = pieces;
     }
   }
@@ -436,14 +502,18 @@ export function generateLook(
     styleMemory?: StyleMemory;
     moodOverride?: MoodId;
     recentItemIds?: string[];
+    recentOutfitSets?: string[][];
+    seenSignatures?: Set<string>;
+    regenerate?: boolean;
   },
 ): CuratedLook {
   const { intent, wardrobe, weather, variant = 'default', styleMemory, moodOverride } = params;
+  const resolvedIntent = analyzeIntent(intent);
   const parsed = parseIntent(intent);
   const eventContext = inferEventContext(intent, t, weather, parsed.occasion);
   const venueBias = getVenueMoodBias(intent);
 
-  let mood = moodOverride ?? parsed.mood;
+  let mood = moodOverride ?? resolvedIntent.moodHint ?? parsed.mood;
   if (venueBias && !moodOverride) mood = venueBias;
   if (styleMemory && !moodOverride) {
     const topMood = (Object.entries(styleMemory.moodFrequency) as [MoodId, number][])
@@ -455,7 +525,9 @@ export function generateLook(
   const label = buildPersonalizedOccasion(intent, t);
   const seed =
     params.seed ??
-    hashSeed(`${intent}-${effectiveMood}-${variant}-${weather?.temperature ?? 0}-${Date.now()}`);
+    hashSeed(
+      `${intent}-${effectiveMood}-${variant}-${weather?.temperature ?? 0}-${params.regenerate ? Date.now() : 0}`,
+    );
 
   const descriptions = t.outfit.descriptions[effectiveMood];
   const vibes = [...t.outfit.vibes[effectiveMood]];
@@ -472,12 +544,16 @@ export function generateLook(
   const stylingWardrobe = getStylingWardrobe(wardrobe);
   const completeOutfit = buildCompleteOutfit(t, {
     intent,
+    resolvedIntent,
     wardrobe: stylingWardrobe,
     weather,
     mood: effectiveMood,
     seed,
     styleMemory,
     recentItemIds: params.recentItemIds,
+    recentOutfitSets: params.recentOutfitSets,
+    seenSignatures: params.seenSignatures,
+    regenerate: params.regenerate,
   });
   const wardrobeHint =
     stylingWardrobe.length === 1 ? t.home.wardrobeHintSingle : undefined;
@@ -496,12 +572,15 @@ export function generateLook(
     mood: effectiveMood,
     weather,
     intent,
+    resolvedIntent,
   });
   const luxuryScores = computeLuxuryScores(effectiveMood, seed, weather, eventContext, outfitCoherence);
   const eleganceScore = luxuryScores.elegance;
   const editorialReasoning = buildEditorialReasoning(t, effectiveMood, seed, weather, eventContext);
   const wardrobeCopy = buildWardrobeLedCopy(t, completeOutfit.pieces, weather);
-  const whyThisWorks = [
+  const bibleProfiles = completeOutfit.pieces.map((piece) => analyzeWardrobeItem(piece.item));
+  const bibleExplanation = buildBibleOutfitExplanation(bibleProfiles, intent, weather, resolvedIntent);
+  const whyThisWorks = bibleExplanation.whyThisWorks || [
     editorialReasoning.colorHarmony,
     editorialReasoning.silhouetteBalance,
   ].join(' ');

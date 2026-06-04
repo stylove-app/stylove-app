@@ -57,7 +57,7 @@ function HomeScreen() {
   const { isPremium } = usePremium();
   const { weather } = useWeather();
   const { memory, recordGeneratedLook, recordSavedLook } = useStyleMemory();
-  const { currentLook, setCurrentLook, saveLook, savedLooks, removeLook } = useLooks();
+  const { looks, currentLook, setCurrentLook, saveLook, savedLooks, removeLook } = useLooks();
   const { pendingTarget, clearPendingNavigation } = useAppNavigation();
   const scrollRef = useTabScrollToTop();
   const resultsY = useRef(0);
@@ -150,6 +150,7 @@ function HomeScreen() {
         styleMood: Boolean(styleMood),
         currentLook,
         savedLooks,
+        sessionLooks: looks,
         isPremium,
         usageScope,
         recordGeneratedLook,
@@ -164,6 +165,7 @@ function HomeScreen() {
       styleMood,
       currentLook,
       savedLooks,
+      looks,
       isPremium,
       usageScope,
       recordGeneratedLook,
