@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,7 +23,7 @@ import { hapticLight } from '@/lib/haptics';
 import { deleteOwnAccount } from '@/services/account-deletion';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 
-export default function ProfileScreen() {
+function ProfileScreen() {
   const t = useTranslation();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
@@ -48,12 +48,34 @@ export default function ProfileScreen() {
     return () => clearTimeout(timer);
   }, [pendingTarget, clearPendingNavigation]);
 
-  const usernameLine = profile.username.trim() ? `@${profile.username.replace(/^@/, '')}` : t.profile.subtitle;
+  const scrollContentStyle = useMemo(
+    () => ({ paddingBottom: insets.bottom + 100 }),
+    [insets.bottom],
+  );
+  const screenStyle = useMemo(
+    () => [styles.screen, { backgroundColor: colors.ivory, paddingTop: insets.top }],
+    [colors.ivory, insets.top],
+  );
+  const usernameLine = useMemo(
+    () => (profile.username.trim() ? `@${profile.username.replace(/^@/, '')}` : t.profile.subtitle),
+    [profile.username, t.profile.subtitle],
+  );
   const signatureIsReady = signature.phase === 'emerging' || signature.phase === 'complete';
-  const signatureEmptyTitle =
-    signature.phase === 'empty' ? t.profile.signatureEmptyTitle : t.profile.signatureFormingTitle;
-  const signatureEmptyBody =
-    signature.phase === 'empty' ? t.profile.signatureEmptyBody : t.profile.signatureFormingBody;
+  const signatureEmptyTitle = useMemo(
+    () => (signature.phase === 'empty' ? t.profile.signatureEmptyTitle : t.profile.signatureFormingTitle),
+    [signature.phase, t.profile.signatureEmptyTitle, t.profile.signatureFormingTitle],
+  );
+  const signatureEmptyBody = useMemo(
+    () => (signature.phase === 'empty' ? t.profile.signatureEmptyBody : t.profile.signatureFormingBody),
+    [signature.phase, t.profile.signatureEmptyBody, t.profile.signatureFormingBody],
+  );
+  const settingsButtonTheme = useMemo(
+    () => ({
+      backgroundColor: colors.white,
+      borderColor: colors.creamMuted,
+    }),
+    [colors.white, colors.creamMuted],
+  );
 
   const handleDeleteAccount = async () => {
     setDeletingAccount(true);
@@ -70,11 +92,11 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.ivory, paddingTop: insets.top }]}>
+    <View style={screenStyle}>
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+        contentContainerStyle={scrollContentStyle}>
         <View style={styles.header}>
           <View style={[styles.avatarWrap, !profile.photoUri && styles.avatarWrapEmpty]}>
             <Image
@@ -95,10 +117,7 @@ export default function ProfileScreen() {
             }}
             style={({ pressed }) => [
               styles.settingsButton,
-              {
-                backgroundColor: colors.white,
-                borderColor: colors.creamMuted,
-              },
+              settingsButtonTheme,
               pressed && styles.settingsButtonPressed,
               StyloveShadow.soft,
             ]}
@@ -256,6 +275,8 @@ export default function ProfileScreen() {
     </View>
   );
 }
+
+export default memo(ProfileScreen);
 
 const styles = StyleSheet.create({
   screen: {

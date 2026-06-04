@@ -1,17 +1,18 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { memo, useMemo } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { WardrobeItemCard } from '@/components/wardrobe/wardrobe-item-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
-import { useWardrobe } from '@/contexts/wardrobe-context';
+import { useWardrobeState } from '@/contexts/wardrobe-context';
 import { useTranslation } from '@/contexts/locale-context';
 import { StyloveColors } from '@/constants/stylove-theme';
 
-export function WardrobePreview() {
+function WardrobePreviewComponent() {
   const t = useTranslation();
-  const { stylingItems } = useWardrobe();
-  const preview = stylingItems.slice(0, 8);
+  const { stylingItems } = useWardrobeState();
+  const preview = useMemo(() => stylingItems.slice(0, 8), [stylingItems]);
 
   if (preview.length === 0) {
     return (
@@ -54,6 +55,8 @@ export function WardrobePreview() {
     </View>
   );
 }
+
+export const WardrobePreview = memo(WardrobePreviewComponent);
 
 const styles = StyleSheet.create({
   container: {

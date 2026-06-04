@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useScrollToTop } from '@react-navigation/native';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -23,11 +23,11 @@ import { LuxuryButton } from '@/components/ui/luxury-button';
 import { LuxuryToast } from '@/components/ui/luxury-toast';
 import { SkeletonShimmer } from '@/components/ui/skeleton-shimmer';
 import { StyloveFooter } from '@/components/ui/stylove-footer';
-import { useWardrobe } from '@/contexts/wardrobe-context';
+import { useWardrobeActions, useWardrobeState } from '@/contexts/wardrobe-context';
 import { useStyleMemory } from '@/contexts/style-memory-context';
 import { useTranslation } from '@/contexts/locale-context';
 import { usePremium } from '@/contexts/premium-context';
-import { FREE_WARDROBE_ITEM_LIMIT } from '@/lib/free-plan-limits';
+import { isWardrobeItemLimitReached } from '@/lib/free-plan-limits';
 import { WARDROBE_IMAGE_PICKER_OPTIONS } from '@/lib/wardrobe-image-picker';
 import { hapticLight } from '@/lib/haptics';
 import { WARDROBE_CATEGORIES, type WardrobeItem } from '@/lib/outfit-engine';
@@ -35,10 +35,11 @@ import { StyloveColors, StyloveShadow } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 import type { WardrobeCategoryId, WardrobeItemTypeId } from '@/i18n/types';
 
-export default function WardrobeScreen() {
+function WardrobeScreen() {
   const t = useTranslation();
   const insets = useSafeAreaInsets();
-  const { stylingItems, addItem, removeItem, getByCategory, ready, loadError, retryLoad } = useWardrobe();
+  const { stylingItems, ready, loadError } = useWardrobeState();
+  const { addItem, removeItem, getByCategory, retryLoad } = useWardrobeActions();
   const { recordWardrobeAdd } = useStyleMemory();
   const { isPremium } = usePremium();
 
@@ -100,7 +101,7 @@ export default function WardrobeScreen() {
   }, [openPickerResult, t]);
 
   const showUploadOptions = useCallback(() => {
-    if (!isPremium && stylingItems.length >= FREE_WARDROBE_ITEM_LIMIT) {
+    if (!isPremium && isWardrobeItemLimitReached(stylingItems.length)) {
       setLimitToastVisible(true);
       return;
     }
@@ -121,7 +122,7 @@ export default function WardrobeScreen() {
 
   const saveItem = async () => {
     if (!pendingUri || !itemType || isSaving) return;
-    if (!isPremium && stylingItems.length >= FREE_WARDROBE_ITEM_LIMIT) {
+    if (!isPremium && isWardrobeItemLimitReached(stylingItems.length)) {
       setLimitToastVisible(true);
       return;
     }
@@ -274,8 +275,14 @@ export default function WardrobeScreen() {
 
   const listFooter = useMemo(() => <StyloveFooter />, []);
 
+  const screenStyle = useMemo(() => [styles.screen, { paddingTop: insets.top }], [insets.top]);
+  const listContentStyle = useMemo(
+    () => ({ paddingBottom: insets.bottom + 100 }),
+    [insets.bottom],
+  );
+
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={screenStyle}>
       <FlatList
         ref={scrollRef}
         data={ready && !loadError ? filtered : []}
@@ -289,7 +296,7 @@ export default function WardrobeScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         onScrollBeginDrag={Keyboard.dismiss}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={listContentStyle}
         initialNumToRender={6}
         maxToRenderPerBatch={8}
         windowSize={5}
@@ -340,6 +347,8 @@ export default function WardrobeScreen() {
     </View>
   );
 }
+
+export default memo(WardrobeScreen);
 
 const styles = StyleSheet.create({
   screen: {

@@ -29,7 +29,7 @@ function RootStack() {
         screenOptions={{
           headerShown: false,
           animation: 'fade',
-          animationDuration: 180,
+          animationDuration: 120,
           freezeOnBlur: true,
         }}>
         <Stack.Screen name="index" options={{ animation: 'fade' }} />

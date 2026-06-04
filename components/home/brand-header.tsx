@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,23 +15,23 @@ import { hapticLight } from '@/lib/haptics';
 import { StyloveColors } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 
-export function BrandHeader() {
+function BrandHeaderComponent() {
   const t = useTranslation();
   const insets = useSafeAreaInsets();
   const { weatherLine, loading, timeOfDay } = useWeather();
   const { displayName, avatarUri, profile } = useUserProfile();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
-  const greeting =
-    timeOfDay === 'morning'
-      ? t.home.greetingMorning
-      : timeOfDay === 'afternoon'
-        ? t.home.greetingAfternoon
-        : t.home.greetingEvening;
+  const greeting = useMemo(() => {
+    if (timeOfDay === 'morning') return t.home.greetingMorning;
+    if (timeOfDay === 'afternoon') return t.home.greetingAfternoon;
+    return t.home.greetingEvening;
+  }, [timeOfDay, t.home.greetingMorning, t.home.greetingAfternoon, t.home.greetingEvening]);
 
-  const name = profile.firstName.trim() || displayName;
-
-  const greetingLine = `${greeting}, ${name}.`;
+  const greetingLine = useMemo(() => {
+    const name = profile.firstName.trim() || displayName;
+    return `${greeting}, ${name}.`;
+  }, [greeting, profile.firstName, displayName]);
 
   const openNotifications = () => {
     void hapticLight();
@@ -167,3 +167,5 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
 });
+
+export const BrandHeader = memo(BrandHeaderComponent);

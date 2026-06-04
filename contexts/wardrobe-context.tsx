@@ -1,11 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '@/contexts/auth-context';
-import type { WardrobeCategoryId } from '@/i18n/types';
+import type { WardrobeCategoryId, WardrobeItemTypeId } from '@/i18n/types';
 import { type WardrobeItem } from '@/lib/outfit-engine';
 import { getCategoryForItemType, normalizeWardrobeItems } from '@/lib/wardrobe-item-types';
 import { getStylingWardrobe, isDemoWardrobeItem, stripDemoWardrobe } from '@/lib/wardrobe-utils';
-import type { WardrobeItemTypeId } from '@/i18n/types';
 import {
   GUEST_STORAGE_SCOPE,
   readScopedWardrobe,
@@ -17,9 +16,14 @@ import {
   fetchWardrobeItems,
 } from '@/services/wardrobe-db';
 
-type WardrobeContextValue = {
+type WardrobeStateValue = {
   items: WardrobeItem[];
   stylingItems: WardrobeItem[];
+  ready: boolean;
+  loadError: boolean;
+};
+
+type WardrobeActionsValue = {
   addItem: (item: {
     name: string;
     localImageUri: string;
@@ -27,12 +31,11 @@ type WardrobeContextValue = {
   }) => Promise<WardrobeItem>;
   removeItem: (id: string) => Promise<void>;
   getByCategory: (category: WardrobeCategoryId) => WardrobeItem[];
-  ready: boolean;
-  loadError: boolean;
   retryLoad: () => Promise<void>;
 };
 
-const WardrobeContext = createContext<WardrobeContextValue | null>(null);
+const WardrobeStateContext = createContext<WardrobeStateValue | null>(null);
+const WardrobeActionsContext = createContext<WardrobeActionsValue | null>(null);
 
 export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   const { userId, ready: authReady, isRegistered } = useAuth();
@@ -161,25 +164,47 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
     [stylingItems],
   );
 
-  const value = useMemo(
+  const stateValue = useMemo<WardrobeStateValue>(
     () => ({
       items: stylingItems,
       stylingItems,
+      ready,
+      loadError,
+    }),
+    [stylingItems, ready, loadError],
+  );
+
+  const actionsValue = useMemo<WardrobeActionsValue>(
+    () => ({
       addItem,
       removeItem,
       getByCategory,
-      ready,
-      loadError,
       retryLoad,
     }),
-    [stylingItems, addItem, removeItem, getByCategory, ready, loadError, retryLoad],
+    [addItem, removeItem, getByCategory, retryLoad],
   );
 
-  return <WardrobeContext.Provider value={value}>{children}</WardrobeContext.Provider>;
+  return (
+    <WardrobeStateContext.Provider value={stateValue}>
+      <WardrobeActionsContext.Provider value={actionsValue}>{children}</WardrobeActionsContext.Provider>
+    </WardrobeStateContext.Provider>
+  );
 }
 
-export function useWardrobe() {
-  const ctx = useContext(WardrobeContext);
-  if (!ctx) throw new Error('useWardrobe must be used within WardrobeProvider');
+/** Read-only wardrobe state — avoids re-renders when only mutations change elsewhere. */
+export function useWardrobeState() {
+  const ctx = useContext(WardrobeStateContext);
+  if (!ctx) throw new Error('useWardrobeState must be used within WardrobeProvider');
   return ctx;
+}
+
+/** Wardrobe mutations — subscribe only on screens that save/remove. */
+export function useWardrobeActions() {
+  const ctx = useContext(WardrobeActionsContext);
+  if (!ctx) throw new Error('useWardrobeActions must be used within WardrobeProvider');
+  return ctx;
+}
+
+export function useWardrobe(): WardrobeStateValue & WardrobeActionsValue {
+  return { ...useWardrobeState(), ...useWardrobeActions() };
 }

@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 
@@ -22,7 +22,7 @@ import { usePremium } from '@/contexts/premium-context';
 import { useStyleMemory } from '@/contexts/style-memory-context';
 import { useTheme } from '@/contexts/theme-context';
 import { useWeather } from '@/contexts/weather-context';
-import { useWardrobe } from '@/contexts/wardrobe-context';
+import { useWardrobeState } from '@/contexts/wardrobe-context';
 import { getTodaysAura } from '@/lib/aura-engine';
 import { canGenerateFreeOutfit } from '@/lib/free-plan-limits';
 import { runSecureOutfitGeneration } from '@/lib/run-secure-outfit-generation';
@@ -33,7 +33,7 @@ import { hapticLight } from '@/lib/haptics';
 import { Fonts } from '@/constants/theme';
 import type { CuratedLook } from '@/lib/outfit-engine';
 
-export default function LooksScreen() {
+function LooksScreen() {
   const { t, locale } = useLocale();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
@@ -42,7 +42,7 @@ export default function LooksScreen() {
   const { isPremium } = usePremium();
   const { memory, recordGeneratedLook, recordSavedLook } = useStyleMemory();
   const { looks, savedLooks, currentLook, setCurrentLook, saveLook, removeLook, updateLookCategory, ready, loadError, retryLoad } = useLooks();
-  const { stylingItems, ready: wardrobeReady } = useWardrobe();
+  const { stylingItems, ready: wardrobeReady } = useWardrobeState();
   const { pendingTarget, clearPendingNavigation } = useAppNavigation();
   const scrollRef = useTabScrollToTop();
   const wardrobeSnapshotRef = useRef({ ready: wardrobeReady, stylingItems });
@@ -74,8 +74,42 @@ export default function LooksScreen() {
     [t],
   );
 
-  const aura = getTodaysAura({ t, weather, styleMemory: memory });
-  const weeklySummary = buildWeeklyStyleSummary(t, { looks, savedLooks });
+  const aura = useMemo(
+    () => getTodaysAura({ t, weather, styleMemory: memory }),
+    [t, weather, memory],
+  );
+  const weeklySummary = useMemo(
+    () => buildWeeklyStyleSummary(t, { looks, savedLooks }),
+    [t, looks, savedLooks],
+  );
+  const scrollContentStyle = useMemo(
+    () => ({ paddingBottom: insets.bottom + 100 }),
+    [insets.bottom],
+  );
+  const screenStyle = useMemo(
+    () => [styles.screen, { backgroundColor: colors.ivory, paddingTop: insets.top }],
+    [colors.ivory, insets.top],
+  );
+  const archiveCategories = useMemo(
+    () => [
+      t.looks.archiveCategoryToday,
+      t.looks.archiveCategoryDateNight,
+      t.looks.archiveCategoryBusiness,
+      t.looks.archiveCategorySummer,
+      t.looks.archiveCategoryTravel,
+    ],
+    [
+      t.looks.archiveCategoryToday,
+      t.looks.archiveCategoryDateNight,
+      t.looks.archiveCategoryBusiness,
+      t.looks.archiveCategorySummer,
+      t.looks.archiveCategoryTravel,
+    ],
+  );
+  const activeLookSaved = useMemo(
+    () => (activeLook ? savedLooks.some((l) => l.id === activeLook.id) : false),
+    [activeLook, savedLooks],
+  );
 
   useEffect(() => {
     wardrobeSnapshotRef.current = { ready: wardrobeReady, stylingItems };
@@ -203,16 +237,8 @@ export default function LooksScreen() {
     return () => clearTimeout(timer);
   }, [pendingTarget, clearPendingNavigation, scrollRef]);
 
-  const archiveCategories = [
-    t.looks.archiveCategoryToday,
-    t.looks.archiveCategoryDateNight,
-    t.looks.archiveCategoryBusiness,
-    t.looks.archiveCategorySummer,
-    t.looks.archiveCategoryTravel,
-  ];
-
   return (
-    <View style={[styles.screen, { backgroundColor: colors.ivory, paddingTop: insets.top }]}>
+    <View style={screenStyle}>
       <LuxuryToast
         visible={saveToastVisible}
         title={t.looks.savedTitle}
@@ -229,7 +255,7 @@ export default function LooksScreen() {
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+        contentContainerStyle={scrollContentStyle}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.black }]}>{t.looks.title}</Text>
           <Text style={[styles.subtitle, { color: colors.gray }]}>{t.looks.subtitle}</Text>
@@ -259,7 +285,7 @@ export default function LooksScreen() {
               look={activeLook}
               onReplace={handleReplace}
               onSave={handleSave}
-              isSaved={savedLooks.some((l) => l.id === activeLook.id)}
+              isSaved={activeLookSaved}
               isSaving={isSaving}
               aura={aura}
               onShare={() => openShare(activeLook)}
@@ -329,6 +355,8 @@ export default function LooksScreen() {
     </View>
   );
 }
+
+export default memo(LooksScreen);
 
 const styles = StyleSheet.create({
   screen: {

@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 import {
   Alert,
@@ -27,7 +27,7 @@ import { usePremium } from '@/contexts/premium-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from '@/contexts/locale-context';
 import { useTheme, StyloveShadow } from '@/contexts/theme-context';
-import { useWardrobe } from '@/contexts/wardrobe-context';
+import { useWardrobeState } from '@/contexts/wardrobe-context';
 import { generateTravelPlan, type TravelPlan } from '@/lib/travel-engine';
 import { getDestinationWeatherForecast } from '@/services/weather-service';
 import { saveTravelPlan } from '@/services/travel-plans';
@@ -53,13 +53,13 @@ function parseTripDays(raw: string): number {
   return Math.min(parsed, MAX_TRIP_DAYS);
 }
 
-export default function TravelScreen() {
+function TravelScreen() {
   const t = useTranslation();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const { isPremium, ready: premiumReady } = usePremium();
   const { userId } = useAuth();
-  const { stylingItems } = useWardrobe();
+  const { stylingItems } = useWardrobeState();
 
   const [destination, setDestination] = useState('');
   const [durationInput, setDurationInput] = useState('');
@@ -68,6 +68,16 @@ export default function TravelScreen() {
   const [plan, setPlan] = useState<TravelPlan | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
   const scrollRef = useTabScrollToTop();
+
+  const scrollContentStyle = useMemo(
+    () => ({ paddingBottom: insets.bottom + 100 }),
+    [insets.bottom],
+  );
+  const heroStyle = useMemo(
+    () => [styles.hero, { backgroundColor: colors.wineDeep, paddingTop: insets.top + 16 }],
+    [colors.wineDeep, insets.top],
+  );
+  const screenStyle = useMemo(() => [styles.screen, { backgroundColor: colors.ivory }], [colors.ivory]);
 
   const handlePrepare = useCallback(async () => {
     Keyboard.dismiss();
@@ -105,7 +115,7 @@ export default function TravelScreen() {
   }, [destination, durationInput, departureDate, vibe, stylingItems, t, userId]);
 
   if (!premiumReady) {
-    return <View style={[styles.screen, { backgroundColor: colors.ivory }]} />;
+    return <View style={screenStyle} />;
   }
 
   if (!isPremium) {
@@ -119,8 +129,8 @@ export default function TravelScreen() {
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       onScrollBeginDrag={Keyboard.dismiss}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
-      <View style={[styles.hero, { backgroundColor: colors.wineDeep, paddingTop: insets.top + 16 }]}>
+      contentContainerStyle={scrollContentStyle}>
+      <View style={heroStyle}>
         <View style={styles.heroGlow} />
         <View style={styles.heroGlowSecondary} />
         <GoldShimmerLine width={40} />
@@ -222,7 +232,7 @@ export default function TravelScreen() {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.ivory }]}>
+    <View style={screenStyle}>
       {isPreparing ? (
         <CinematicLoading visible messages={t.travel.preparing} intervalMs={2000} />
       ) : null}
@@ -236,6 +246,8 @@ export default function TravelScreen() {
     </View>
   );
 }
+
+export default memo(TravelScreen);
 
 const styles = StyleSheet.create({
   screen: {

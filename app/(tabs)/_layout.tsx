@@ -1,14 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Tabs, usePathname } from 'expo-router';
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { EditorialOnboardingFlow } from '@/components/onboarding/editorial-onboarding-flow';
 import { SessionRestoreError } from '@/components/auth/session-restore-error';
+import { TAB_NAVIGATOR_PERFORMANCE_OPTIONS } from '@/constants/tab-navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from '@/contexts/locale-context';
 import { useTheme, StyloveShadow } from '@/contexts/theme-context';
+import type { StylovePalette } from '@/constants/stylove-theme';
 
 const TabIcon = memo(function TabIcon({
   name,
@@ -28,12 +30,41 @@ const TabIcon = memo(function TabIcon({
   );
 });
 
+function createTabBarIcon(name: keyof typeof Ionicons.glyphMap, outlineName: keyof typeof Ionicons.glyphMap) {
+  const TabBarIcon = ({ color, focused }: { color: string; focused: boolean }) => (
+    <TabIcon name={name} outlineName={outlineName} color={color} focused={focused} />
+  );
+  TabBarIcon.displayName = `TabBarIcon(${name})`;
+  return TabBarIcon;
+}
+
+const HOME_TAB_ICON = createTabBarIcon('home', 'home-outline');
+const WARDROBE_TAB_ICON = createTabBarIcon('shirt', 'shirt-outline');
+const LOOKS_TAB_ICON = createTabBarIcon('heart', 'heart-outline');
+const TRAVEL_TAB_ICON = createTabBarIcon('airplane', 'airplane-outline');
+const PROFILE_TAB_ICON = createTabBarIcon('person', 'person-outline');
+
+function buildTabScreenOptions(colors: StylovePalette) {
+  return {
+    ...TAB_NAVIGATOR_PERFORMANCE_OPTIONS,
+    tabBarButton: HapticTab,
+    tabBarActiveTintColor: colors.burgundy,
+    tabBarInactiveTintColor: colors.grayLight,
+    tabBarStyle: [styles.tabBar, { backgroundColor: colors.white, borderTopColor: colors.creamRich }],
+    tabBarLabelStyle: styles.tabBarLabel,
+    tabBarItemStyle: styles.tabBarItem,
+    sceneStyle: { backgroundColor: colors.ivory },
+  };
+}
+
 export default function TabLayout() {
   const t = useTranslation();
   const { colors } = useTheme();
   const { ready, isRegistered, initError } = useAuth();
   const pathname = usePathname();
   const redirectedRef = useRef(false);
+
+  const screenOptions = useMemo(() => buildTabScreenOptions(colors), [colors]);
 
   useEffect(() => {
     if (!ready) return;
@@ -66,64 +97,12 @@ export default function TabLayout() {
   }
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        lazy: true,
-        freezeOnBlur: true,
-        tabBarButton: HapticTab,
-        tabBarActiveTintColor: colors.burgundy,
-        tabBarInactiveTintColor: colors.grayLight,
-        tabBarStyle: [styles.tabBar, { backgroundColor: colors.white, borderTopColor: colors.creamRich }],
-        tabBarLabelStyle: styles.tabBarLabel,
-        tabBarItemStyle: styles.tabBarItem,
-        sceneStyle: { backgroundColor: colors.ivory },
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t.tabs.home,
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="home" outlineName="home-outline" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="wardrobe"
-        options={{
-          title: t.tabs.wardrobe,
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="shirt" outlineName="shirt-outline" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="looks"
-        options={{
-          title: t.tabs.looks,
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="heart" outlineName="heart-outline" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="travel"
-        options={{
-          title: t.tabs.travel,
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="airplane" outlineName="airplane-outline" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t.tabs.profile,
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="person" outlineName="person-outline" color={color} focused={focused} />
-          ),
-        }}
-      />
+    <Tabs screenOptions={screenOptions}>
+      <Tabs.Screen name="index" options={{ title: t.tabs.home, tabBarIcon: HOME_TAB_ICON }} />
+      <Tabs.Screen name="wardrobe" options={{ title: t.tabs.wardrobe, tabBarIcon: WARDROBE_TAB_ICON }} />
+      <Tabs.Screen name="looks" options={{ title: t.tabs.looks, tabBarIcon: LOOKS_TAB_ICON }} />
+      <Tabs.Screen name="travel" options={{ title: t.tabs.travel, tabBarIcon: TRAVEL_TAB_ICON }} />
+      <Tabs.Screen name="profile" options={{ title: t.tabs.profile, tabBarIcon: PROFILE_TAB_ICON }} />
     </Tabs>
   );
 }

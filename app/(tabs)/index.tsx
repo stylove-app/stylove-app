@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Keyboard,
@@ -36,7 +36,7 @@ import { usePremium } from '@/contexts/premium-context';
 import { useStyleMemory } from '@/contexts/style-memory-context';
 import { useTheme } from '@/contexts/theme-context';
 import { useWeather } from '@/contexts/weather-context';
-import { useWardrobe } from '@/contexts/wardrobe-context';
+import { useWardrobeState } from '@/contexts/wardrobe-context';
 import { getTodaysAura, inferWardrobeTone } from '@/lib/aura-engine';
 import { canGenerateFreeOutfit } from '@/lib/free-plan-limits';
 import { styleMoodToEngine } from '@/lib/style-mood';
@@ -48,11 +48,11 @@ import { hapticLight } from '@/lib/haptics';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 import type { StyleMoodId } from '@/i18n/types';
 
-export default function HomeScreen() {
+function HomeScreen() {
   const { t, locale } = useLocale();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { stylingItems, ready: wardrobeReady } = useWardrobe();
+  const { stylingItems, ready: wardrobeReady } = useWardrobeState();
   const { userId } = useAuth();
   const { isPremium } = usePremium();
   const { weather } = useWeather();
@@ -103,10 +103,23 @@ export default function HomeScreen() {
     [t, weather, auraIntent, wardrobeTone, memory, engineMood],
   );
 
-  const isSaved = currentLook ? savedLooks.some((l) => l.id === currentLook.id) : false;
+  const isSaved = useMemo(
+    () => (currentLook ? savedLooks.some((l) => l.id === currentLook.id) : false),
+    [currentLook, savedLooks],
+  );
   const usageScope = userId ?? 'guest';
-  const wardrobeEmpty =
-    wardrobeReady && getReadyStylingWardrobe(stylingItems).length === 0;
+  const wardrobeEmpty = useMemo(
+    () => wardrobeReady && getReadyStylingWardrobe(stylingItems).length === 0,
+    [wardrobeReady, stylingItems],
+  );
+  const screenStyle = useMemo(() => [styles.screen, { backgroundColor: colors.ivory }], [colors.ivory]);
+  const handleStyleMoodChange = useCallback(
+    (mood: StyleMoodId) => {
+      setStyleMood(mood);
+      setAuraIntent(t.home.moods[mood]);
+    },
+    [t.home.moods],
+  );
 
   const alertGenerationFailure = useCallback(
     (error: unknown) => {
@@ -310,7 +323,7 @@ export default function HomeScreen() {
   }, [pendingTarget, clearPendingNavigation]);
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.ivory }]}>
+    <View style={screenStyle}>
       <LuxuryBackgroundDrift />
       <ScrollView
         ref={scrollRef}
@@ -328,14 +341,7 @@ export default function HomeScreen() {
           onLayout={(e) => {
             styleSectionY.current = e.nativeEvent.layout.y;
           }}>
-          <StyleMoodSelector
-            value={styleMood}
-            onChange={(mood) => {
-              setStyleMood(mood);
-              const label = t.home.moods[mood];
-              setAuraIntent(label);
-            }}
-          />
+          <StyleMoodSelector value={styleMood} onChange={handleStyleMoodChange} />
 
           <Animated.View entering={softFadeInDown(80)}>
             <StylingIntent
@@ -420,6 +426,8 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+export default memo(HomeScreen);
 
 const styles = StyleSheet.create({
   screen: {

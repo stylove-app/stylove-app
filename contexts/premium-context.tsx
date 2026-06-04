@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+import { isQaTestMode } from '@/lib/qa-test-mode';
 import type { PurchasePlan } from '@/services/payments';
 
 const PREMIUM_KEY = '@stylove/premium-active';
@@ -31,15 +32,17 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.removeItem(PREMIUM_KEY);
   }, []);
 
+  const qaTestMode = isQaTestMode();
+
   const value = useMemo(
     () => ({
-      isPremium: false,
+      isPremium: qaTestMode,
       ready,
-      activePlan: null,
+      activePlan: qaTestMode ? ('monthly' as PurchasePlan) : null,
       activatePremium,
       deactivatePremium,
     }),
-    [ready, activatePremium, deactivatePremium],
+    [qaTestMode, ready, activatePremium, deactivatePremium],
   );
 
   return <PremiumContext.Provider value={value}>{children}</PremiumContext.Provider>;
