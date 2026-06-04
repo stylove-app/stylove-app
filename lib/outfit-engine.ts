@@ -63,6 +63,8 @@ import {
   logOutfitCandidateRejection,
   logOutfitDecisionReport,
 } from '@/lib/outfit-decision-debug';
+import { assembleOutfitWithConcept } from '@/lib/outfit-concept-assembly';
+import { paletteRejectionReason, type PlannedPalette } from '@/lib/outfit-palette-planner';
 
 export type WardrobeItem = {
   id: string;
@@ -102,6 +104,8 @@ export type CuratedLook = {
   usesWardrobeImage?: boolean;
   completeOutfit?: OutfitPiece[];
   archiveCategory?: string;
+  /** Internal: last styling concept used for regenerate rotation. */
+  stylingConceptId?: string;
 };
 
 export type OutfitPieceRole =
@@ -568,8 +572,9 @@ function buildCompleteOutfit(
     seenSignatures?: Set<string>;
     regenerate?: boolean;
     styleMemory?: StyleMemory;
+    previousConceptId?: string;
   },
-): { pieces: OutfitPiece[] } {
+): { pieces: OutfitPiece[]; stylingConceptId?: string } {
   const pools = partitionWardrobeBySlot(params.wardrobe);
   const stylingWardrobe = params.wardrobe.map((item) => ({
     id: item.id,
@@ -578,6 +583,7 @@ function buildCompleteOutfit(
     category: item.category,
   }));
   let bestPieces: OutfitPiece[] = [];
+  let bestConceptId: string | undefined;
   let bestScore = -Infinity;
   const attemptCount = params.regenerate ? REGENERATE_OUTFIT_CANDIDATE_COUNT : OUTFIT_CANDIDATE_COUNT;
   const bibleContext = {
@@ -594,10 +600,31 @@ function buildCompleteOutfit(
 
   for (let attempt = 0; attempt < attemptCount; attempt += 1) {
     const candidateSeed = params.seed + attempt * 19;
-    const pieces = assembleOutfitCandidate(t, pools, {
-      ...params,
+    const conceptResult = assembleOutfitWithConcept({
+      t,
+      pools,
+      intent: params.intent,
+      resolvedIntent: params.resolvedIntent,
+      selectedOccasion: params.selectedOccasion,
+      wardrobe: params.wardrobe,
+      weather: params.weather,
+      mood: params.mood,
       seed: candidateSeed,
+      attempt,
+      recentItemIds: params.recentItemIds,
+      recentOutfitSets: params.recentOutfitSets,
+      styleMemory: params.styleMemory,
+      regenerate: params.regenerate,
+      previousConceptId: params.previousConceptId,
     });
+
+    const pieces =
+      conceptResult && conceptResult.pieces.length > 0
+        ? conceptResult.pieces
+        : assembleOutfitCandidate(t, pools, {
+            ...params,
+            seed: candidateSeed,
+          });
 
     const validation = validateOutfitStructure(pieces, params.selectedOccasion);
     if (!validation.valid) {
@@ -622,6 +649,12 @@ function buildCompleteOutfit(
     const bibleScore = scoreOutfitPiecesWithBible(pieces, bibleContext, stylingWardrobe, diversityOptions);
     const coherence = scoreOutfitPieces(pieces, bibleContext);
     let score = harmony.total * 0.55 + bibleScore * 0.2 + coherence * 0.08;
+    if (conceptResult && conceptResult.pieces.length > 0) {
+      score += 14;
+      if (!paletteRejectionReasonFromPieces(pieces, conceptResult.palette)) {
+        score += 6;
+      }
+    }
     if (params.selectedOccasion) {
       for (const piece of pieces) {
         const profile = analyzeWardrobeItem(toStylingWardrobeItem(piece.item));
@@ -636,6 +669,7 @@ function buildCompleteOutfit(
     if (score > bestScore) {
       bestScore = score;
       bestPieces = pieces;
+      bestConceptId = conceptResult?.concept.id;
     }
   }
 
@@ -659,7 +693,14 @@ function buildCompleteOutfit(
     logOutfitDecisionReport(report);
   }
 
-  return { pieces: bestPieces };
+  return { pieces: bestPieces, stylingConceptId: bestConceptId };
+}
+
+function paletteRejectionReasonFromPieces(pieces: OutfitPiece[], palette: PlannedPalette): string | null {
+  return paletteRejectionReason(
+    pieces.map((p) => p.item),
+    palette,
+  );
 }
 
 function resolveStockImage(mood: MoodId, weather: WeatherSnapshot | undefined, seed: number): string {
@@ -769,6 +810,7 @@ export function generateLook(
     regenerate?: boolean;
     selectedOccasion?: SelectedOccasionId;
     displayOccasion?: string;
+    previousStylingConceptId?: string;
   },
 ): CuratedLook {
   const { intent, wardrobe, weather, variant = 'default', styleMemory, moodOverride, selectedOccasion } = params;
@@ -812,7 +854,7 @@ export function generateLook(
   }
 
   const stylingWardrobe = getStylingWardrobe(wardrobe);
-  const completeOutfit = buildCompleteOutfit(t, {
+  const { pieces: outfitPieces, stylingConceptId } = buildCompleteOutfit(t, {
     intent,
     resolvedIntent,
     selectedOccasion,
@@ -826,21 +868,22 @@ export function generateLook(
     recentCoreSets: params.recentCoreSets,
     seenSignatures: params.seenSignatures,
     regenerate: params.regenerate,
+    previousConceptId: params.previousStylingConceptId,
   });
   const wardrobeHint =
     stylingWardrobe.length === 1 ? t.home.wardrobeHintSingle : undefined;
-  const itemIds = completeOutfit.pieces.map((piece) => piece.item.id);
+  const itemIds = outfitPieces.map((piece) => piece.item.id);
   let { image, usesWardrobeImage } = resolveLookImage(
     stylingWardrobe,
     effectiveMood,
     weather,
     seed,
   );
-  if (completeOutfit.pieces.length > 0) {
-    image = completeOutfit.pieces[0].item.imageUri;
+  if (outfitPieces.length > 0) {
+    image = outfitPieces[0].item.imageUri;
     usesWardrobeImage = true;
   }
-  const outfitCoherence = scoreOutfitPieces(completeOutfit.pieces, {
+  const outfitCoherence = scoreOutfitPieces(outfitPieces, {
     mood: effectiveMood,
     weather,
     intent,
@@ -849,13 +892,13 @@ export function generateLook(
   const luxuryScores = computeLuxuryScores(effectiveMood, seed, weather, eventContext, outfitCoherence);
   const eleganceScore = luxuryScores.elegance;
   const editorialReasoning = buildEditorialReasoning(t, effectiveMood, seed, weather, eventContext);
-  const wardrobeCopy = buildWardrobeLedCopy(t, completeOutfit.pieces, weather, selectedOccasion);
+  const wardrobeCopy = buildWardrobeLedCopy(t, outfitPieces, weather, selectedOccasion);
 
   if (isOutfitDecisionDebugEnabled()) {
     logOutfitDecisionReport(
       buildOutfitDecisionReport({
         path: 'local_engine',
-        pieces: completeOutfit.pieces,
+        pieces: outfitPieces,
         occasion: selectedOccasion,
         weather,
         recentOutfitSets: params.recentOutfitSets,
@@ -871,11 +914,11 @@ export function generateLook(
       }),
     );
   }
-  const bibleProfiles = completeOutfit.pieces.map((piece) =>
+  const bibleProfiles = outfitPieces.map((piece) =>
     analyzeWardrobeItem(toStylingWardrobeItem(piece.item)),
   );
   const harmonyBreakdown = scoreOutfitHarmonyLayer({
-    items: completeOutfit.pieces.map((p) => p.item),
+    items: outfitPieces.map((p) => p.item),
     selectedOccasion,
     resolvedIntent,
     weather,
@@ -883,7 +926,7 @@ export function generateLook(
   logOutfitHarmonyDebug(harmonyBreakdown);
 
   const harmonyExplanation = buildHarmonyOutfitExplanation(
-    completeOutfit.pieces.map((p) => p.item),
+    outfitPieces.map((p) => p.item),
     harmonyBreakdown,
     {
       selectedOccasion,
@@ -947,7 +990,7 @@ export function generateLook(
     intent,
     mood: effectiveMood,
     weather,
-    pieces: completeOutfit.pieces,
+    pieces: outfitPieces,
     seed,
     styleMemory,
   });
@@ -970,9 +1013,10 @@ export function generateLook(
     weatherStyling,
     whyThisWorks: wardrobeCopy.whyThisWorks ?? whyThisWorks,
     editorialReasoning,
-    completeOutfit: completeOutfit.pieces,
+    completeOutfit: outfitPieces,
     eventContext,
     intent,
+    stylingConceptId,
   };
 }
 

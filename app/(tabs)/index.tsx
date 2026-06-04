@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandHeader } from '@/components/home/brand-header';
 import { AboutStyloveHintCard } from '@/components/home/about-stylove-hint';
 import { StyleMoodSelector } from '@/components/home/style-mood-selector';
-import { CompleteTheLook } from '@/components/home/complete-the-look';
 import { CompactLookCard } from '@/components/home/compact-look-card';
 import { OutfitResult } from '@/components/home/outfit-result';
 import { OccasionSelector } from '@/components/home/occasion-selector';
@@ -45,6 +44,7 @@ import { analytics } from '@/lib/analytics';
 import { isEmptyReadyWardrobeError } from '@/lib/empty-ready-wardrobe';
 import { getReadyStylingWardrobe } from '@/lib/wardrobe-utils';
 import { hapticLight } from '@/lib/haptics';
+import { useScrollToOutfitResult } from '@/hooks/use-scroll-to-outfit-result';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 import type { StyleMoodId } from '@/i18n/types';
 import type { SelectedOccasionId } from '@/lib/selected-occasion';
@@ -57,12 +57,12 @@ function HomeScreen() {
   const { stylingItems, ready: wardrobeReady } = useWardrobeState();
   const { userId } = useAuth();
   const { isPremium } = usePremium();
-  const { weather } = useWeather();
+  const { weather, weatherReady, getWeatherForOutfit } = useWeather();
   const { memory, recordGeneratedLook, recordSavedLook } = useStyleMemory();
   const { looks, currentLook, setCurrentLook, saveLook, savedLooks, removeLook } = useLooks();
   const { pendingTarget, clearPendingNavigation } = useAppNavigation();
   const scrollRef = useTabScrollToTop();
-  const resultsY = useRef(0);
+  const { onOutfitResultLayout, requestScrollToOutfitResult } = useScrollToOutfitResult(scrollRef);
   const styleSectionY = useRef(0);
   const wardrobeSnapshotRef = useRef({ ready: wardrobeReady, stylingItems });
 
@@ -92,13 +92,13 @@ function HomeScreen() {
     () =>
       getTodaysAura({
         t,
-        weather,
+        weather: weatherReady ? weather : undefined,
         intent: selectedOccasion ? enginePhraseForOccasion(selectedOccasion) : undefined,
         wardrobeTone,
         styleMemory: memory,
         styleMood: engineMood,
       }),
-    [t, weather, selectedOccasion, wardrobeTone, memory, engineMood],
+    [t, weather, weatherReady, selectedOccasion, wardrobeTone, memory, engineMood],
   );
 
   const isSaved = useMemo(
@@ -139,14 +139,15 @@ function HomeScreen() {
       intentText: string,
       analyticsSource: 'home' | 'replace',
       occasion?: SelectedOccasionId,
-    ) =>
-      runSecureOutfitGeneration({
+    ) => {
+      const outfitWeather = await getWeatherForOutfit();
+      return runSecureOutfitGeneration({
         intentText,
         selectedOccasion: occasion,
         analyticsSource,
         locale,
         t,
-        weather,
+        weather: outfitWeather,
         memory,
         engineMood,
         styleMood: Boolean(styleMood),
@@ -157,11 +158,12 @@ function HomeScreen() {
         usageScope,
         recordGeneratedLook,
         getWardrobeSnapshot: () => wardrobeSnapshotRef.current,
-      }),
+      });
+    },
     [
       locale,
       t,
-      weather,
+      getWeatherForOutfit,
       memory,
       engineMood,
       styleMood,
@@ -199,9 +201,7 @@ function HomeScreen() {
         const look = await runGeneration(text, 'home', selectedOccasion);
         setCurrentLook(look);
         setShowResult(true);
-        requestAnimationFrame(() => {
-          scrollRef.current?.scrollTo({ y: resultsY.current, animated: true });
-        });
+        requestScrollToOutfitResult();
       } catch (error) {
         alertGenerationFailure(error);
       } finally {
@@ -217,6 +217,7 @@ function HomeScreen() {
       isPremium,
       wardrobeEmpty,
       alertGenerationFailure,
+      requestScrollToOutfitResult,
     ],
   );
 
@@ -246,6 +247,8 @@ function HomeScreen() {
     try {
       const look = await runGeneration(text, 'replace', occasionForReplace);
       setCurrentLook(look);
+      setShowResult(true);
+      requestScrollToOutfitResult();
     } catch (error) {
       alertGenerationFailure(error);
     } finally {
@@ -259,6 +262,7 @@ function HomeScreen() {
     t,
     runGeneration,
     setCurrentLook,
+    requestScrollToOutfitResult,
     isPremium,
     usageScope,
     wardrobeEmpty,
@@ -359,10 +363,7 @@ function HomeScreen() {
         </View>
 
         {showResult && currentLook ? (
-          <View
-            onLayout={(e) => {
-              resultsY.current = e.nativeEvent.layout.y;
-            }}>
+          <View onLayout={onOutfitResultLayout}>
             <OutfitResult
               look={currentLook}
               onReplace={handleReplace}
@@ -373,7 +374,6 @@ function HomeScreen() {
               onShare={openShare}
             />
             <PremiumCta label={t.home.premiumCta} />
-            <CompleteTheLook />
           </View>
         ) : null}
 
@@ -393,6 +393,7 @@ function HomeScreen() {
                     onPress={() => {
                       setCurrentLook(look);
                       setShowResult(true);
+                      requestScrollToOutfitResult();
                     }}
                     onDelete={() => confirmRemoveLook(look.id)}
                   />

@@ -299,6 +299,17 @@ export function scoreHotWeatherItem(
     if (profile.category === 'evening_dress') score -= 8;
   }
 
+  const casualOccasions = new Set<SelectedOccasionId>(['daily', 'coffee', 'shopping', 'sport_walk']);
+  if (occasion && casualOccasions.has(occasion)) {
+    const officeLean = new Set(['blazer', 'tailored_trousers', 'office_dress', 'heel', 'coat', 'trench']);
+    if (officeLean.has(profile.category)) score -= 14;
+    if (profile.styleTags.includes('office') || profile.formality === 'office') score -= 10;
+    if (profile.formality === 'formal' || profile.formality === 'elegant') score -= 6;
+    if (OUTERWEAR_SUBCATEGORIES.has(profile.category) && (!weather || weather.temperature >= 22)) {
+      score -= 12;
+    }
+  }
+
   return score;
 }
 

@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
+import { useScrollToOutfitResult } from '@/hooks/use-scroll-to-outfit-result';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 
 import { LookbookSpread } from '@/components/looks/lookbook-spread';
@@ -37,7 +38,7 @@ function LooksScreen() {
   const { t, locale } = useLocale();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { weather } = useWeather();
+  const { weather, getWeatherForOutfit } = useWeather();
   const { userId } = useAuth();
   const { isPremium } = usePremium();
   const { memory, recordGeneratedLook, recordSavedLook } = useStyleMemory();
@@ -45,6 +46,7 @@ function LooksScreen() {
   const { stylingItems, ready: wardrobeReady } = useWardrobeState();
   const { pendingTarget, clearPendingNavigation } = useAppNavigation();
   const scrollRef = useTabScrollToTop();
+  const { onOutfitResultLayout, requestScrollToOutfitResult } = useScrollToOutfitResult(scrollRef);
   const wardrobeSnapshotRef = useRef({ ready: wardrobeReady, stylingItems });
   const [saveToastVisible, setSaveToastVisible] = useState(false);
   const [limitToastVisible, setLimitToastVisible] = useState(false);
@@ -157,12 +159,13 @@ function LooksScreen() {
 
     setIsGenerating(true);
     try {
+      const outfitWeather = await getWeatherForOutfit();
       const look = await runSecureOutfitGeneration({
         intentText,
         analyticsSource: 'looks',
         locale,
         t,
-        weather,
+        weather: outfitWeather,
         memory,
         styleMood: false,
         currentLook: activeLook,
@@ -174,6 +177,7 @@ function LooksScreen() {
         getWardrobeSnapshot: () => wardrobeSnapshotRef.current,
       });
       setCurrentLook(look);
+      requestScrollToOutfitResult();
     } catch (error) {
       alertGenerationFailure(error);
     } finally {
@@ -188,11 +192,12 @@ function LooksScreen() {
     usageScope,
     locale,
     t,
-    weather,
+    getWeatherForOutfit,
     memory,
     savedLooks,
     recordGeneratedLook,
     setCurrentLook,
+    requestScrollToOutfitResult,
     alertGenerationFailure,
   ]);
 
@@ -281,7 +286,7 @@ function LooksScreen() {
         ) : null}
 
         {!ready || loadError ? null : activeLook ? (
-          <>
+          <View onLayout={onOutfitResultLayout}>
             <OutfitResult
               look={activeLook}
               onReplace={handleReplace}
@@ -321,7 +326,7 @@ function LooksScreen() {
                 </View>
               </View>
             ) : null}
-          </>
+          </View>
         ) : (
           <EmptyState title={t.looks.emptyTitle} subtitle={t.looks.emptySubtitle} />
         )}

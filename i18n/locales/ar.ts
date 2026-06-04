@@ -57,6 +57,8 @@ const ar = {
   },
   weather: {
     line: '{time} في {city} · {temp}°C · {condition}',
+    locationPermissionNeeded: 'مطلوب إذن الموقع',
+    cachedSuffix: ' · موقع محفوظ',
     conditions: {
       clear: 'سماء صافية',
       partlyCloudy: 'غائم جزئياً',

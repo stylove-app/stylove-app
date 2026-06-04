@@ -167,6 +167,8 @@ export type TranslationKeys = {
   weather: {
     line: string;
     fallbackLocation: string;
+    locationPermissionNeeded: string;
+    cachedSuffix: string;
     conditions: Record<
       'clear' | 'partlyCloudy' | 'cloudy' | 'rain' | 'drizzle' | 'snow' | 'fog' | 'thunderstorm',
       string

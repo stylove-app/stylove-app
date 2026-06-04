@@ -369,6 +369,8 @@ const es: DeepPartial<TranslationKeys> = {
   },
   weather: {
     line: '{time} en {city} · {temp}°C · {condition}',
+    locationPermissionNeeded: 'Se requiere permiso de ubicación',
+    cachedSuffix: ' · ubicación guardada',
     conditions: { clear: 'Cielo despejado', partlyCloudy: 'Parcialmente nublado', cloudy: 'Nublado', rain: 'Lluvia ligera', drizzle: 'Llovizna', snow: 'Nieve', fog: 'Niebla', thunderstorm: 'Tormenta' },
     timeOfDay: { morning: 'Esta mañana', afternoon: 'Esta tarde', evening: 'Esta noche', night: 'Esta noche' },
   },

@@ -58,6 +58,8 @@ const fr = {
   weather: {
     line: '{time} à {city} · {temp}°C · {condition}',
     fallbackLocation: 'Votre région',
+    locationPermissionNeeded: 'Autorisation de localisation requise',
+    cachedSuffix: ' · position enregistrée',
     conditions: {
       clear: 'Ciel dégagé',
       partlyCloudy: 'Partiellement nuageux',

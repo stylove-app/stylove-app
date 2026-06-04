@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useEffect, useMemo } from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -65,19 +65,23 @@ type OccasionGridCardProps = {
 };
 
 function OccasionGridCard({ id, active, title, subtitle, index, onPress }: OccasionGridCardProps) {
-  const scale = useSharedValue(1);
+  const scale = useSharedValue(active ? 1.05 : 1);
+
+  useEffect(() => {
+    scale.value = withSpring(active ? 1.05 : 1, PRESS_SPRING);
+  }, [active, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.96, PRESS_SPRING);
-  }, [scale]);
+    scale.value = withSpring(active ? 1.02 : 0.96, PRESS_SPRING);
+  }, [active, scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, PRESS_SPRING);
-  }, [scale]);
+    scale.value = withSpring(active ? 1.05 : 1, PRESS_SPRING);
+  }, [active, scale]);
 
   return (
     <Animated.View
@@ -89,12 +93,25 @@ function OccasionGridCard({ id, active, title, subtitle, index, onPress }: Occas
         onPressOut={handlePressOut}
         accessibilityRole="button"
         accessibilityState={{ selected: active }}
-        style={[styles.occasionCard, active && styles.occasionCardActive]}>
-        <Ionicons name={OCCASION_ICONS[id]} size={28} color={OCCASION_CARD_CREAM} />
-        <Text style={styles.occasionTitle} numberOfLines={2}>
+        style={[
+          styles.occasionCard,
+          !active && styles.occasionCardInactive,
+          active && styles.occasionCardActive,
+        ]}>
+        {active ? <View style={styles.selectedRing} pointerEvents="none" /> : null}
+        <Ionicons
+          name={OCCASION_ICONS[id]}
+          size={active ? 30 : 26}
+          color={active ? OCCASION_CARD_CREAM : OCCASION_CARD_CREAM_MUTED}
+        />
+        <Text
+          style={[styles.occasionTitle, !active && styles.occasionTitleInactive]}
+          numberOfLines={2}>
           {title}
         </Text>
-        <Text style={styles.occasionSubtitle} numberOfLines={2}>
+        <Text
+          style={[styles.occasionSubtitle, !active && styles.occasionSubtitleInactive]}
+          numberOfLines={2}>
           {subtitle}
         </Text>
       </Pressable>
@@ -218,22 +235,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderWidth: 1.5,
-    borderColor: 'rgba(248, 244, 236, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(248, 244, 236, 0.1)',
+    overflow: 'hidden',
     ...StyloveShadow.soft,
+  },
+  occasionCardInactive: {
+    opacity: 0.72,
   },
   occasionCardActive: {
     backgroundColor: OCCASION_CARD_BORDO_ACTIVE,
     borderColor: OCCASION_CARD_CREAM,
-    borderWidth: 2,
+    borderWidth: 3,
+    opacity: 1,
+    ...StyloveShadow.editorial,
+  },
+  selectedRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(248, 244, 236, 0.35)',
+    margin: 3,
   },
   occasionTitle: {
     fontFamily: Fonts.serif,
-    fontSize: 15,
-    lineHeight: 18,
+    fontSize: 16,
+    lineHeight: 19,
     color: OCCASION_CARD_CREAM,
     textAlign: 'center',
     width: '100%',
+    fontWeight: '600',
+  },
+  occasionTitleInactive: {
+    fontSize: 14,
+    lineHeight: 17,
+    fontWeight: '400',
+    color: OCCASION_CARD_CREAM_MUTED,
   },
   occasionSubtitle: {
     fontSize: 11,
@@ -241,6 +278,9 @@ const styles = StyleSheet.create({
     color: OCCASION_CARD_CREAM_MUTED,
     textAlign: 'center',
     width: '100%',
+  },
+  occasionSubtitleInactive: {
+    opacity: 0.85,
   },
   hint: {
     fontSize: 12,

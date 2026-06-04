@@ -113,6 +113,8 @@ const en: TranslationKeys = {
   weather: {
     line: '{time} in {city} · {temp}°C · {condition}',
     fallbackLocation: 'Your area',
+    locationPermissionNeeded: 'Location permission needed',
+    cachedSuffix: ' · saved location',
     conditions: {
       clear: 'Clear skies',
       partlyCloudy: 'Partly cloudy',

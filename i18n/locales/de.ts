@@ -56,6 +56,8 @@ const de = {
   weather: {
     line: '{time} in {city} · {temp}°C · {condition}',
     fallbackLocation: 'Ihre Region',
+    locationPermissionNeeded: 'Standortberechtigung erforderlich',
+    cachedSuffix: ' · gespeicherter Standort',
     conditions: {
       clear: 'Klarer Himmel',
       partlyCloudy: 'Teilweise bewölkt',

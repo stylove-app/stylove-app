@@ -101,6 +101,7 @@ export async function runSecureOutfitGeneration({
     seenSignatures,
     regenerate: isRegenerate,
     selectedOccasion,
+    previousStylingConceptId: currentLook?.stylingConceptId,
     displayOccasion: selectedOccasion
       ? t.home.occasions[selectedOccasion].title
       : undefined,

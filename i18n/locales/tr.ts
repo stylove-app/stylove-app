@@ -114,6 +114,8 @@ const tr: TranslationKeys = {
   weather: {
     line: '{time} {city}\'de · {temp}°C · {condition}',
     fallbackLocation: 'Bulunduğunuz bölge',
+    locationPermissionNeeded: 'Konum izni gerekli',
+    cachedSuffix: ' · kayıtlı konum',
     conditions: {
       clear: 'Açık hava',
       partlyCloudy: 'Parçalı bulutlu',

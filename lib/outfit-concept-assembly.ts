@@ -1,0 +1,467 @@
+import type { TranslationKeys } from '@/i18n/types';
+import type { MoodId } from '@/i18n/types';
+import type { ResolvedIntent } from '@/lib/intent-engine';
+import {
+  allowsWatchForOccasion,
+  isRealTopItem,
+  maxAccessoriesForOccasion,
+  pickAccessoryCandidates,
+  scoreHotWeatherItem,
+  scoreItemUsageDiversity,
+  type WardrobePools,
+} from '@/lib/outfit-assembly-rules';
+import {
+  conceptAllowsOuterwear,
+  isDressRuiningOuterwear,
+  logOutfitConceptDebug,
+  resolveConceptStructure,
+  scoreItemForConcept,
+  selectOutfitConcept,
+  type OutfitConcept,
+  type OutfitStructure,
+} from '@/lib/outfit-concept-planner';
+import {
+  formatPaletteColors,
+  paletteRejectionReason,
+  planOutfitPalette,
+  scoreItemPaletteFit,
+  type PlannedPalette,
+} from '@/lib/outfit-palette-planner';
+import type { OutfitPiece, OutfitPieceRole, WardrobeItem } from '@/lib/outfit-engine';
+import type { SelectedOccasionId } from '@/lib/selected-occasion';
+import {
+  analyzeWardrobeItem,
+  scorePieceCandidate,
+  type ItemStylingProfile,
+  type OutfitStylingContext,
+  type StylingWardrobeItem,
+} from '@/lib/outfit-styling-intelligence';
+import { getEffectiveStyleProfile } from '@/lib/wardrobe-style-profile';
+import type { StyleMemory } from '@/lib/style-memory';
+import type { WeatherSnapshot } from '@/lib/weather';
+import { scoreWomenPieceForOccasion } from '@/lib/women-outfit-scoring';
+
+export type ConceptAssemblyResult = {
+  pieces: OutfitPiece[];
+  concept: OutfitConcept;
+  structure: OutfitStructure;
+  palette: PlannedPalette;
+};
+
+type AssemblyParams = {
+  t: TranslationKeys;
+  pools: WardrobePools;
+  intent: string;
+  resolvedIntent: ResolvedIntent;
+  selectedOccasion?: SelectedOccasionId;
+  wardrobe: WardrobeItem[];
+  weather?: WeatherSnapshot;
+  mood: MoodId;
+  seed: number;
+  attempt: number;
+  recentItemIds?: string[];
+  recentOutfitSets?: string[][];
+  styleMemory?: StyleMemory;
+  regenerate?: boolean;
+  previousConceptId?: string;
+};
+
+function toStylingItem(item: WardrobeItem): StylingWardrobeItem {
+  const profile = getEffectiveStyleProfile(item);
+  return {
+    id: item.id,
+    name: item.name,
+    itemType: item.itemType,
+    category: item.category,
+    styleProfile: profile,
+  };
+}
+
+function stylingBase(params: AssemblyParams): Omit<OutfitStylingContext, 'anchor' | 'selected' | 'preferredTypes'> {
+  return {
+    mood: params.mood,
+    intent: params.intent,
+    resolvedIntent: params.resolvedIntent,
+    weather: params.weather,
+    recentItemIds: new Set(params.recentItemIds ?? []),
+    recentOutfitSets: params.recentOutfitSets,
+    selectedOccasion: params.selectedOccasion,
+    styleMemory: params.styleMemory,
+    seed: params.seed,
+    wardrobe: params.wardrobe.map(toStylingItem),
+  };
+}
+
+function scoreCandidateItem(
+  item: WardrobeItem,
+  params: AssemblyParams,
+  concept: OutfitConcept,
+  palette: PlannedPalette,
+  role: Parameters<typeof scoreItemForConcept>[2],
+  anchor: ItemStylingProfile | null,
+  selected: ItemStylingProfile[],
+): number {
+  const profile = analyzeWardrobeItem(toStylingItem(item));
+  let score = scoreItemForConcept(item, concept, role);
+  score += scoreItemPaletteFit(item, palette) * 1.4;
+  score += scoreHotWeatherItem(toStylingItem(item), params.weather, params.selectedOccasion);
+  score += scoreItemUsageDiversity(toStylingItem(item), params.recentOutfitSets ?? [], new Set(params.recentItemIds ?? []));
+
+  if (params.selectedOccasion) {
+    score += scoreWomenPieceForOccasion(item, profile, params.selectedOccasion) * 0.5;
+  }
+
+  if (anchor) {
+    const formalityDelta = Math.abs(profile.formality - anchor.formality);
+    if (formalityDelta <= 0.25) score += 2;
+    else if (formalityDelta > 0.45) score -= 3;
+  }
+
+  const draftCtx: OutfitStylingContext = {
+    ...stylingBase(params),
+    anchor,
+    selected,
+    preferredTypes: [],
+    seed: params.seed,
+  };
+  score += scorePieceCandidate(profile, draftCtx) * 0.12;
+
+  return score;
+}
+
+function rankPool(
+  pool: WardrobeItem[],
+  params: AssemblyParams,
+  concept: OutfitConcept,
+  palette: PlannedPalette,
+  role: Parameters<typeof scoreItemForConcept>[2],
+  anchor: ItemStylingProfile | null,
+  selected: ItemStylingProfile[],
+): WardrobeItem[] {
+  const offset = params.seed % Math.max(1, pool.length);
+  const rotated = [...pool.slice(offset), ...pool.slice(0, offset)];
+  return [...rotated]
+    .map((item, index) => ({
+      item,
+      score: scoreCandidateItem(item, params, concept, palette, role, anchor, selected) - index * 0.03,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((e) => e.item);
+}
+
+function pickFromPool(
+  pool: WardrobeItem[],
+  params: AssemblyParams,
+  concept: OutfitConcept,
+  palette: PlannedPalette,
+  role: Parameters<typeof scoreItemForConcept>[2],
+  anchor: ItemStylingProfile | null,
+  selected: ItemStylingProfile[],
+): WardrobeItem | undefined {
+  const ranked = rankPool(pool, params, concept, palette, role, anchor, selected);
+  return ranked[0];
+}
+
+type FinishingPair = { shoes: WardrobeItem; bag?: WardrobeItem; score: number };
+
+function pickFinishingPair(
+  pools: WardrobePools,
+  params: AssemblyParams,
+  concept: OutfitConcept,
+  palette: PlannedPalette,
+  anchor: ItemStylingProfile,
+  selected: ItemStylingProfile[],
+  coreItems: WardrobeItem[],
+): FinishingPair | null {
+  const shoeCandidates = rankPool(pools.shoes, params, concept, palette, 'shoes', anchor, selected).slice(0, 6);
+  const bagCandidates = concept.preferBag
+    ? rankPool(pools.bags, params, concept, palette, 'bag', anchor, selected).slice(0, 5)
+    : [];
+
+  let best: FinishingPair | null = null;
+
+  for (const shoes of shoeCandidates) {
+    const shoeProfile = analyzeWardrobeItem(toStylingItem(shoes));
+    const withShoe = [...selected, shoeProfile];
+    const coreWithShoe: WardrobeItem[] = [...coreItems, shoes];
+
+    if (bagCandidates.length === 0) {
+      const reject = paletteRejectionReason(coreWithShoe, palette);
+      const score =
+        scoreCandidateItem(shoes, params, concept, palette, 'shoes', anchor, selected) +
+        (reject ? -30 : 8);
+      if (!best || score > best.score) {
+        best = { shoes, score };
+      }
+      continue;
+    }
+
+    for (const bag of bagCandidates) {
+      const bagProfile = analyzeWardrobeItem(toStylingItem(bag));
+      const combined: WardrobeItem[] = [...coreWithShoe, bag];
+      const reject = paletteRejectionReason(combined, palette);
+      let score =
+        scoreCandidateItem(shoes, params, concept, palette, 'shoes', anchor, selected) +
+        scoreCandidateItem(bag, params, concept, palette, 'bag', anchor, withShoe);
+      if (reject) score -= 35;
+      else score += 10;
+      const shoeBagFormality = Math.abs(shoeProfile.formality - bagProfile.formality);
+      if (shoeBagFormality <= 0.3) score += 4;
+
+      if (!best || score > best.score) {
+        best = { shoes, bag, score };
+      }
+    }
+  }
+
+  return best;
+}
+
+function pickLimitedAccessoriesForConcept(
+  pools: WardrobePools,
+  params: AssemblyParams,
+  concept: OutfitConcept,
+  palette: PlannedPalette,
+  anchor: ItemStylingProfile,
+  selected: ItemStylingProfile[],
+  maxCount: number,
+  allowWatch: boolean,
+): { jewelry?: WardrobeItem; accessory?: WardrobeItem } {
+  if (maxCount <= 0) return {};
+  const { jewelry: jewelryPool, accessories: accessoryPool } = pickAccessoryCandidates(pools, allowWatch);
+  const combined = [...accessoryPool, ...jewelryPool];
+  if (combined.length === 0) return {};
+
+  const ranked = rankPool(combined, params, concept, palette, 'accessory', anchor, selected);
+  const first = ranked[0];
+  if (!first) return {};
+
+  const result: { jewelry?: WardrobeItem; accessory?: WardrobeItem } =
+    first.itemType === 'saat' ? { jewelry: first } : { accessory: first };
+
+  if (maxCount < 2) return result;
+  const second = ranked.find((item) => item.id !== first.id);
+  if (!second) return result;
+  if (second.itemType === 'saat') result.jewelry = second;
+  else result.accessory = second;
+  return result;
+}
+
+function piece(
+  t: TranslationKeys,
+  item: WardrobeItem,
+  role: OutfitPieceRole,
+  labelKey: 'top' | 'bottom' | 'dress' | 'shoes' | 'outerwear' | 'bag' | 'accessories' | 'jewelry',
+): OutfitPiece {
+  return {
+    id: `${item.id}-${role}`,
+    role,
+    label: t.completeLook[labelKey],
+    item,
+  };
+}
+
+export function assembleOutfitWithConcept(
+  params: AssemblyParams,
+): ConceptAssemblyResult | null {
+  const concept = selectOutfitConcept({
+    occasion: params.selectedOccasion,
+    weather: params.weather,
+    seed: params.seed,
+    attempt: params.attempt,
+    regenerate: params.regenerate,
+    previousConceptId: params.previousConceptId,
+  });
+
+  const structure = resolveConceptStructure(concept, params.pools, params.seed + params.attempt);
+  const corePool = [
+    ...params.pools.tops,
+    ...params.pools.bottoms,
+    ...params.pools.onePieces,
+    ...params.wardrobe,
+  ];
+  const palette = planOutfitPalette({
+    wardrobe: params.wardrobe,
+    corePool,
+    concept,
+    seed: params.seed + params.attempt * 3,
+  });
+
+  const selected: ItemStylingProfile[] = [];
+  const pieces: OutfitPiece[] = [];
+  let rejectedReason: string | undefined;
+
+  const allowWatch =
+    concept.allowWatch && allowsWatchForOccasion(params.selectedOccasion, params.weather);
+  const maxAccessories = maxAccessoriesForOccasion(params.selectedOccasion);
+
+  if (structure === 'one_piece') {
+    const onePiece = pickFromPool(
+      params.pools.onePieces,
+      params,
+      concept,
+      palette,
+      'one_piece',
+      null,
+      selected,
+    );
+    if (!onePiece) {
+      rejectedReason = 'no_one_piece_for_concept';
+      logOutfitConceptDebug({
+        occasion: params.selectedOccasion,
+        weatherTemp: params.weather?.temperature,
+        chosenConcept: concept.id,
+        structure,
+        paletteMode: palette.mode,
+        paletteColors: formatPaletteColors(palette),
+        coreItems: 'none',
+        finishingItems: 'none',
+        rejectedReason,
+      });
+      return null;
+    }
+
+    selected.push(analyzeWardrobeItem(toStylingItem(onePiece)));
+    pieces.push(piece(params.t, onePiece, 'dress', 'dress'));
+  } else {
+    const topPool = params.pools.tops.filter(isRealTopItem);
+    const top = pickFromPool(topPool, params, concept, palette, 'top', null, selected);
+    if (!top) {
+      rejectedReason = 'no_top_for_concept';
+      logOutfitConceptDebug({
+        occasion: params.selectedOccasion,
+        weatherTemp: params.weather?.temperature,
+        chosenConcept: concept.id,
+        structure,
+        paletteMode: palette.mode,
+        paletteColors: formatPaletteColors(palette),
+        coreItems: 'none',
+        finishingItems: 'none',
+        rejectedReason,
+      });
+      return null;
+    }
+
+    const anchor = analyzeWardrobeItem(toStylingItem(top));
+    selected.push(anchor);
+    pieces.push(piece(params.t, top, 'top', 'top'));
+
+    const bottom = pickFromPool(params.pools.bottoms, params, concept, palette, 'bottom', anchor, selected);
+    if (!bottom) {
+      rejectedReason = 'no_bottom_for_concept';
+      logOutfitConceptDebug({
+        occasion: params.selectedOccasion,
+        weatherTemp: params.weather?.temperature,
+        chosenConcept: concept.id,
+        structure,
+        paletteMode: palette.mode,
+        paletteColors: formatPaletteColors(palette),
+        coreItems: top.name,
+        finishingItems: 'none',
+        rejectedReason,
+      });
+      return null;
+    }
+    selected.push(analyzeWardrobeItem(toStylingItem(bottom)));
+    pieces.push(piece(params.t, bottom, 'bottom', 'bottom'));
+  }
+
+  const anchor = selected[0];
+  const coreItems = pieces.map((p) => p.item);
+  const paletteCheck = paletteRejectionReason(coreItems, palette);
+  if (paletteCheck) {
+    rejectedReason = paletteCheck;
+  }
+
+  const finishing = pickFinishingPair(params.pools, params, concept, palette, anchor, selected, coreItems);
+  if (!finishing) {
+    rejectedReason = rejectedReason ?? 'no_finishing_pair';
+    logOutfitConceptDebug({
+      occasion: params.selectedOccasion,
+      weatherTemp: params.weather?.temperature,
+      chosenConcept: concept.id,
+      structure,
+      paletteMode: palette.mode,
+      paletteColors: formatPaletteColors(palette),
+      coreItems: coreItems.map((i) => i.name).join(', '),
+      finishingItems: 'none',
+      rejectedReason,
+    });
+    return null;
+  }
+
+  selected.push(analyzeWardrobeItem(toStylingItem(finishing.shoes)));
+  pieces.push(piece(params.t, finishing.shoes, 'shoes', 'shoes'));
+  if (finishing.bag) {
+    selected.push(analyzeWardrobeItem(toStylingItem(finishing.bag)));
+    pieces.push(piece(params.t, finishing.bag, 'bag', 'bag'));
+  }
+
+  const hasRealTop = pieces.some((p) => p.role === 'top');
+  const isDressPath = pieces.some((p) => p.role === 'dress');
+
+  if (
+    conceptAllowsOuterwear(concept, params.weather, params.intent, hasRealTop) &&
+    !isDressPath
+  ) {
+    const outerPool = params.pools.outerwear.filter((item) => !isDressRuiningOuterwear(item));
+    const outer = pickFromPool(outerPool, params, concept, palette, 'outerwear', anchor, selected);
+    if (outer) {
+      const profile = getEffectiveStyleProfile(outer);
+      const heavy =
+        ['blazer', 'coat', 'jacket'].includes(profile.category) &&
+        params.weather &&
+        params.weather.temperature >= 24 &&
+        !params.weather.isRainy;
+      if (!heavy || concept.allowOuterwear === 'smart') {
+        selected.push(analyzeWardrobeItem(toStylingItem(outer)));
+        pieces.push(piece(params.t, outer, 'outerwear', 'outerwear'));
+      }
+    }
+  }
+
+  const finishingItems = pickLimitedAccessoriesForConcept(
+    params.pools,
+    params,
+    concept,
+    palette,
+    anchor,
+    selected,
+    maxAccessories,
+    allowWatch,
+  );
+  if (finishingItems.accessory) {
+    pieces.push(piece(params.t, finishingItems.accessory, 'accessory', 'accessories'));
+  }
+  if (finishingItems.jewelry) {
+    pieces.push(piece(params.t, finishingItems.jewelry, 'jewelry', 'jewelry'));
+  }
+
+  const finalPaletteReject = paletteRejectionReason(
+    pieces.map((p) => p.item),
+    palette,
+  );
+  if (finalPaletteReject && !rejectedReason) {
+    rejectedReason = finalPaletteReject;
+  }
+
+  logOutfitConceptDebug({
+    occasion: params.selectedOccasion,
+    weatherTemp: params.weather?.temperature,
+    chosenConcept: concept.id,
+    structure,
+    paletteMode: palette.mode,
+    paletteColors: formatPaletteColors(palette),
+    coreItems: pieces
+      .filter((p) => p.role === 'top' || p.role === 'bottom' || p.role === 'dress')
+      .map((p) => p.item.name)
+      .join(', '),
+    finishingItems: pieces
+      .filter((p) => p.role === 'shoes' || p.role === 'bag' || p.role === 'accessory' || p.role === 'jewelry')
+      .map((p) => p.item.name)
+      .join(', '),
+    rejectedReason,
+  });
+
+  return { pieces, concept, structure, palette };
+}
