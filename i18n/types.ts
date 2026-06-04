@@ -127,6 +127,13 @@ export type TranslationKeys = {
     yourWardrobe: string;
     wardrobeSubtitle: string;
     revealLook: string;
+    createLook: string;
+    occasionTitle: string;
+    occasionSubtitle: string;
+    occasions: Record<
+      import('@/lib/selected-occasion').SelectedOccasionId,
+      { title: string; subtitle: string }
+    >;
     wardrobeLoadingHint: string;
     preparedForYou: string;
     curatedFor: string;
@@ -252,6 +259,23 @@ export type TranslationKeys = {
     takePhoto: string;
     chooseFromGallery: string;
     chooseType: string;
+    profileTitle: string;
+    profileStepSlot: string;
+    profileStepSubtype: string;
+    profileStepColor: string;
+    profileStepStyle: string;
+    profileStepSeason: string;
+    profileStepUseCase: string;
+    profileStepFormality: string;
+    profileStatement: string;
+    profileSave: string;
+    profileSlots: Record<import('@/lib/wardrobe-style-profile').WardrobeSlotId, string>;
+    profileSubtypes: Record<string, string>;
+    profileColors: Record<import('@/lib/wardrobe-style-profile').WardrobeColorId, string>;
+    profileStyleTags: Record<import('@/lib/wardrobe-style-profile').WardrobeStyleTagId, string>;
+    profileSeasons: Record<import('@/lib/wardrobe-style-profile').WardrobeSeasonId, string>;
+    profileUseCases: Record<import('@/lib/wardrobe-style-profile').WardrobeUseCaseId, string>;
+    profileFormalities: Record<import('@/lib/wardrobe-style-profile').WardrobeFormalityTag, string>;
     filterEmptyTitle: string;
     filterEmptySubtitle: string;
     saveError: string;

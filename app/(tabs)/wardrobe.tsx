@@ -17,7 +17,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { WardrobeCatalogCard } from '@/components/wardrobe/wardrobe-catalog-card';
 import { WardrobeItemCard } from '@/components/wardrobe/wardrobe-item-card';
-import { WardrobeTypePicker } from '@/components/wardrobe/wardrobe-type-picker';
+import {
+  WardrobeProfilePicker,
+  type WardrobeProfileSelection,
+} from '@/components/wardrobe/wardrobe-profile-picker';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { LuxuryToast } from '@/components/ui/luxury-toast';
@@ -33,7 +36,7 @@ import { hapticLight } from '@/lib/haptics';
 import { WARDROBE_CATEGORIES, type WardrobeItem } from '@/lib/outfit-engine';
 import { StyloveColors, StyloveShadow } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
-import type { WardrobeCategoryId, WardrobeItemTypeId } from '@/i18n/types';
+import type { WardrobeCategoryId } from '@/i18n/types';
 
 function WardrobeScreen() {
   const t = useTranslation();
@@ -48,7 +51,7 @@ function WardrobeScreen() {
   const [pendingUri, setPendingUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [itemType, setItemType] = useState<WardrobeItemTypeId | null>(null);
+  const [profileLabel, setProfileLabel] = useState<string | null>(null);
   const [limitToastVisible, setLimitToastVisible] = useState(false);
 
   const scrollRef = useRef<FlatList<WardrobeItem>>(null);
@@ -70,7 +73,7 @@ function WardrobeScreen() {
 
   const openPickerResult = useCallback((uri: string) => {
     setPendingUri(uri);
-    setItemType(null);
+    setProfileLabel(null);
     setModalVisible(true);
   }, []);
 
@@ -117,32 +120,46 @@ function WardrobeScreen() {
     setModalVisible(false);
     setPendingUri(null);
     setIsSaving(false);
-    setItemType(null);
+    setProfileLabel(null);
   }, []);
 
-  const saveItem = async () => {
-    if (!pendingUri || !itemType || isSaving) return;
-    if (!isPremium && isWardrobeItemLimitReached(stylingItems.length)) {
-      setLimitToastVisible(true);
-      return;
-    }
+  const saveFromProfile = useCallback(
+    async (selection: WardrobeProfileSelection) => {
+      if (!pendingUri || isSaving) return;
+      if (!isPremium && isWardrobeItemLimitReached(stylingItems.length)) {
+        setLimitToastVisible(true);
+        return;
+      }
 
-    Keyboard.dismiss();
-    setIsSaving(true);
-    try {
-      const newItem = await addItem({
-        name: t.wardrobeTypes[itemType],
-        itemType,
-        localImageUri: pendingUri,
-      });
-      recordWardrobeAdd(newItem);
-      closeModal();
-    } catch {
-      Alert.alert(t.profile.account.errorTitle, t.wardrobe.saveError);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+      Keyboard.dismiss();
+      setIsSaving(true);
+      setProfileLabel(selection.name);
+      try {
+        const newItem = await addItem({
+          name: selection.name,
+          itemType: selection.itemType,
+          styleProfile: selection.styleProfile,
+          localImageUri: pendingUri,
+        });
+        recordWardrobeAdd(newItem);
+        closeModal();
+      } catch {
+        Alert.alert(t.profile.account.errorTitle, t.wardrobe.saveError);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [
+      pendingUri,
+      isSaving,
+      isPremium,
+      stylingItems.length,
+      addItem,
+      recordWardrobeAdd,
+      closeModal,
+      t,
+    ],
+  );
 
   const confirmRemove = useCallback(
     (id: string) => {
@@ -314,24 +331,17 @@ function WardrobeScreen() {
                   size="lg"
                   editorialBackdrop
                   isPreparing={isSaving}
-                  categoryLabel={itemType ? t.wardrobeTypes[itemType] : undefined}
+                  categoryLabel={profileLabel ?? undefined}
                 />
               </View>
             ) : null}
-            <WardrobeTypePicker value={itemType} onChange={setItemType} />
+            <WardrobeProfilePicker onComplete={(selection) => void saveFromProfile(selection)} />
             <View style={styles.modalActions}>
               <LuxuryButton
                 label={t.common.cancel}
                 variant="ghost"
                 onPress={closeModal}
-                style={{ flex: 1 }}
                 disabled={isSaving}
-              />
-              <LuxuryButton
-                label={t.common.save}
-                onPress={saveItem}
-                style={{ flex: 1 }}
-                disabled={isSaving || !itemType}
               />
             </View>
           </View>

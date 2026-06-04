@@ -2,8 +2,10 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 
 import { useAuth } from '@/contexts/auth-context';
 import type { WardrobeCategoryId, WardrobeItemTypeId } from '@/i18n/types';
+import type { WardrobeStyleProfile } from '@/lib/wardrobe-style-profile';
+import { deriveEngineCategoryFromProfile } from '@/lib/wardrobe-style-profile';
 import { type WardrobeItem } from '@/lib/outfit-engine';
-import { getCategoryForItemType, normalizeWardrobeItems } from '@/lib/wardrobe-item-types';
+import { normalizeWardrobeItems } from '@/lib/wardrobe-item-types';
 import { getStylingWardrobe, isDemoWardrobeItem, stripDemoWardrobe } from '@/lib/wardrobe-utils';
 import {
   GUEST_STORAGE_SCOPE,
@@ -28,6 +30,7 @@ type WardrobeActionsValue = {
     name: string;
     localImageUri: string;
     itemType: WardrobeItemTypeId;
+    styleProfile: WardrobeStyleProfile;
   }) => Promise<WardrobeItem>;
   removeItem: (id: string) => Promise<void>;
   getByCategory: (category: WardrobeCategoryId) => WardrobeItem[];
@@ -113,11 +116,17 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   }, [isRegistered, userId, loadRegisteredWardrobe]);
 
   const addItem = useCallback(
-    async (item: { name: string; localImageUri: string; itemType: WardrobeItemTypeId }) => {
+    async (item: {
+      name: string;
+      localImageUri: string;
+      itemType: WardrobeItemTypeId;
+      styleProfile: WardrobeStyleProfile;
+    }) => {
       if (isRegistered && userId) {
         const created = await createWardrobeItemFromLocalImage(userId, {
           name: item.name,
           itemType: item.itemType,
+          styleProfile: item.styleProfile,
           localImageUri: item.localImageUri,
         });
 
@@ -126,12 +135,13 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
         return created;
       }
 
-      const category = getCategoryForItemType(item.itemType);
+      const category = deriveEngineCategoryFromProfile(item.styleProfile);
       const payload: WardrobeItem = {
         id: `item-${Date.now()}`,
         name: item.name,
         itemType: item.itemType,
         category,
+        styleProfile: item.styleProfile,
         originalImageUri: item.localImageUri,
         imageUri: item.localImageUri,
         createdAt: Date.now(),

@@ -54,6 +54,7 @@ export function EditorialOnboardingSlides({
         style={styles.imageFrame}>
         <Image source={{ uri: imageUri }} style={styles.image} contentFit="cover" transition={320} />
         <View style={styles.imageVeil} />
+        <View style={styles.imageVeilTint} />
       </Animated.View>
 
       <Animated.View
@@ -116,7 +117,11 @@ const styles = StyleSheet.create({
   },
   imageVeil: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(248, 244, 236, 0.12)',
+    backgroundColor: 'rgba(248, 244, 236, 0.1)',
+  },
+  imageVeilTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(74, 14, 24, 0.06)',
   },
   copyBlock: {
     marginTop: 36,

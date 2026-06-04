@@ -1,4 +1,5 @@
 import type { TranslationKeys } from '@/i18n/types';
+import { HOME_OCCASIONS_TR, WARDROBE_PROFILE_TR } from '@/i18n/women-product-i18n';
 import {
   AURA_BY_TONE_TR,
   EDITORIAL_COLOR_HARMONY_TR,
@@ -18,15 +19,15 @@ const tr: TranslationKeys = {
     close: 'Kapat',
   },
   welcome: {
-    tagline: 'Kişisel stilin, her zaman yanında.',
+    tagline: 'Zarif stilin, gardırobundan doğar.',
   },
   onboarding: {
-    step1Title: 'Stylove’a hoş geldiniz',
-    step1Subtitle: 'Gardırobunuzdan stiller.',
-    step2Title: 'Stiliniz sizi anlatsın',
-    step2Subtitle: 'Nereye — ya da nasıl hissetmek istediğiniz.',
-    step3Title: 'Özel gardırobunuz',
-    step3Subtitle: 'Parça ekleyin. Kaydedin.',
+    step1Title: 'Anını seç',
+    step1Subtitle: 'Gardırobundan, anına uygun kombinler.',
+    step2Title: 'Gardırobunu tanı',
+    step2Subtitle: 'Her parçaya stil profili; kombinler sana özel.',
+    step3Title: 'Özel gardırobun',
+    step3Subtitle: 'Parça ekle. Düzenlemelerini kaydet.',
     cta: 'Başla',
     skip: 'Atla',
     firstLaunch: {
@@ -34,9 +35,9 @@ const tr: TranslationKeys = {
       languageTr: 'Türkçe',
       languageEn: 'English',
       purposeLines: [
-        'Gideceğiniz yeri yazın.',
-        'Gardırobunuzdan özel kombinler.',
-        'Seyahatinize uygun valiz.',
+        'Gününe uygun anı seç.',
+        'Gardırobundan özel kombinler.',
+        'Seyahate uygun, zarif valiz.',
       ],
       signInCta: 'Giriş yap',
       signUpCta: 'Kayıt ol',
@@ -74,6 +75,10 @@ const tr: TranslationKeys = {
     yourWardrobe: 'Gardırobunuzdan',
     wardrobeSubtitle: 'Parçalarınız',
     revealLook: 'Stilimi göster',
+    createLook: 'Stil oluştur',
+    occasionTitle: 'Nereye gidiyorsunuz?',
+    occasionSubtitle: 'Anınızı seçin — gardırobunuzdan kombinleyelim.',
+    occasions: HOME_OCCASIONS_TR,
     wardrobeLoadingHint: 'Gardırobunuz hazırlanıyor…',
     preparedForYou: 'Yalnızca sizin için hazırlandı',
     curatedFor: 'Seçildi:',
@@ -291,6 +296,7 @@ const tr: TranslationKeys = {
     takePhoto: 'Fotoğraf çek',
     chooseFromGallery: 'Galeriden seç',
     chooseType: 'Kıyafet türü',
+    ...WARDROBE_PROFILE_TR,
     filterEmptyTitle: 'Bu kategoride henüz parça yok.',
     filterEmptySubtitle: 'Başka filtre deneyin veya parça ekleyin.',
     saveError: 'Kaydedilemedi. Tekrar deneyin.',
@@ -516,7 +522,7 @@ const tr: TranslationKeys = {
     premiumFree: 'Ücretsiz plan',
     premiumActive: 'Premium aktif',
     freePlan: 'Sınırlı gardırop ve günlük stil önerileri',
-    premiumPlan: 'Sınırsız gardırop, seyahat asistanı ve stil hafızası',
+    premiumPlan: 'Sınırsız gardırop, seyahat planlama ve stil hafızası',
     deleteAccount: 'Hesabı sil',
     deleteAccountNote: 'Hesabınızı Profil ayarlarından kalıcı olarak silebilirsiniz. Bu işlem hesabınızı, gardırop kayıtlarınızı ve yüklenmiş gardırop görsellerinizi kaldırır.',
     deleteAccountConfirmTitle: 'Hesabınızı kalıcı olarak silmek istiyor musunuz?',
@@ -733,7 +739,7 @@ const tr: TranslationKeys = {
     benefits: [
       'Sınırsız gardırop',
       'Sınırsız kombin önerisi',
-      'Seyahat ve valiz asistanı',
+      'Seyahat gardırop planlama',
       'Özel stil hafızası',
       'Premium görsel deneyim',
     ],

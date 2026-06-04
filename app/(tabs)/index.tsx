@@ -18,7 +18,7 @@ import { StyleMoodSelector } from '@/components/home/style-mood-selector';
 import { CompleteTheLook } from '@/components/home/complete-the-look';
 import { CompactLookCard } from '@/components/home/compact-look-card';
 import { OutfitResult } from '@/components/home/outfit-result';
-import { StylingIntent } from '@/components/home/styling-intent';
+import { OccasionSelector } from '@/components/home/occasion-selector';
 import { WardrobePreview } from '@/components/home/wardrobe-preview';
 import { CinematicLoading } from '@/components/ui/cinematic-loading';
 import { LuxuryBackgroundDrift } from '@/components/ui/luxury-background-drift';
@@ -47,6 +47,8 @@ import { getReadyStylingWardrobe } from '@/lib/wardrobe-utils';
 import { hapticLight } from '@/lib/haptics';
 import { useTabScrollToTop } from '@/hooks/use-tab-scroll-to-top';
 import type { StyleMoodId } from '@/i18n/types';
+import type { SelectedOccasionId } from '@/lib/selected-occasion';
+import { enginePhraseForOccasion } from '@/lib/selected-occasion';
 
 function HomeScreen() {
   const { t, locale } = useLocale();
@@ -64,7 +66,7 @@ function HomeScreen() {
   const styleSectionY = useRef(0);
   const wardrobeSnapshotRef = useRef({ ready: wardrobeReady, stylingItems });
 
-  const [auraIntent, setAuraIntent] = useState('');
+  const [selectedOccasion, setSelectedOccasion] = useState<SelectedOccasionId | null>(null);
   const [styleMood, setStyleMood] = useState<StyleMoodId | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -79,10 +81,6 @@ function HomeScreen() {
     wardrobeSnapshotRef.current = { ready: wardrobeReady, stylingItems };
   }, [wardrobeReady, stylingItems]);
 
-  const handleAuraIntentChange = useCallback((text: string) => {
-    setAuraIntent(text);
-  }, []);
-
   const wardrobeTone = useMemo(
     () => inferWardrobeTone(stylingItems.map((i) => i.category)),
     [stylingItems],
@@ -95,12 +93,12 @@ function HomeScreen() {
       getTodaysAura({
         t,
         weather,
-        intent: auraIntent.trim() || undefined,
+        intent: selectedOccasion ? enginePhraseForOccasion(selectedOccasion) : undefined,
         wardrobeTone,
         styleMemory: memory,
         styleMood: engineMood,
       }),
-    [t, weather, auraIntent, wardrobeTone, memory, engineMood],
+    [t, weather, selectedOccasion, wardrobeTone, memory, engineMood],
   );
 
   const isSaved = useMemo(
@@ -116,9 +114,8 @@ function HomeScreen() {
   const handleStyleMoodChange = useCallback(
     (mood: StyleMoodId) => {
       setStyleMood(mood);
-      setAuraIntent(t.home.moods[mood]);
     },
-    [t.home.moods],
+    [],
   );
 
   const alertGenerationFailure = useCallback(
@@ -138,9 +135,14 @@ function HomeScreen() {
   );
 
   const runGeneration = useCallback(
-    async (intentText: string, analyticsSource: 'home' | 'replace') =>
+    async (
+      intentText: string,
+      analyticsSource: 'home' | 'replace',
+      occasion?: SelectedOccasionId,
+    ) =>
       runSecureOutfitGeneration({
         intentText,
+        selectedOccasion: occasion,
         analyticsSource,
         locale,
         t,
@@ -172,14 +174,11 @@ function HomeScreen() {
     ],
   );
 
-  const handleReveal = useCallback(
-    async (intentText: string) => {
-      if (isGenerating) return;
+  const handleCreateLook = useCallback(async () => {
+      if (isGenerating || !selectedOccasion) return;
       Keyboard.dismiss();
 
-      const moodLabel = styleMood ? t.home.moods[styleMood] : '';
-      const text = intentText.trim() || moodLabel;
-      setAuraIntent(text.trim());
+      const text = enginePhraseForOccasion(selectedOccasion);
 
       if (!isPremium && !(await canGenerateFreeOutfit(usageScope))) {
         setLimitToastVisible(true);
@@ -197,7 +196,7 @@ function HomeScreen() {
 
       setIsGenerating(true);
       try {
-        const look = await runGeneration(text, 'home');
+        const look = await runGeneration(text, 'home', selectedOccasion);
         setCurrentLook(look);
         setShowResult(true);
         requestAnimationFrame(() => {
@@ -211,8 +210,7 @@ function HomeScreen() {
     },
     [
       isGenerating,
-      styleMood,
-      t,
+      selectedOccasion,
       runGeneration,
       setCurrentLook,
       usageScope,
@@ -239,14 +237,14 @@ function HomeScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
 
-    const text =
-      currentLook.intent?.trim() ||
-      (styleMood ? t.home.moods[styleMood] : '') ||
-      currentLook.occasion;
+    const occasionForReplace = selectedOccasion ?? undefined;
+    const text = selectedOccasion
+      ? enginePhraseForOccasion(selectedOccasion)
+      : currentLook.intent?.trim() || currentLook.occasion;
 
     setIsGenerating(true);
     try {
-      const look = await runGeneration(text, 'replace');
+      const look = await runGeneration(text, 'replace', occasionForReplace);
       setCurrentLook(look);
     } catch (error) {
       alertGenerationFailure(error);
@@ -256,6 +254,7 @@ function HomeScreen() {
   }, [
     isGenerating,
     currentLook,
+    selectedOccasion,
     styleMood,
     t,
     runGeneration,
@@ -346,10 +345,10 @@ function HomeScreen() {
           <StyleMoodSelector value={styleMood} onChange={handleStyleMoodChange} />
 
           <Animated.View entering={softFadeInDown(80)}>
-            <StylingIntent
-              presetIntent={styleMood ? t.home.moods[styleMood] : undefined}
-              onIntentChange={handleAuraIntentChange}
-              onReveal={handleReveal}
+            <OccasionSelector
+              value={selectedOccasion}
+              onChange={setSelectedOccasion}
+              onCreateLook={() => void handleCreateLook()}
               isGenerating={isGenerating}
               wardrobeLoading={!wardrobeReady}
               wardrobeEmpty={wardrobeEmpty}

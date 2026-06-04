@@ -115,6 +115,7 @@ export function normalizeWardrobeItem(item: WardrobeItem): WardrobeItem {
     category,
     originalImageUri: imageUri,
     imageUri,
+    styleProfile: item.styleProfile,
   };
 }
 

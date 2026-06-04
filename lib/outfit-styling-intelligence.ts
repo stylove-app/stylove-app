@@ -2,11 +2,17 @@ import type { MoodId, WardrobeCategoryId, WardrobeItemTypeId } from '@/i18n/type
 import type { StyleMemory } from '@/lib/style-memory';
 
 /** Minimal wardrobe shape for styling (category/type-first; name for color hints only). */
+import type { WardrobeStyleProfile } from '@/lib/wardrobe-style-profile';
+import {
+  fallbackStyleProfileFromItem,
+  formalityScore,
+} from '@/lib/wardrobe-style-profile';
 export type StylingWardrobeItem = {
   id: string;
   name: string;
   itemType: WardrobeItemTypeId;
   category: WardrobeCategoryId;
+  styleProfile?: WardrobeStyleProfile;
 };
 
 export type StylingOutfitPiece = {
@@ -236,16 +242,47 @@ function detectPatternLevel(name: string, typePrior: number): number {
   return level;
 }
 
-/** Category/type-first styling profile; name used only for color and pattern hints. */
+function toneFromStyleProfile(profile: WardrobeStyleProfile): string | null {
+  const map: Record<string, string> = {
+    dusty_rose: 'blush',
+    denim_blue: 'denim',
+    sage: 'sage',
+    olive: 'olive',
+    emerald: 'emerald',
+    lavender: 'lavender',
+  };
+  return map[profile.color] ?? profile.color;
+}
+
+/** Uses saved styleProfile when present; legacy items fall back to itemType. */
 export function analyzeWardrobeItem(item: StylingWardrobeItem): ItemStylingProfile {
+  const profile =
+    item.styleProfile ??
+    fallbackStyleProfileFromItem({
+      id: item.id,
+      name: item.name,
+      itemType: item.itemType,
+      category: item.category,
+      imageUri: '',
+      originalImageUri: '',
+      createdAt: 0,
+    });
   const typeStyle = TYPE_STYLE[item.itemType] ?? TYPE_STYLE.aksesuar;
-  const tone = detectToneFromName(item.name);
-  const isStatementColor = tone != null && STATEMENT_TONES.has(tone);
+  const tone = toneFromStyleProfile(profile) ?? detectToneFromName(item.name);
+  const isStatementColor =
+    profile.isStatementPiece || (tone != null && STATEMENT_TONES.has(tone));
+  const formality = formalityScore(profile.formality);
+  const volume =
+    profile.slot === 'outerwear'
+      ? 0.55
+      : profile.category === 'evening_dress'
+        ? 0.42
+        : typeStyle.volume;
   return {
     item,
     tone,
-    formality: typeStyle.formality,
-    volume: typeStyle.volume,
+    formality,
+    volume,
     patternLevel: detectPatternLevel(item.name, typeStyle.patternPrior),
     styleFamily: typeStyle.styleFamily,
     isStatementColor,

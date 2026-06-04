@@ -1,4 +1,5 @@
 import type { Locale, TranslationKeys } from '@/i18n/types';
+import { HOME_OCCASIONS_EN, WARDROBE_PROFILE_EN } from '@/i18n/women-product-i18n';
 
 type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object
@@ -10,6 +11,12 @@ type DeepPartial<T> = {
 
 const de: DeepPartial<TranslationKeys> = {
   common: { decline: 'Abbrechen' },
+  home: {
+    createLook: 'Look erstellen',
+    occasionTitle: 'Wohin geht es?',
+    occasionSubtitle: 'Wählen Sie den Moment — wir stylen aus Ihrer Garderobe.',
+    occasions: HOME_OCCASIONS_EN,
+  },
   tabs: { travel: 'Reise' },
   limits: {
     wardrobeTitle: 'Kostenloser Plan',
@@ -40,6 +47,7 @@ const de: DeepPartial<TranslationKeys> = {
     missingJewelryCompletion: 'Für den letzten Akzent genügt eine Uhr, ein schmaler Gürtel oder ein ruhiges Accessoire.',
   },
   wardrobe: {
+    ...WARDROBE_PROFILE_EN,
     filterAll: 'Alle',
     removeTitle: 'Teil entfernen?',
     removeConfirm: 'Dieses Teil wird aus Ihrer Garderobe entfernt.',
@@ -187,6 +195,13 @@ const de: DeepPartial<TranslationKeys> = {
 
 const fr: DeepPartial<TranslationKeys> = {
   common: { decline: 'Annuler' },
+  home: {
+    createLook: 'Créer le look',
+    occasionTitle: 'Où allez-vous ?',
+    occasionSubtitle: 'Choisissez le moment — nous stylons depuis votre garde-robe.',
+    occasions: HOME_OCCASIONS_EN,
+  },
+  wardrobe: WARDROBE_PROFILE_EN,
   tabs: { travel: 'Voyage' },
   limits: {
     wardrobeTitle: 'Plan gratuit',
@@ -993,6 +1008,13 @@ const ru: DeepPartial<TranslationKeys> = {
 
 const ar: DeepPartial<TranslationKeys> = {
   common: { decline: 'إلغاء' },
+  home: {
+    createLook: 'إنشاء الإطلالة',
+    occasionTitle: 'إلى أين تذهبين؟',
+    occasionSubtitle: 'اختاري المناسبة — نُنسّق من خزانتك.',
+    occasions: HOME_OCCASIONS_EN,
+  },
+  wardrobe: WARDROBE_PROFILE_EN,
   tabs: { travel: 'السفر' },
   limits: {
     wardrobeTitle: 'الخطة المجانية',

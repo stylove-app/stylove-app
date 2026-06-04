@@ -1,4 +1,5 @@
 import type { TranslationKeys } from '@/i18n/types';
+import { HOME_OCCASIONS_EN, WARDROBE_PROFILE_EN } from '@/i18n/women-product-i18n';
 import {
   AURA_BY_TIME,
   AURA_BY_TONE,
@@ -19,15 +20,15 @@ const en: TranslationKeys = {
     close: 'Close',
   },
   welcome: {
-    tagline: 'Your personal style, always with you.',
+    tagline: 'Elegant style, shaped by your wardrobe.',
   },
   onboarding: {
-    step1Title: 'Welcome to STYLOVE',
-    step1Subtitle: 'Looks from your wardrobe.',
-    step2Title: 'Let your style speak',
-    step2Subtitle: 'Where you go — or how you wish to feel.',
+    step1Title: 'Choose the moment',
+    step1Subtitle: 'Occasion-led looks from your wardrobe.',
+    step2Title: 'Know every piece',
+    step2Subtitle: 'Style profile per item—combinations feel yours.',
     step3Title: 'Your private wardrobe',
-    step3Subtitle: 'Add pieces. Save edits.',
+    step3Subtitle: 'Add pieces. Save your edits.',
     cta: 'Begin',
     skip: 'Skip',
     firstLaunch: {
@@ -35,9 +36,9 @@ const en: TranslationKeys = {
       languageTr: 'Türkçe',
       languageEn: 'English',
       purposeLines: [
-        'Share your destination.',
+        'Pick the occasion that fits your day.',
         'Curated looks from your wardrobe.',
-        'A suitcase prepared for the journey.',
+        'Travel edits that feel effortless.',
       ],
       signInCta: 'Log in',
       signUpCta: 'Sign up',
@@ -75,6 +76,10 @@ const en: TranslationKeys = {
     yourWardrobe: 'From Your Wardrobe',
     wardrobeSubtitle: 'Your pieces',
     revealLook: 'Reveal My Look',
+    createLook: 'Create look',
+    occasionTitle: 'Where are you going?',
+    occasionSubtitle: 'Choose a moment — we style from your wardrobe.',
+    occasions: HOME_OCCASIONS_EN,
     wardrobeLoadingHint: 'Your wardrobe is still loading…',
     preparedForYou: 'Prepared exclusively for you',
     curatedFor: 'Curated for',
@@ -289,6 +294,7 @@ const en: TranslationKeys = {
     takePhoto: 'Take photo',
     chooseFromGallery: 'Choose from gallery',
     chooseType: 'Clothing type',
+    ...WARDROBE_PROFILE_EN,
     filterEmptyTitle: 'Nothing here yet.',
     filterEmptySubtitle: 'Try another filter or add a piece.',
     saveError: 'Could not save. Try again.',
@@ -722,7 +728,7 @@ const en: TranslationKeys = {
     benefits: [
       'Unlimited wardrobe',
       'Unlimited outfit suggestions',
-      'Travel and luggage assistant',
+      'Travel wardrobe planning',
       'Private style memory',
       'Premium visual experience',
     ],

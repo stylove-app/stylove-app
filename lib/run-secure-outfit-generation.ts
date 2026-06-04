@@ -10,6 +10,8 @@ import type { WeatherSnapshot } from '@/lib/weather';
 import type { WardrobeItem } from '@/lib/outfit-engine';
 import { generateOutfitSecurely } from '@/services/outfit-generation';
 import { buildOutfitDiversityContext } from '@/lib/styling-bible';
+import type { SelectedOccasionId } from '@/lib/selected-occasion';
+import { enginePhraseForOccasion } from '@/lib/selected-occasion';
 
 export const OUTFIT_GENERATION_MS = 5500;
 
@@ -20,6 +22,7 @@ type WardrobeSnapshot = {
 
 type RunSecureOutfitGenerationParams = {
   intentText: string;
+  selectedOccasion?: SelectedOccasionId;
   analyticsSource: 'home' | 'replace' | 'looks';
   locale: Locale;
   t: TranslationKeys;
@@ -38,6 +41,7 @@ type RunSecureOutfitGenerationParams = {
 
 export async function runSecureOutfitGeneration({
   intentText,
+  selectedOccasion,
   analyticsSource,
   locale,
   t,
@@ -77,8 +81,12 @@ export async function runSecureOutfitGeneration({
     ? Date.now() + Math.floor(Math.random() * 1_000_000)
     : undefined;
 
+  const engineIntent = selectedOccasion
+    ? enginePhraseForOccasion(selectedOccasion)
+    : intentText;
+
   const fallbackLook = generateLook(t, {
-    intent: intentText,
+    intent: engineIntent,
     wardrobe: wardrobeForLook,
     weather: resolvedWeather,
     seed: generationSeed,
@@ -88,6 +96,10 @@ export async function runSecureOutfitGeneration({
     recentOutfitSets,
     seenSignatures,
     regenerate: isRegenerate,
+    selectedOccasion,
+    displayOccasion: selectedOccasion
+      ? t.home.occasions[selectedOccasion].title
+      : undefined,
   });
 
   const look = await generateOutfitSecurely({

@@ -1,5 +1,10 @@
 import type { WardrobeCategoryId } from '@/i18n/types';
 import type { WardrobeItem } from '@/lib/outfit-engine';
+import type { WardrobeStyleProfile } from '@/lib/wardrobe-style-profile';
+import {
+  deriveEngineCategoryFromProfile,
+  deriveItemTypeFromProfile,
+} from '@/lib/wardrobe-style-profile';
 import { getCategoryForItemType, normalizeWardrobeItems } from '@/lib/wardrobe-item-types';
 import { isDemoWardrobeItem, stripDemoWardrobe } from '@/lib/wardrobe-utils';
 import { supabase } from '@/services/supabase';
@@ -14,6 +19,7 @@ type WardrobeRow = {
   image_uri: string;
   original_image_uri: string | null;
   created_at: number;
+  style_profile: WardrobeStyleProfile | null;
 };
 
 /** Placeholder until Storage upload completes; never shown to user long-term. */
@@ -21,6 +27,8 @@ const PENDING_IMAGE_URI = 'pending';
 
 function rowToItem(row: WardrobeRow): WardrobeItem {
   const imageUri = row.original_image_uri ?? row.image_uri;
+
+  const styleProfile = row.style_profile ?? undefined;
 
   return {
     id: row.id,
@@ -30,11 +38,12 @@ function rowToItem(row: WardrobeRow): WardrobeItem {
     originalImageUri: imageUri,
     imageUri,
     createdAt: row.created_at,
+    styleProfile,
   };
 }
 
 const WARDROBE_SELECT =
-  'id, user_id, name, category, item_type, image_uri, original_image_uri, created_at';
+  'id, user_id, name, category, item_type, image_uri, original_image_uri, created_at, style_profile';
 
 export async function fetchWardrobeItems(userId: string): Promise<WardrobeItem[]> {
   const { data, error } = await supabase
@@ -73,6 +82,7 @@ export async function purgeDemoWardrobeItems(userId: string): Promise<void> {
 export type CreateWardrobeItemFromImageInput = {
   name: string;
   itemType: WardrobeItem['itemType'];
+  styleProfile: WardrobeStyleProfile;
   localImageUri: string;
 };
 
@@ -84,7 +94,8 @@ export async function createWardrobeItemFromLocalImage(
   userId: string,
   input: CreateWardrobeItemFromImageInput,
 ): Promise<WardrobeItem> {
-  const category = getCategoryForItemType(input.itemType);
+  const category = deriveEngineCategoryFromProfile(input.styleProfile);
+  const itemType = deriveItemTypeFromProfile(input.styleProfile);
   const createdAt = Date.now();
 
   const { data: draft, error: insertError } = await supabase
@@ -93,7 +104,8 @@ export async function createWardrobeItemFromLocalImage(
       user_id: userId,
       name: input.name,
       category,
-      item_type: input.itemType,
+      item_type: itemType,
+      style_profile: input.styleProfile,
       image_uri: PENDING_IMAGE_URI,
       original_image_uri: null,
       cleaned_image_uri: null,
