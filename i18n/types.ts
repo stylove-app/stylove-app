@@ -267,7 +267,6 @@ export type TranslationKeys = {
     profileStepSeason: string;
     profileStepUseCase: string;
     profileStepFormality: string;
-    profileStatement: string;
     profileSave: string;
     profileSlots: Record<import('@/lib/wardrobe-style-profile').WardrobeSlotId, string>;
     profileSubtypes: Record<string, string>;

@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTranslation } from '@/contexts/locale-context';
 import {
@@ -57,7 +57,6 @@ function WardrobeProfilePickerComponent({ onComplete }: WardrobeProfilePickerPro
   const [season, setSeason] = useState<WardrobeSeasonId | null>(null);
   const [useCases, setUseCases] = useState<WardrobeUseCaseId[]>([]);
   const [formality, setFormality] = useState<WardrobeFormalityTag | null>(null);
-  const [isStatement, setIsStatement] = useState(false);
 
   const subtypes = useMemo(
     () => (slot ? [...WARDROBE_SUBCATEGORIES[slot]] : []),
@@ -83,7 +82,7 @@ function WardrobeProfilePickerComponent({ onComplete }: WardrobeProfilePickerPro
       season,
       useCases,
       formality,
-      isStatementPiece: isStatement,
+      isStatementPiece: false,
     };
     const styleProfile = buildStyleProfile(input);
     const itemType = deriveItemTypeFromProfile(styleProfile);
@@ -99,7 +98,6 @@ function WardrobeProfilePickerComponent({ onComplete }: WardrobeProfilePickerPro
     season,
     useCases,
     formality,
-    isStatement,
     t,
     onComplete,
   ]);
@@ -204,15 +202,6 @@ function WardrobeProfilePickerComponent({ onComplete }: WardrobeProfilePickerPro
         </ChipGrid>
       </Section>
 
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>{t.wardrobe.profileStatement}</Text>
-        <Switch
-          value={isStatement}
-          onValueChange={setIsStatement}
-          trackColor={{ false: StyloveColors.creamMuted, true: StyloveColors.burgundy }}
-        />
-      </View>
-
       <Pressable
         onPress={emitSave}
         disabled={!canSave}
@@ -306,16 +295,6 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: StyloveColors.ivory,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  switchLabel: {
-    fontSize: 13,
-    color: StyloveColors.burgundy,
   },
   saveBtn: {
     backgroundColor: StyloveColors.burgundy,

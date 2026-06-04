@@ -1,5 +1,14 @@
 import type { Locale, TranslationKeys } from '@/i18n/types';
-import { HOME_OCCASIONS_EN, WARDROBE_PROFILE_EN } from '@/i18n/women-product-i18n';
+import {
+  HOME_OCCASIONS_EN,
+  WARDROBE_PROFILE_AR,
+  WARDROBE_PROFILE_DE,
+  WARDROBE_PROFILE_EN,
+  WARDROBE_PROFILE_ES,
+  WARDROBE_PROFILE_FR,
+  WARDROBE_PROFILE_IT,
+  WARDROBE_PROFILE_RU,
+} from '@/i18n/women-product-i18n';
 
 type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object
@@ -47,7 +56,7 @@ const de: DeepPartial<TranslationKeys> = {
     missingJewelryCompletion: 'Für den letzten Akzent genügt eine Uhr, ein schmaler Gürtel oder ein ruhiges Accessoire.',
   },
   wardrobe: {
-    ...WARDROBE_PROFILE_EN,
+    ...WARDROBE_PROFILE_DE,
     filterAll: 'Alle',
     removeTitle: 'Teil entfernen?',
     removeConfirm: 'Dieses Teil wird aus Ihrer Garderobe entfernt.',
@@ -201,7 +210,7 @@ const fr: DeepPartial<TranslationKeys> = {
     occasionSubtitle: 'Choisissez le moment — nous stylons depuis votre garde-robe.',
     occasions: HOME_OCCASIONS_EN,
   },
-  wardrobe: WARDROBE_PROFILE_EN,
+  wardrobe: WARDROBE_PROFILE_FR,
   tabs: { travel: 'Voyage' },
   limits: {
     wardrobeTitle: 'Plan gratuit',
@@ -424,6 +433,7 @@ const es: DeepPartial<TranslationKeys> = {
     takePhoto: 'Tomar foto',
     chooseFromGallery: 'Elegir de galería',
     chooseType: 'Tipo de prenda',
+    ...WARDROBE_PROFILE_ES,
   },
   categories: { upper: 'Partes superiores', outerwear: 'Abrigos', bottom: 'Partes inferiores', dress: 'Vestidos y conjuntos', shoes: 'Zapatos', bag: 'Bolsos', accessory: 'Accesorios' },
   wardrobeTypes: {
@@ -712,6 +722,7 @@ const it: DeepPartial<TranslationKeys> = {
     takePhoto: 'Scatta foto',
     chooseFromGallery: 'Scegli dalla galleria',
     chooseType: 'Tipo di capo',
+    ...WARDROBE_PROFILE_IT,
   },
   categories: { upper: 'Top', outerwear: 'Capispalla', bottom: 'Parte inferiore', dress: 'Abiti e completi', shoes: 'Scarpe', bag: 'Borse', accessory: 'Accessori' },
   wardrobeTypes: {
@@ -894,6 +905,7 @@ const ru: DeepPartial<TranslationKeys> = {
     takePhoto: 'Сделать фото',
     chooseFromGallery: 'Выбрать из галереи',
     chooseType: 'Тип одежды',
+    ...WARDROBE_PROFILE_RU,
   },
   categories: { upper: 'Верх', outerwear: 'Верхняя одежда', bottom: 'Низ', dress: 'Платья и комплекты', shoes: 'Обувь', bag: 'Сумки', accessory: 'Аксессуары' },
   wardrobeTypes: {
@@ -1014,7 +1026,7 @@ const ar: DeepPartial<TranslationKeys> = {
     occasionSubtitle: 'اختاري المناسبة — نُنسّق من خزانتك.',
     occasions: HOME_OCCASIONS_EN,
   },
-  wardrobe: WARDROBE_PROFILE_EN,
+  wardrobe: WARDROBE_PROFILE_AR,
   tabs: { travel: 'السفر' },
   limits: {
     wardrobeTitle: 'الخطة المجانية',
