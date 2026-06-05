@@ -52,10 +52,12 @@ import {
   scoreOutfitComboRepeat,
   stylingComboSignature,
 } from '@/lib/outfit-diversity';
+import { filterShoesForWeatherContext } from '@/lib/layer-piece-rules';
 import {
   allowsSunglassesForOccasion,
   allowsWatchForOccasion,
   corePieceIdsFromOutfit,
+  filterOuterwearPoolForLayerRules,
   isRealTopItem,
   logInvalidOutfitCandidate,
   maxAccessoriesForOccasion,
@@ -373,19 +375,25 @@ function assembleOutfitCandidate(
     selected.push(analyzeWardrobeItem(toStylingWardrobeItem(onePiece)));
     const anchor = selected[0];
 
-    const shoesPick = pickBestPiece(pools.shoes.map(toStylingWardrobeItem), {
+    const dressShoePool = filterShoesForWeatherContext(pools.shoes, params.weather);
+    const shoesPick = pickBestPiece(dressShoePool.map(toStylingWardrobeItem), {
       ...base,
       anchor,
       selected,
       preferredTypes: biblePreferredTypes(params.resolvedIntent, params.wardrobe, 'shoes', params.mood, 'shoes'),
       seed: params.seed + 4,
     });
-    const shoes = resolvePickedItem(pools.shoes, shoesPick);
+    const shoes = resolvePickedItem(dressShoePool, shoesPick);
     if (!shoes) return [];
     selected.push(analyzeWardrobeItem(toStylingWardrobeItem(shoes)));
 
+    const dressOuterwearPool = filterOuterwearPoolForLayerRules(
+      pools.outerwear,
+      params.weather,
+      true,
+    );
     const outerwearPick = shouldAddOuterwear(params.intent, params.weather)
-      ? pickBestPiece(pools.outerwear.map(toStylingWardrobeItem), {
+      ? pickBestPiece(dressOuterwearPool.map(toStylingWardrobeItem), {
           ...base,
           anchor,
           selected,
@@ -399,7 +407,7 @@ function assembleOutfitCandidate(
           seed: params.seed + 5,
         })
       : undefined;
-    const outerwear = resolvePickedItem(pools.outerwear, outerwearPick);
+    const outerwear = resolvePickedItem(dressOuterwearPool, outerwearPick);
     if (outerwear) selected.push(analyzeWardrobeItem(toStylingWardrobeItem(outerwear)));
 
     const bagPick = pickBestPiece(pools.bags.map(toStylingWardrobeItem), {
@@ -489,20 +497,26 @@ function assembleOutfitCandidate(
 
   selected.push(analyzeWardrobeItem(toStylingWardrobeItem(bottom)));
 
-  const shoesPick = pickBestPiece(pools.shoes.map(toStylingWardrobeItem), {
+  const separatesShoePool = filterShoesForWeatherContext(pools.shoes, params.weather);
+  const shoesPick = pickBestPiece(separatesShoePool.map(toStylingWardrobeItem), {
     ...base,
     anchor,
     selected,
     preferredTypes: biblePreferredTypes(params.resolvedIntent, params.wardrobe, 'shoes', params.mood, 'shoes'),
     seed: params.seed + 4,
   });
-  const shoes = resolvePickedItem(pools.shoes, shoesPick);
+  const shoes = resolvePickedItem(separatesShoePool, shoesPick);
   if (!shoes) return [];
 
   selected.push(analyzeWardrobeItem(toStylingWardrobeItem(shoes)));
 
+  const separatesOuterwearPool = filterOuterwearPoolForLayerRules(
+    pools.outerwear,
+    params.weather,
+    false,
+  );
   const outerwearPick = shouldAddOuterwear(params.intent, params.weather)
-    ? pickBestPiece(pools.outerwear.map(toStylingWardrobeItem), {
+    ? pickBestPiece(separatesOuterwearPool.map(toStylingWardrobeItem), {
         ...base,
         anchor,
         selected,
@@ -516,7 +530,7 @@ function assembleOutfitCandidate(
         seed: params.seed + 5,
       })
     : undefined;
-  const outerwear = resolvePickedItem(pools.outerwear, outerwearPick);
+  const outerwear = resolvePickedItem(separatesOuterwearPool, outerwearPick);
   if (outerwear) selected.push(analyzeWardrobeItem(toStylingWardrobeItem(outerwear)));
 
   const bagPick = pickBestPiece(pools.bags.map(toStylingWardrobeItem), {
@@ -592,6 +606,8 @@ function buildCompleteOutfit(
     previousComboSignature?: string;
     previousItemIds?: string[];
     previousWasOnePiece?: boolean;
+    previousShoeId?: string;
+    previousShoeCategory?: string;
     diversitySource?: 'home' | 'replace' | 'looks' | 'engine';
   },
 ): { pieces: OutfitPiece[]; stylingConceptId?: string; paletteMode?: string } {
@@ -647,6 +663,8 @@ function buildCompleteOutfit(
       previousWasOnePiece: params.previousWasOnePiece,
       previousComboSignature: params.previousComboSignature,
       previousItemIds: params.previousItemIds,
+      previousShoeId: params.previousShoeId,
+      previousShoeCategory: params.previousShoeCategory,
     });
 
     const pieces =
@@ -888,6 +906,8 @@ export function generateLook(
     previousItemIds?: string[];
     previousComboSignature?: string;
     previousWasOnePiece?: boolean;
+    previousShoeId?: string;
+    previousShoeCategory?: string;
     diversitySource?: 'home' | 'replace' | 'looks' | 'engine';
   },
 ): CuratedLook {
@@ -951,6 +971,8 @@ export function generateLook(
     previousComboSignature: params.previousComboSignature,
     previousItemIds: params.previousItemIds,
     previousWasOnePiece: params.previousWasOnePiece,
+    previousShoeId: params.previousShoeId,
+    previousShoeCategory: params.previousShoeCategory,
     diversitySource: params.diversitySource,
   });
   const wardrobeHint =

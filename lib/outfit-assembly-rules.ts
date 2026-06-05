@@ -9,6 +9,14 @@ import {
   type WardrobeSlotId,
   type WardrobeStyleProfile,
 } from '@/lib/wardrobe-style-profile';
+import {
+  filterLayerPiecesForContext,
+  isLayerPieceCategory,
+  isLayerPieceItem,
+  normalizeLayerCategory,
+  validateFootwearWeatherRules,
+  validateLayerPieceRules,
+} from '@/lib/layer-piece-rules';
 import { HOT_WEATHER_HARD_C, validateOccasionAuthority } from '@/lib/occasion-style-authority';
 import { scoreEnhancedItemUsageDiversity, scoreRegenerateCoreChange } from '@/lib/outfit-diversity';
 import { isQaTestMode } from '@/lib/qa-test-mode';
@@ -19,14 +27,13 @@ const CORE_BOTTOM_SLOTS = new Set<WardrobeSlotId>(['bottom']);
 const ONE_PIECE_SLOTS = new Set<WardrobeSlotId>(['dress', 'jumpsuit', 'set']);
 const OUTERWEAR_SLOTS = new Set<WardrobeSlotId>(['outerwear']);
 
-const OUTERWEAR_SUBCATEGORIES = new Set(['blazer', 'jacket', 'coat']);
+const OUTERWEAR_SUBCATEGORIES = new Set(['blazer', 'jacket', 'trenchcoat', 'coat', 'cardigan']);
 const REAL_TOP_SUBCATEGORIES = new Set([
   't_shirt',
   'blouse',
   'shirt',
   'crop_top',
   'sweater',
-  'cardigan',
 ]);
 
 const ACCESSORY_ONLY_TYPES = new Set<WardrobeItemTypeId>([
@@ -73,7 +80,11 @@ export function partitionWardrobeBySlot(wardrobe: WardrobeItem[]): WardrobePools
     if (ONE_PIECE_SLOTS.has(slot)) {
       pools.onePieces.push(item);
     } else if (CORE_TOP_SLOTS.has(slot)) {
-      pools.tops.push(item);
+      if (isLayerPieceCategory(normalizeLayerCategory(profile.category))) {
+        pools.outerwear.push(item);
+      } else {
+        pools.tops.push(item);
+      }
     } else if (CORE_BOTTOM_SLOTS.has(slot)) {
       pools.bottoms.push(item);
     } else if (OUTERWEAR_SLOTS.has(slot)) {
@@ -194,8 +205,13 @@ export function validateOutfitStructure(
 
   for (const piece of pieces) {
     const slot = getItemSlot(piece.item);
-    if (piece.role === 'top' && !isRealTopItem(piece.item)) {
-      return { valid: false, reason: `invalid_top:${piece.item.itemType}` };
+    if (piece.role === 'top') {
+      if (isLayerPieceItem(piece.item)) {
+        return { valid: false, reason: `layer_as_primary_top:${piece.item.itemType}` };
+      }
+      if (!isRealTopItem(piece.item)) {
+        return { valid: false, reason: `invalid_top:${piece.item.itemType}` };
+      }
     }
     if (piece.role === 'bottom' && !CORE_BOTTOM_SLOTS.has(slot)) {
       return { valid: false, reason: `invalid_bottom:${piece.item.itemType}` };
@@ -248,7 +264,25 @@ export function validateOutfitStructure(
     return occasionFit;
   }
 
+  const layerFit = validateLayerPieceRules(pieces, weather);
+  if (!layerFit.valid) {
+    return layerFit;
+  }
+
+  const footwearFit = validateFootwearWeatherRules(pieces, weather);
+  if (!footwearFit.valid) {
+    return footwearFit;
+  }
+
   return { valid: true };
+}
+
+export function filterOuterwearPoolForLayerRules(
+  pool: WardrobeItem[],
+  weather?: WeatherSnapshot,
+  hasDress?: boolean,
+): WardrobeItem[] {
+  return filterLayerPiecesForContext(pool, weather, hasDress);
 }
 
 export function logInvalidOutfitCandidate(reason: string, attempt: number): void {

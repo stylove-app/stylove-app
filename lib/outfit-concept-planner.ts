@@ -9,6 +9,7 @@ import { getEffectiveStyleProfile } from '@/lib/wardrobe-style-profile';
 import type { WardrobeItem } from '@/lib/outfit-engine';
 import type { PaletteMode } from '@/lib/outfit-palette-planner';
 import { HOT_WEATHER_HARD_C } from '@/lib/occasion-style-authority';
+import { isLayerPieceItem, layerPieceAllowedInContext } from '@/lib/layer-piece-rules';
 import type { WeatherSnapshot } from '@/lib/weather';
 
 export type OutfitStructure = 'separates' | 'one_piece';
@@ -47,7 +48,7 @@ const OFFICE_HEAVY_CATEGORIES = new Set([
   'evening_dress',
 ]);
 
-const CASUAL_TOP_CATS = ['t_shirt', 'crop_top', 'blouse', 'sweater', 'cardigan', 'shirt'];
+const CASUAL_TOP_CATS = ['t_shirt', 'crop_top', 'blouse', 'sweater', 'shirt'];
 const CASUAL_BOTTOM_CATS = ['jeans', 'skirt', 'shorts'];
 const CASUAL_SHOES = ['sneaker', 'flat', 'sandal', 'loafer'];
 const COFFEE_TOP_CATS = ['t_shirt', 'blouse', 'sweater', 'crop_top', 'shirt'];
@@ -888,16 +889,9 @@ export function conceptAllowsOuterwear(
   return needs && hasRealTopUnder;
 }
 
-export function isDressRuiningOuterwear(item: WardrobeItem): boolean {
-  const profile = getEffectiveStyleProfile(item);
-  return (
-    profile.category === 'blazer' ||
-    profile.category === 'coat' ||
-    profile.category === 'jacket' ||
-    item.itemType === 'trenchcoat' ||
-    item.itemType === 'kaban' ||
-    item.itemType === 'mont'
-  );
+export function isDressRuiningOuterwear(item: WardrobeItem, weather?: WeatherSnapshot): boolean {
+  if (!isLayerPieceItem(item)) return false;
+  return !layerPieceAllowedInContext(item, weather, true);
 }
 
 export function logOutfitConceptDebug(payload: {

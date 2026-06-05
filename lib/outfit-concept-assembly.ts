@@ -6,6 +6,7 @@ import {
   allowsWatchForOccasion,
   isRealTopItem,
   maxAccessoriesForOccasion,
+  filterOuterwearPoolForLayerRules,
   pickAccessoryCandidates,
   scoreAccessoryPickBias,
   scoreHotWeatherItem,
@@ -53,6 +54,11 @@ import {
   scoreMetadataProductTypeAlignment,
   scoreUseCaseOccasionMatch,
 } from '@/lib/wardrobe-metadata-authority';
+import {
+  filterShoesForWeatherContext,
+  scoreFootwearWeatherPreference,
+  scoreShoeRegenerateDiversity,
+} from '@/lib/layer-piece-rules';
 import { scoreWomenPieceForOccasion } from '@/lib/women-outfit-scoring';
 
 export type ConceptAssemblyResult = {
@@ -82,6 +88,8 @@ type AssemblyParams = {
   previousWasOnePiece?: boolean;
   previousComboSignature?: string;
   previousItemIds?: string[];
+  previousShoeId?: string;
+  previousShoeCategory?: string;
 };
 
 function toStylingItem(item: WardrobeItem): StylingWardrobeItem {
@@ -143,6 +151,15 @@ function scoreCandidateItem(
     new Set(params.recentItemIds ?? []),
     slotPoolSizeForRole(params.pools, role),
   );
+  if (role === 'shoes') {
+    score += scoreFootwearWeatherPreference(item, params.weather);
+    score += scoreShoeRegenerateDiversity(item, {
+      regenerate: params.regenerate,
+      previousShoeId: params.previousShoeId,
+      previousShoeCategory: params.previousShoeCategory,
+      slotPoolSize: params.pools.shoes.length,
+    });
+  }
   if (role === 'accessory' || role === 'bag') {
     score += scoreAccessoryPickBias(
       toStylingItem(item),
@@ -204,12 +221,15 @@ function rankPool(
   selected: ItemStylingProfile[],
 ): WardrobeItem[] {
   const authorityRole = role as OccasionAssemblyRole;
-  const eligible = filterPoolByOccasionAuthority(
+  let eligible = filterPoolByOccasionAuthority(
     pool,
     params.selectedOccasion,
     authorityRole,
     params.weather,
   );
+  if (role === 'shoes') {
+    eligible = filterShoesForWeatherContext(eligible, params.weather);
+  }
 
   let rankedPool = eligible;
   if (params.selectedOccasion && poolHasDirectUseCaseMatch(eligible, params.selectedOccasion)) {
@@ -530,7 +550,12 @@ export function assembleOutfitWithConcept(
     conceptAllowsOuterwear(concept, params.weather, params.intent, hasRealTop) &&
     !isDressPath
   ) {
-    const outerPool = params.pools.outerwear.filter((item) => !isDressRuiningOuterwear(item));
+    const isDressPath = pieces.some((p) => p.role === 'dress');
+    const outerPool = filterOuterwearPoolForLayerRules(
+      params.pools.outerwear.filter((item) => !isDressRuiningOuterwear(item, params.weather)),
+      params.weather,
+      isDressPath,
+    );
     const outer = pickFromPool(outerPool, params, concept, palette, 'outerwear', anchor, selected);
     if (outer) {
       const profile = getEffectiveStyleProfile(outer);
