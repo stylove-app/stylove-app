@@ -4,6 +4,11 @@ import type { StyleMemory } from '@/lib/style-memory';
 /** Minimal wardrobe shape for styling (category/type-first; name for color hints only). */
 import type { WardrobeStyleProfile } from '@/lib/wardrobe-style-profile';
 import {
+  authoritativeProductCategory,
+  hasUserWardrobeMetadata,
+  scoreUseCaseOccasionMatch,
+} from '@/lib/wardrobe-metadata-authority';
+import {
   fallbackStyleProfileFromItem,
   formalityScore,
 } from '@/lib/wardrobe-style-profile';
@@ -261,8 +266,30 @@ function toneFromStyleProfile(profile: WardrobeStyleProfile): string | null {
   return map[profile.color] ?? profile.color;
 }
 
-/** Uses saved styleProfile when present; legacy items fall back to itemType. */
+function styleFamilyFromProfile(
+  profile: WardrobeStyleProfile,
+  itemType: WardrobeItemTypeId,
+): StyleFamily {
+  if (profile.formality === 'formal' || profile.formality === 'elegant') return 'formal';
+  if (profile.formality === 'office') return 'smart';
+  if (profile.formality === 'sporty') return 'sport';
+  if (profile.styleTags.includes('evening') || profile.styleTags.includes('elegant')) return 'luxe';
+  const typeStyle = TYPE_STYLE[itemType] ?? TYPE_STYLE.aksesuar;
+  return typeStyle.styleFamily;
+}
+
+function volumeFromProfileCategory(category: string, slot: string): number {
+  if (slot === 'outerwear') return 0.55;
+  if (category === 'evening_dress') return 0.42;
+  if (['coat', 'blazer', 'jacket', 'sweater'].includes(category)) return 0.58;
+  if (['shorts', 'crop_top', 't_shirt'].includes(category)) return 0.35;
+  if (['sneaker', 'sandal', 'flat'].includes(category)) return 0.25;
+  return 0.4;
+}
+
+/** User upload metadata first; legacy items fall back to itemType/name heuristics. */
 export function analyzeWardrobeItem(item: StylingWardrobeItem): ItemStylingProfile {
+  const userMetadata = hasUserWardrobeMetadata(item);
   const profile =
     item.styleProfile ??
     fallbackStyleProfileFromItem({
@@ -271,12 +298,16 @@ export function analyzeWardrobeItem(item: StylingWardrobeItem): ItemStylingProfi
       styleProfile: item.styleProfile,
     });
   const typeStyle = TYPE_STYLE[item.itemType] ?? TYPE_STYLE.aksesuar;
-  const tone = toneFromStyleProfile(profile) ?? detectToneFromName(item.name);
-  const isStatementColor =
-    profile.isStatementPiece || (tone != null && STATEMENT_TONES.has(tone));
+  const tone = userMetadata
+    ? toneFromStyleProfile(profile)
+    : toneFromStyleProfile(profile) ?? detectToneFromName(item.name);
+  const isStatementColor = userMetadata
+    ? profile.colorFamily !== 'neutral' && STATEMENT_TONES.has(tone ?? '')
+    : profile.isStatementPiece || (tone != null && STATEMENT_TONES.has(tone));
   const formality = formalityScore(profile.formality);
-  const volume =
-    profile.slot === 'outerwear'
+  const volume = userMetadata
+    ? volumeFromProfileCategory(authoritativeProductCategory(item), profile.slot)
+    : profile.slot === 'outerwear'
       ? 0.55
       : profile.category === 'evening_dress'
         ? 0.42
@@ -286,8 +317,8 @@ export function analyzeWardrobeItem(item: StylingWardrobeItem): ItemStylingProfi
     tone,
     formality,
     volume,
-    patternLevel: detectPatternLevel(item.name, typeStyle.patternPrior),
-    styleFamily: typeStyle.styleFamily,
+    patternLevel: userMetadata ? 0 : detectPatternLevel(item.name, typeStyle.patternPrior),
+    styleFamily: userMetadata ? styleFamilyFromProfile(profile, item.itemType) : typeStyle.styleFamily,
     isStatementColor,
   };
 }
@@ -456,19 +487,28 @@ export function scoreOutfitCoherence(
 export function scorePieceCandidate(profile: ItemStylingProfile, context: OutfitStylingContext): number {
   const draft = [...context.selected, profile];
   let score = 0;
+  const userMetadata = hasUserWardrobeMetadata(profile.item);
 
-  if (context.preferredTypes.includes(profile.item.itemType)) score += 3.5;
+  if (context.selectedOccasion) {
+    score += scoreUseCaseOccasionMatch(profile.item, context.selectedOccasion) * (userMetadata ? 1 : 0.35);
+  }
+
+  if (!userMetadata && context.preferredTypes.includes(profile.item.itemType)) score += 3.5;
 
   if (context.anchor) {
-    score += toneHarmonyScore(profile.tone, context.anchor.tone) * 1.8;
-    score += profile.styleFamily === context.anchor.styleFamily ? 1.5 : 0;
+    score += toneHarmonyScore(profile.tone, context.anchor.tone) * (userMetadata ? 2.2 : 1.8);
+    if (!userMetadata) {
+      score += profile.styleFamily === context.anchor.styleFamily ? 1.5 : 0;
+    }
     const formalityDelta = Math.abs(profile.formality - context.anchor.formality);
     score += formalityDelta <= 0.25 ? 2 : formalityDelta <= 0.4 ? 0.5 : -2;
   }
 
-  const moodBias = MOOD_TYPE_BIAS[context.mood];
-  if (moodBias.boost.includes(profile.item.itemType)) score += 2.5;
-  if (moodBias.penalize.includes(profile.item.itemType)) score -= 4;
+  if (!userMetadata) {
+    const moodBias = MOOD_TYPE_BIAS[context.mood];
+    if (moodBias.boost.includes(profile.item.itemType)) score += 2.5;
+    if (moodBias.penalize.includes(profile.item.itemType)) score -= 4;
+  }
 
   if (context.recentItemIds.has(profile.item.id)) score -= 8;
 
@@ -480,7 +520,7 @@ export function scorePieceCandidate(profile: ItemStylingProfile, context: Outfit
     score += scoreHotWeatherItem(profile.item, context.weather, context.selectedOccasion);
   }
 
-  if (context.wardrobe?.length) {
+  if (context.wardrobe?.length && !userMetadata) {
     score += scorePieceWithBible(profile, context, context.wardrobe);
   }
 

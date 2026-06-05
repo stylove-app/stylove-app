@@ -11,7 +11,7 @@ import Animated, {
 import { GoldShimmerLine } from '@/components/ui/gold-shimmer-line';
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { useTranslation } from '@/contexts/locale-context';
-import { SELECTED_OCCASION_ORDER, type SelectedOccasionId } from '@/lib/selected-occasion';
+import { HOME_OCCASION_CARD_ORDER, type SelectedOccasionId } from '@/lib/selected-occasion';
 import { StyloveColors, StyloveShadow } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 
@@ -166,7 +166,7 @@ function OccasionSelectorComponent({
         <Text style={styles.sectionSubtitle}>{t.home.occasionSubtitle}</Text>
 
         <View style={[styles.grid, { width: gridWidth }]}>
-          {SELECTED_OCCASION_ORDER.map((id, index) => {
+          {HOME_OCCASION_CARD_ORDER.map((id, index) => {
             const copy = t.home.occasions[id];
             return (
               <OccasionGridCard

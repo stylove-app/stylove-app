@@ -10,6 +10,13 @@ import {
   type WardrobeStyleProfile,
 } from '@/lib/wardrobe-style-profile';
 import type { WeatherSnapshot } from '@/lib/weather';
+import { classifyUseCaseMatch, occasionTargetUseCase } from '@/lib/wardrobe-metadata-authority';
+import {
+  detectWardrobeHarmonyMode,
+  isNeutralColorFamily,
+  isStrongColorFamily,
+  NEON_COLOR_FAMILIES,
+} from '@/lib/wardrobe-color-theory';
 
 export type ColorFamilyId =
   | 'black'
@@ -91,112 +98,9 @@ const STRONG_FAMILIES = new Set<ColorFamilyId>([
   'multicolor',
 ]);
 
-const NEON_FAMILIES = new Set<ColorFamilyId>(['pink', 'yellow', 'orange', 'red', 'purple']);
-
-const ANALOGOUS_GROUPS: ColorFamilyId[][] = [
-  ['navy', 'denim_blue', 'sky_blue'],
-  ['sage', 'olive', 'emerald'],
-  ['cream', 'beige', 'camel', 'brown'],
-  ['dusty_rose', 'pink', 'burgundy', 'red'],
-  ['lavender', 'purple', 'burgundy'],
-  ['black', 'gray', 'navy'],
-];
-
-const COMPLEMENTARY_PAIRS: [ColorFamilyId, ColorFamilyId][] = [
-  ['navy', 'camel'],
-  ['denim_blue', 'cream'],
-  ['burgundy', 'cream'],
-  ['emerald', 'cream'],
-  ['sage', 'beige'],
-  ['dusty_rose', 'gray'],
-];
-
-const SAFE_LUXURY_PALETTES: [ColorFamilyId, ColorFamilyId][] = [
-  ['black', 'cream'],
-  ['black', 'camel'],
-  ['black', 'gold'],
-  ['navy', 'white'],
-  ['navy', 'camel'],
-  ['cream', 'beige'],
-  ['cream', 'brown'],
-  ['cream', 'gold'],
-  ['camel', 'white'],
-  ['camel', 'black'],
-  ['burgundy', 'cream'],
-  ['burgundy', 'black'],
-  ['emerald', 'cream'],
-  ['sage', 'beige'],
-  ['sage', 'cream'],
-  ['dusty_rose', 'cream'],
-  ['lavender', 'cream'],
-  ['denim_blue', 'white'],
-  ['denim_blue', 'beige'],
-  ['olive', 'cream'],
-];
-
-const OFFICE_COLORS = new Set<ColorFamilyId>([
-  'black',
-  'white',
-  'cream',
-  'camel',
-  'navy',
-  'gray',
-  'burgundy',
-  'brown',
-  'beige',
-]);
-
-const DINNER_DATE_COLORS = new Set<ColorFamilyId>([
-  'black',
-  'burgundy',
-  'emerald',
-  'cream',
-  'gold',
-  'dusty_rose',
-  'navy',
-  'camel',
-]);
-
-const BEACH_VACATION_COLORS = new Set<ColorFamilyId>([
-  'white',
-  'cream',
-  'beige',
-  'sky_blue',
-  'sage',
-  'denim_blue',
-  'camel',
-  'olive',
-]);
-
-const WEDDING_COLORS = new Set<ColorFamilyId>([
-  'black',
-  'cream',
-  'burgundy',
-  'emerald',
-  'gold',
-  'dusty_rose',
-  'lavender',
-  'navy',
-  'camel',
-]);
-
-const DAILY_CASUAL_COLORS = new Set<ColorFamilyId>([
-  'white',
-  'cream',
-  'beige',
-  'gray',
-  'denim_blue',
-  'camel',
-  'sage',
-  'dusty_rose',
-  'navy',
-]);
-
-function paletteKey(a: ColorFamilyId, b: ColorFamilyId): string {
-  return a < b ? `${a}|${b}` : `${b}|${a}`;
-}
-
-const SAFE_PALETTE_SET = new Set(SAFE_LUXURY_PALETTES.map(([a, b]) => paletteKey(a, b)));
+const REFINED_OCCASIONS = new Set<SelectedOccasionId>(['wedding', 'dinner', 'date', 'office']);
+const RELAXED_OCCASIONS = new Set<SelectedOccasionId>(['daily', 'coffee', 'shopping', 'beach', 'sport_walk']);
+const LIGHT_OCCASIONS = new Set<SelectedOccasionId>(['beach', 'vacation']);
 
 function normalizeColorFamily(profile: WardrobeStyleProfile): ColorFamilyId {
   const map: Partial<Record<WardrobeColorId, ColorFamilyId>> = {
@@ -225,26 +129,18 @@ function inferMaterial(profile: WardrobeStyleProfile): MaterialId {
 }
 
 function detectHarmonyMode(colors: ColorFamilyId[]): HarmonyMode {
-  const unique = [...new Set(colors)];
-  if (unique.length <= 1) return 'monochromatic';
-
-  const neutralCount = unique.filter((c) => NEUTRAL_FAMILIES.has(c)).length;
-  const accentCount = unique.length - neutralCount;
-
-  if (accentCount <= 1 && neutralCount >= 1) return 'neutral_accent';
-
-  for (const group of ANALOGOUS_GROUPS) {
-    if (unique.every((c) => group.includes(c))) return 'analogous';
-  }
-
-  for (const [a, b] of COMPLEMENTARY_PAIRS) {
-    if (unique.includes(a) && unique.includes(b)) return 'complementary';
-  }
-
-  const allNeutral = unique.every((c) => NEUTRAL_FAMILIES.has(c));
-  if (allNeutral && unique.length <= 3) return 'monochromatic';
-
-  return 'mixed';
+  const detected = detectWardrobeHarmonyMode(colors);
+  const map: Record<string, HarmonyMode> = {
+    monochrome: 'monochromatic',
+    tonal: 'monochromatic',
+    analogous: 'analogous',
+    complementary: 'complementary',
+    split_complementary: 'complementary',
+    triadic: 'analogous',
+    neutral_plus_accent: 'neutral_accent',
+    mixed: 'mixed',
+  };
+  return map[detected] ?? 'mixed';
 }
 
 function scoreColorHarmonyCore(colors: ColorFamilyId[], profiles: ItemStylingProfile[]): {
@@ -263,17 +159,13 @@ function scoreColorHarmonyCore(colors: ColorFamilyId[], profiles: ItemStylingPro
   else score += 1;
 
   let matchedPalette: string | null = null;
-  for (let i = 0; i < unique.length; i++) {
-    for (let j = i + 1; j < unique.length; j++) {
-      const key = paletteKey(unique[i], unique[j]);
-      if (SAFE_PALETTE_SET.has(key)) {
-        score += 4;
-        matchedPalette = `${unique[i]} + ${unique[j]}`;
-      }
-    }
+  if (mode !== 'mixed' && unique.length >= 2) {
+    matchedPalette = unique.slice(0, 3).join(' + ');
+    if (mode === 'monochromatic' || mode === 'neutral_accent') score += 2;
+    else if (mode === 'analogous' || mode === 'complementary') score += 1;
   }
 
-  const strongCount = unique.filter((c) => STRONG_FAMILIES.has(c)).length;
+  const strongCount = unique.filter((c) => isStrongColorFamily(c)).length;
   if (strongCount > 3) score -= 8;
   else if (strongCount === 3) score -= 3;
 
@@ -290,38 +182,33 @@ function scoreOccasionColorFit(
 ): number {
   if (!occasion || colors.length === 0) return 6;
 
-  const hits = colors.filter((c) => {
-    switch (occasion) {
-      case 'office':
-        return OFFICE_COLORS.has(c);
-      case 'dinner':
-      case 'date':
-        return DINNER_DATE_COLORS.has(c);
-      case 'beach':
-      case 'vacation':
-        return BEACH_VACATION_COLORS.has(c);
-      case 'wedding':
-        return WEDDING_COLORS.has(c);
-      case 'daily':
-      case 'shopping':
-      case 'coffee':
-      case 'sport_walk':
-      case 'travel':
-      case 'family_visit':
-        return DAILY_CASUAL_COLORS.has(c);
-      default:
-        return true;
-    }
-  }).length;
+  const unique = [...new Set(colors)];
+  const strong = unique.filter((c) => isStrongColorFamily(c));
+  const neon = unique.filter((c) => NEON_COLOR_FAMILIES.has(c));
+  const neutral = unique.filter((c) => isNeutralColorFamily(c));
+  const harmonyMode = detectWardrobeHarmonyMode(unique);
 
-  const ratio = hits / colors.length;
-  let score = ratio * 10;
+  let score = 6;
 
-  if (occasion === 'office') {
-    const neonHits = colors.filter((c) => NEON_FAMILIES.has(c) && !['burgundy', 'dusty_rose'].includes(c)).length;
-    if (neonHits >= 2) score -= 8;
-    else if (neonHits === 1) score -= 4;
+  if (harmonyMode !== 'mixed') score += 3;
+  if (strong.length <= 2) score += 2;
+  if (neutral.length >= 1) score += 1;
+
+  if (REFINED_OCCASIONS.has(occasion)) {
+    if (strong.length <= 1) score += 2;
+    if (neon.length >= 2) score -= 6;
+    else if (neon.length === 1 && !['burgundy', 'dusty_rose', 'emerald'].includes(neon[0])) score -= 3;
+    if (strong.length >= 3) score -= 5;
+  } else if (LIGHT_OCCASIONS.has(occasion)) {
+    const hasLight = unique.some((c) => ['white', 'cream', 'beige', 'sky_blue', 'sage', 'lavender'].includes(c));
+    if (hasLight) score += 2;
+    if (strong.length >= 3) score -= 3;
+  } else if (RELAXED_OCCASIONS.has(occasion)) {
+    if (strong.length >= 2 && harmonyMode !== 'mixed') score += 1;
+    if (neon.length >= 2) score -= 4;
   }
+
+  if (unique.length >= 5) score -= 3;
 
   return Math.max(0, Math.min(12, score));
 }
@@ -442,30 +329,21 @@ function scoreStyleProfileFit(
   let score = 0;
   let count = 0;
 
-  const occasionToUseCase: Partial<Record<SelectedOccasionId, string>> = {
-    office: 'office',
-    dinner: 'dinner',
-    date: 'date',
-    beach: 'beach',
-    vacation: 'vacation',
-    wedding: 'wedding',
-    shopping: 'shopping',
-    sport_walk: 'walking',
-    daily: 'daily',
-    coffee: 'daily',
-    travel: 'daily',
-    family_visit: 'daily',
-  };
-
-  const targetUse = occasionToUseCase[occasion];
+  const targetUse = occasionTargetUseCase(occasion);
 
   for (const { profile } of items) {
     count += 1;
-    if (targetUse && profile.useCases.includes(targetUse as never)) score += 3;
-    if (occasion === 'office' && profile.styleTags.includes('office')) score += 2;
+    const tier = classifyUseCaseMatch(profile.useCases, occasion);
+    if (tier === 'direct') score += 8;
+    else if (tier === 'related') score += 3;
+    else if (tier === 'incompatible') score -= 6;
+    else if (tier === 'neutral') score -= 2;
+
+    if (targetUse && profile.useCases.includes(targetUse as never)) score += 2;
+    if (occasion === 'office' && profile.styleTags.includes('office')) score += 1;
     if ((occasion === 'dinner' || occasion === 'date') && (profile.styleTags.includes('elegant') || profile.styleTags.includes('romantic')))
-      score += 2;
-    if ((occasion === 'beach' || occasion === 'vacation') && profile.styleTags.includes('vacation')) score += 2;
+      score += 1;
+    if ((occasion === 'beach' || occasion === 'vacation') && profile.styleTags.includes('vacation')) score += 1;
     if (occasion === 'wedding' && (profile.styleTags.includes('elegant') || profile.styleTags.includes('evening')))
       score += 2;
     if (profile.formality === 'sporty' && ['office', 'wedding', 'dinner'].includes(occasion)) score -= 2;

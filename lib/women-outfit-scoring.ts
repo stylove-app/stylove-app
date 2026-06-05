@@ -1,6 +1,9 @@
 import type { ItemStylingProfile } from '@/lib/outfit-styling-intelligence';
+import {
+  hasUserWardrobeMetadata,
+  scoreUseCaseOccasionMatch,
+} from '@/lib/wardrobe-metadata-authority';
 import type { SelectedOccasionId } from '@/lib/selected-occasion';
-import type { WardrobeStyleProfile } from '@/lib/wardrobe-style-profile';
 import { formalityScore, getEffectiveStyleProfile } from '@/lib/wardrobe-style-profile';
 import type { WardrobeItem } from '@/lib/outfit-engine';
 
@@ -46,11 +49,22 @@ const WEDDING_BOOST = new Set([
   'bag',
   'necklace',
   'earrings',
-  'blazer',
 ]);
-const WEDDING_BAN = new Set(['sneaker', 't_shirt', 'shorts', 'crop_top']);
+const WEDDING_BAN = new Set([
+  'sneaker',
+  't_shirt',
+  'shorts',
+  'crop_top',
+  'sandal',
+  'loafer',
+  'boot',
+  'sunglasses',
+]);
 
-export function scoreWomenPieceForOccasion(
+const OFFICE_BAN = new Set(['sandal', 'shorts', 'crop_top', 't_shirt', 'sunglasses']);
+const DAILY_OFFICE_LEAN = new Set(['blazer', 'office_dress', 'tailored_trousers', 'shirt']);
+
+function scoreLegacyHeuristicOccasion(
   item: WardrobeItem,
   profile: ItemStylingProfile,
   occasion: SelectedOccasionId,
@@ -64,14 +78,21 @@ export function scoreWomenPieceForOccasion(
 
   switch (occasion) {
     case 'daily':
-      if (tags.has('casual') || tags.has('smart_casual') || tags.has('minimal')) score += 6;
-      if (['sneaker', 'flat', 'loafer'].includes(cat)) score += 4;
-      if (formality <= 0.6) score += 2;
+      if (tags.has('casual') || tags.has('smart_casual') || tags.has('minimal')) score += 8;
+      if (['t_shirt', 'crop_top', 'jeans', 'shorts', 'sneaker', 'flat', 'sandal'].includes(cat)) score += 7;
+      if (['sneaker', 'flat', 'sandal'].includes(cat)) score += 4;
+      if (formality <= 0.6) score += 3;
+      if (DAILY_OFFICE_LEAN.has(cat) || tags.has('office')) score -= 14;
+      if (useCases.has('office')) score -= 8;
       break;
     case 'office':
       if (OFFICE_BOOST.has(cat)) score += 8;
       if (tags.has('office') || useCases.has('office')) score += 5;
       if (SPORTY_CATEGORIES.has(cat) || tags.has('sporty')) score -= 12;
+      if (OFFICE_BAN.has(cat)) score -= 25;
+      if (cat === 'sneaker' && (tags.has('sporty') || useCases.has('sport') || useCases.has('walking')))
+        score -= 22;
+      if (tags.has('vacation') || useCases.has('beach') || useCases.has('vacation')) score -= 18;
       if (formality >= 0.7) score += 4;
       break;
     case 'dinner':
@@ -89,8 +110,11 @@ export function scoreWomenPieceForOccasion(
       if (tags.has('sporty') || useCases.has('walking')) score += 4;
       break;
     case 'coffee':
-      if (tags.has('smart_casual') || tags.has('casual')) score += 5;
-      if (['blouse', 'shirt', 'midi_dress', 'jeans'].includes(cat)) score += 3;
+      if (tags.has('casual') || tags.has('smart_casual')) score += 7;
+      if (['t_shirt', 'jeans', 'sneaker', 'flat', 'crop_top'].includes(cat)) score += 6;
+      if (['blouse', 'midi_dress'].includes(cat)) score += 2;
+      if (tags.has('office') || useCases.has('office')) score -= 12;
+      if (['evening_dress', 'heel', 'blazer', 'office_dress'].includes(cat)) score -= 15;
       break;
     case 'beach':
       if (BEACH_BOOST.has(cat) || tags.has('vacation')) score += 7;
@@ -104,7 +128,9 @@ export function scoreWomenPieceForOccasion(
     case 'wedding':
       if (WEDDING_BOOST.has(cat)) score += 9;
       if (tags.has('elegant') || tags.has('evening') || useCases.has('wedding')) score += 6;
-      if (WEDDING_BAN.has(cat)) score -= 20;
+      if (WEDDING_BAN.has(cat)) score -= 30;
+      if (item.itemType === 'gozluk' || cat === 'sunglasses') score -= 35;
+      if (tags.has('sporty') || tags.has('vacation')) score -= 20;
       break;
     case 'travel':
       if (['sneaker', 'flat', 'boot', 'jacket'].includes(cat)) score += 5;
@@ -128,6 +154,20 @@ export function scoreWomenPieceForOccasion(
   }
 
   return score;
+}
+
+export function scoreWomenPieceForOccasion(
+  item: WardrobeItem,
+  profile: ItemStylingProfile,
+  occasion: SelectedOccasionId,
+): number {
+  const useCaseScore = scoreUseCaseOccasionMatch(item, occasion);
+
+  if (hasUserWardrobeMetadata(item)) {
+    return useCaseScore;
+  }
+
+  return useCaseScore + scoreLegacyHeuristicOccasion(item, profile, occasion);
 }
 
 export function scoreWomenProfileCoherence(

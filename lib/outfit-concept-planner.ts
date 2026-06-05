@@ -1,9 +1,14 @@
 import { isQaTestMode } from '@/lib/qa-test-mode';
 import type { WardrobeItemTypeId } from '@/i18n/types';
 import type { SelectedOccasionId } from '@/lib/selected-occasion';
+import {
+  authoritativeProductCategory,
+  hasUserWardrobeMetadata,
+} from '@/lib/wardrobe-metadata-authority';
 import { getEffectiveStyleProfile } from '@/lib/wardrobe-style-profile';
 import type { WardrobeItem } from '@/lib/outfit-engine';
 import type { PaletteMode } from '@/lib/outfit-palette-planner';
+import { HOT_WEATHER_HARD_C } from '@/lib/occasion-style-authority';
 import type { WeatherSnapshot } from '@/lib/weather';
 
 export type OutfitStructure = 'separates' | 'one_piece';
@@ -42,9 +47,11 @@ const OFFICE_HEAVY_CATEGORIES = new Set([
   'evening_dress',
 ]);
 
-const CASUAL_TOP_CATS = ['t_shirt', 'blouse', 'shirt', 'crop_top', 'sweater', 'cardigan'];
-const CASUAL_BOTTOM_CATS = ['jeans', 'skirt', 'shorts', 'tailored_trousers'];
-const CASUAL_SHOES = ['sneaker', 'flat', 'sandal', 'loafer', 'boot'];
+const CASUAL_TOP_CATS = ['t_shirt', 'crop_top', 'blouse', 'sweater', 'cardigan', 'shirt'];
+const CASUAL_BOTTOM_CATS = ['jeans', 'skirt', 'shorts'];
+const CASUAL_SHOES = ['sneaker', 'flat', 'sandal', 'loafer'];
+const COFFEE_TOP_CATS = ['t_shirt', 'blouse', 'sweater', 'crop_top', 'shirt'];
+const ELEGANT_SHOES = ['heel', 'flat'];
 
 const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
   daily: [
@@ -52,18 +59,18 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'relaxed_daily',
       label: 'Relaxed daily',
       structure: 'separates',
-      paletteModes: ['neutral_accent', 'tonal', 'summer_light', 'cool_classic'],
+      paletteModes: ['neutral_plus_accent', 'tonal', 'analogous', 'tonal'],
       topCategories: CASUAL_TOP_CATS,
       topTypes: ['tisort', 'gomlek', 'kazak'],
-      bottomCategories: ['jeans', 'skirt', 'shorts', 'tailored_trousers'],
-      bottomTypes: ['jean', 'etek', 'pantolon', 'sort'],
+      bottomCategories: ['jeans', 'skirt', 'shorts'],
+      bottomTypes: ['jean', 'etek', 'sort'],
       onePieceCategories: [],
       onePieceTypes: [],
       shoeCategories: CASUAL_SHOES,
-      shoeTypes: ['ayakkabi', 'bot'],
-      avoidCategories: ['blazer', 'coat', 'trench', 'heel', 'evening_dress', 'office_dress'],
+      shoeTypes: ['ayakkabi'],
+      avoidCategories: ['blazer', 'coat', 'trench', 'heel', 'evening_dress', 'office_dress', 'shirt'],
       avoidTypes: ['topuklu', 'ceket', 'trenchcoat', 'kaban'],
-      maxFormality: 0.62,
+      maxFormality: 0.58,
       allowOuterwear: 'weather',
       allowWatch: false,
       allowBoldAccent: true,
@@ -73,7 +80,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'summer_daily',
       label: 'Summer daily',
       structure: 'either',
-      paletteModes: ['summer_light', 'soft_pastel', 'analogous', 'neutral_accent'],
+      paletteModes: ['analogous', 'tonal', 'analogous', 'neutral_plus_accent'],
       topCategories: ['t_shirt', 'crop_top', 'blouse', 'shirt'],
       topTypes: ['tisort', 'gomlek'],
       bottomCategories: ['shorts', 'skirt', 'jeans'],
@@ -94,11 +101,11 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'minimal_daily',
       label: 'Minimal daily',
       structure: 'separates',
-      paletteModes: ['monochrome', 'tonal', 'neutral_accent', 'cool_classic'],
-      topCategories: ['blouse', 'shirt', 'sweater', 't_shirt'],
-      topTypes: ['gomlek', 'kazak', 'tisort'],
-      bottomCategories: ['jeans', 'tailored_trousers', 'skirt'],
-      bottomTypes: ['jean', 'pantolon', 'etek'],
+      paletteModes: ['monochrome', 'tonal', 'neutral_plus_accent', 'tonal'],
+      topCategories: ['t_shirt', 'blouse', 'sweater', 'crop_top'],
+      topTypes: ['tisort', 'gomlek', 'kazak'],
+      bottomCategories: ['jeans', 'skirt', 'shorts'],
+      bottomTypes: ['jean', 'etek', 'sort'],
       onePieceCategories: [],
       onePieceTypes: [],
       shoeCategories: ['loafer', 'sneaker', 'flat'],
@@ -117,16 +124,16 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'relaxed_smart_casual',
       label: 'Relaxed smart casual',
       structure: 'separates',
-      paletteModes: ['neutral_accent', 'cool_classic', 'tonal'],
-      topCategories: ['blouse', 'shirt', 'sweater', 't_shirt'],
-      topTypes: ['gomlek', 'kazak', 'tisort'],
-      bottomCategories: ['jeans', 'skirt', 'tailored_trousers'],
-      bottomTypes: ['jean', 'etek', 'pantolon'],
-      onePieceCategories: ['midi_dress'],
+      paletteModes: ['neutral_plus_accent', 'tonal', 'tonal'],
+      topCategories: COFFEE_TOP_CATS,
+      topTypes: ['tisort', 'gomlek', 'kazak'],
+      bottomCategories: ['jeans', 'skirt'],
+      bottomTypes: ['jean', 'etek'],
+      onePieceCategories: ['midi_dress', 'summer_dress'],
       onePieceTypes: ['elbise'],
-      shoeCategories: ['loafer', 'sneaker', 'flat', 'boot'],
-      shoeTypes: ['ayakkabi', 'bot'],
-      avoidCategories: ['evening_dress', 'heel'],
+      shoeCategories: ['loafer', 'sneaker', 'flat'],
+      shoeTypes: ['ayakkabi'],
+      avoidCategories: ['evening_dress', 'heel', 'blazer', 'office_dress', 'tailored_trousers'],
       avoidTypes: ['topuklu'],
       maxFormality: 0.68,
       allowOuterwear: 'weather',
@@ -138,16 +145,16 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'denim_casual',
       label: 'Denim casual',
       structure: 'separates',
-      paletteModes: ['complementary', 'neutral_accent', 'cool_classic'],
-      topCategories: ['blouse', 'shirt', 't_shirt', 'sweater'],
-      topTypes: ['gomlek', 'tisort', 'kazak'],
-      bottomCategories: ['jeans'],
-      bottomTypes: ['jean'],
+      paletteModes: ['complementary', 'neutral_plus_accent', 'tonal'],
+      topCategories: ['t_shirt', 'blouse', 'crop_top', 'sweater'],
+      topTypes: ['tisort', 'gomlek', 'kazak'],
+      bottomCategories: ['jeans', 'skirt'],
+      bottomTypes: ['jean', 'etek'],
       onePieceCategories: [],
       onePieceTypes: [],
-      shoeCategories: ['sneaker', 'loafer', 'flat', 'boot'],
-      shoeTypes: ['ayakkabi', 'bot'],
-      avoidCategories: ['blazer', 'heel', 'evening_dress'],
+      shoeCategories: ['sneaker', 'loafer', 'flat'],
+      shoeTypes: ['ayakkabi'],
+      avoidCategories: ['blazer', 'heel', 'evening_dress', 'office_dress', 'shirt'],
       avoidTypes: ['topuklu', 'ceket'],
       maxFormality: 0.6,
       allowOuterwear: 'weather',
@@ -159,16 +166,16 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'soft_minimal',
       label: 'Soft minimal',
       structure: 'either',
-      paletteModes: ['monochrome', 'tonal', 'soft_pastel'],
-      topCategories: ['blouse', 'shirt', 'sweater'],
-      topTypes: ['gomlek', 'kazak'],
-      bottomCategories: ['tailored_trousers', 'skirt', 'jeans'],
-      bottomTypes: ['pantolon', 'etek', 'jean'],
-      onePieceCategories: ['midi_dress'],
+      paletteModes: ['monochrome', 'tonal', 'tonal'],
+      topCategories: ['t_shirt', 'blouse', 'sweater'],
+      topTypes: ['tisort', 'gomlek', 'kazak'],
+      bottomCategories: ['jeans', 'skirt'],
+      bottomTypes: ['jean', 'etek'],
+      onePieceCategories: ['midi_dress', 'summer_dress'],
       onePieceTypes: ['elbise'],
-      shoeCategories: ['loafer', 'flat', 'sneaker'],
-      shoeTypes: ['ayakkabi', 'bot'],
-      avoidCategories: ['blazer', 'heel'],
+      shoeCategories: ['sneaker', 'flat', 'loafer'],
+      shoeTypes: ['ayakkabi'],
+      avoidCategories: ['blazer', 'heel', 'tailored_trousers', 'office_dress', 'shirt'],
       avoidTypes: ['topuklu'],
       maxFormality: 0.65,
       allowOuterwear: 'weather',
@@ -182,7 +189,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'polished_office',
       label: 'Polished office',
       structure: 'separates',
-      paletteModes: ['cool_classic', 'dark_elegant', 'neutral_accent', 'monochrome'],
+      paletteModes: ['tonal', 'monochrome', 'neutral_plus_accent', 'monochrome'],
       topCategories: ['blouse', 'shirt', 'sweater'],
       topTypes: ['gomlek', 'kazak'],
       bottomCategories: ['tailored_trousers', 'skirt'],
@@ -191,8 +198,8 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       onePieceTypes: ['elbise'],
       shoeCategories: ['loafer', 'heel', 'flat', 'boot'],
       shoeTypes: ['topuklu', 'ayakkabi', 'bot'],
-      avoidCategories: ['shorts', 'crop_top', 't_shirt'],
-      avoidTypes: ['sort', 'tisort', 'hoodie', 'sweatshirt'],
+      avoidCategories: ['shorts', 'crop_top', 't_shirt', 'sandal', 'sunglasses'],
+      avoidTypes: ['sort', 'tisort', 'hoodie', 'sweatshirt', 'gozluk'],
       maxFormality: 0.95,
       allowOuterwear: 'smart',
       allowWatch: true,
@@ -203,7 +210,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'classic_office',
       label: 'Classic office',
       structure: 'separates',
-      paletteModes: ['dark_elegant', 'monochrome', 'cool_classic'],
+      paletteModes: ['monochrome', 'monochrome', 'tonal'],
       topCategories: ['blouse', 'shirt'],
       topTypes: ['gomlek'],
       bottomCategories: ['tailored_trousers', 'skirt'],
@@ -212,8 +219,8 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       onePieceTypes: [],
       shoeCategories: ['loafer', 'heel', 'flat'],
       shoeTypes: ['topuklu', 'ayakkabi'],
-      avoidCategories: ['jeans', 'shorts', 'sneaker'],
-      avoidTypes: ['jean', 'sort', 'tisort'],
+      avoidCategories: ['jeans', 'shorts', 'sneaker', 'sandal', 'sunglasses'],
+      avoidTypes: ['jean', 'sort', 'tisort', 'gozluk'],
       maxFormality: 0.92,
       allowOuterwear: 'smart',
       allowWatch: true,
@@ -224,7 +231,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'soft_office',
       label: 'Soft office',
       structure: 'separates',
-      paletteModes: ['tonal', 'neutral_accent', 'soft_pastel'],
+      paletteModes: ['tonal', 'neutral_plus_accent', 'tonal'],
       topCategories: ['blouse', 'shirt', 'sweater'],
       topTypes: ['gomlek', 'kazak'],
       bottomCategories: ['tailored_trousers', 'skirt', 'jeans'],
@@ -233,8 +240,8 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       onePieceTypes: [],
       shoeCategories: ['loafer', 'flat', 'boot'],
       shoeTypes: ['ayakkabi', 'bot'],
-      avoidCategories: ['shorts', 'crop_top'],
-      avoidTypes: ['sort', 'hoodie'],
+      avoidCategories: ['shorts', 'crop_top', 'sandal', 'sunglasses'],
+      avoidTypes: ['sort', 'hoodie', 'gozluk'],
       maxFormality: 0.78,
       allowOuterwear: 'weather',
       allowWatch: true,
@@ -247,7 +254,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'elegant_dress',
       label: 'Elegant dress',
       structure: 'one_piece',
-      paletteModes: ['dark_elegant', 'monochrome', 'neutral_accent'],
+      paletteModes: ['monochrome', 'monochrome', 'neutral_plus_accent'],
       topCategories: [],
       topTypes: [],
       bottomCategories: [],
@@ -268,7 +275,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'blouse_and_skirt',
       label: 'Blouse and skirt',
       structure: 'separates',
-      paletteModes: ['dark_elegant', 'complementary', 'neutral_accent'],
+      paletteModes: ['monochrome', 'complementary', 'neutral_plus_accent'],
       topCategories: ['blouse', 'shirt'],
       topTypes: ['gomlek'],
       bottomCategories: ['skirt'],
@@ -289,7 +296,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'blouse_and_trousers',
       label: 'Blouse and trousers',
       structure: 'separates',
-      paletteModes: ['dark_elegant', 'monochrome', 'cool_classic'],
+      paletteModes: ['monochrome', 'monochrome', 'tonal'],
       topCategories: ['blouse', 'shirt'],
       topTypes: ['gomlek'],
       bottomCategories: ['tailored_trousers'],
@@ -312,7 +319,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'romantic_dress',
       label: 'Romantic dress',
       structure: 'one_piece',
-      paletteModes: ['soft_pastel', 'neutral_accent', 'dark_elegant'],
+      paletteModes: ['tonal', 'neutral_plus_accent', 'monochrome'],
       topCategories: [],
       topTypes: [],
       bottomCategories: [],
@@ -333,7 +340,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'soft_blouse_skirt',
       label: 'Soft blouse skirt',
       structure: 'separates',
-      paletteModes: ['soft_pastel', 'analogous', 'neutral_accent'],
+      paletteModes: ['tonal', 'analogous', 'neutral_plus_accent'],
       topCategories: ['blouse', 'shirt'],
       topTypes: ['gomlek'],
       bottomCategories: ['skirt'],
@@ -354,7 +361,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'elevated_casual',
       label: 'Elevated casual',
       structure: 'separates',
-      paletteModes: ['neutral_accent', 'complementary', 'tonal'],
+      paletteModes: ['neutral_plus_accent', 'complementary', 'tonal'],
       topCategories: ['blouse', 'shirt', 'sweater'],
       topTypes: ['gomlek', 'kazak'],
       bottomCategories: ['jeans', 'skirt', 'tailored_trousers'],
@@ -377,7 +384,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'summer_dress',
       label: 'Summer dress',
       structure: 'one_piece',
-      paletteModes: ['summer_light', 'soft_pastel', 'analogous'],
+      paletteModes: ['analogous', 'tonal', 'analogous'],
       topCategories: [],
       topTypes: [],
       bottomCategories: [],
@@ -398,7 +405,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'crop_or_tshirt_shorts',
       label: 'Light top shorts',
       structure: 'separates',
-      paletteModes: ['summer_light', 'analogous', 'neutral_accent'],
+      paletteModes: ['analogous', 'analogous', 'neutral_plus_accent'],
       topCategories: ['t_shirt', 'crop_top', 'blouse'],
       topTypes: ['tisort', 'gomlek'],
       bottomCategories: ['shorts', 'skirt'],
@@ -419,7 +426,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'light_skirt_sandals',
       label: 'Light skirt sandals',
       structure: 'separates',
-      paletteModes: ['summer_light', 'soft_pastel'],
+      paletteModes: ['analogous', 'tonal'],
       topCategories: ['blouse', 't_shirt', 'crop_top'],
       topTypes: ['gomlek', 'tisort'],
       bottomCategories: ['skirt', 'shorts'],
@@ -442,7 +449,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'relaxed_summer',
       label: 'Relaxed summer',
       structure: 'either',
-      paletteModes: ['summer_light', 'warm_earthy', 'analogous'],
+      paletteModes: ['analogous', 'analogous', 'analogous'],
       topCategories: ['t_shirt', 'blouse', 'crop_top'],
       topTypes: ['tisort', 'gomlek'],
       bottomCategories: ['shorts', 'skirt', 'jeans'],
@@ -463,7 +470,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'travel_day_comfort',
       label: 'Travel day comfort',
       structure: 'separates',
-      paletteModes: ['neutral_accent', 'tonal', 'cool_classic'],
+      paletteModes: ['neutral_plus_accent', 'tonal', 'tonal'],
       topCategories: ['t_shirt', 'blouse', 'sweater'],
       topTypes: ['tisort', 'gomlek', 'kazak'],
       bottomCategories: ['jeans', 'tailored_trousers', 'shorts'],
@@ -484,7 +491,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'resort_casual',
       label: 'Resort casual',
       structure: 'either',
-      paletteModes: ['summer_light', 'soft_pastel', 'warm_earthy'],
+      paletteModes: ['analogous', 'tonal', 'analogous'],
       topCategories: ['blouse', 't_shirt', 'shirt'],
       topTypes: ['gomlek', 'tisort'],
       bottomCategories: ['skirt', 'shorts', 'jeans'],
@@ -507,17 +514,17 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'elegant_dress_wedding',
       label: 'Elegant dress',
       structure: 'one_piece',
-      paletteModes: ['dark_elegant', 'monochrome', 'neutral_accent'],
+      paletteModes: ['monochrome', 'monochrome', 'neutral_plus_accent'],
       topCategories: [],
       topTypes: [],
       bottomCategories: [],
       bottomTypes: [],
       onePieceCategories: ['evening_dress', 'midi_dress', 'office_dress'],
       onePieceTypes: ['elbise', 'takim'],
-      shoeCategories: ['heel', 'loafer', 'boot'],
-      shoeTypes: ['topuklu', 'bot'],
-      avoidCategories: ['jeans', 'shorts', 'sneaker', 't_shirt'],
-      avoidTypes: ['jean', 'sort', 'tisort'],
+      shoeCategories: ELEGANT_SHOES,
+      shoeTypes: ['topuklu', 'ayakkabi'],
+      avoidCategories: ['jeans', 'shorts', 'sneaker', 't_shirt', 'sandal', 'loafer', 'boot', 'sunglasses'],
+      avoidTypes: ['jean', 'sort', 'tisort', 'gozluk', 'bot'],
       maxFormality: 0.98,
       allowOuterwear: 'weather',
       allowWatch: false,
@@ -528,17 +535,17 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'evening_dress',
       label: 'Evening dress',
       structure: 'one_piece',
-      paletteModes: ['dark_elegant', 'complementary'],
+      paletteModes: ['monochrome', 'complementary'],
       topCategories: [],
       topTypes: [],
       bottomCategories: [],
       bottomTypes: [],
       onePieceCategories: ['evening_dress'],
       onePieceTypes: ['elbise'],
-      shoeCategories: ['heel', 'boot'],
-      shoeTypes: ['topuklu', 'bot'],
-      avoidCategories: ['sneaker', 'jeans', 'shorts'],
-      avoidTypes: ['ayakkabi', 'jean'],
+      shoeCategories: ['heel'],
+      shoeTypes: ['topuklu'],
+      avoidCategories: ['sneaker', 'jeans', 'shorts', 'sandal', 'loafer', 'boot', 'sunglasses'],
+      avoidTypes: ['ayakkabi', 'jean', 'bot', 'gozluk'],
       maxFormality: 0.98,
       allowOuterwear: 'weather',
       allowWatch: false,
@@ -549,20 +556,20 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'refined_set',
       label: 'Refined set',
       structure: 'one_piece',
-      paletteModes: ['dark_elegant', 'cool_classic'],
+      paletteModes: ['monochrome', 'tonal'],
       topCategories: [],
       topTypes: [],
       bottomCategories: [],
       bottomTypes: [],
       onePieceCategories: ['matching_set', 'office_dress', 'midi_dress'],
       onePieceTypes: ['takim', 'elbise'],
-      shoeCategories: ['heel', 'loafer'],
+      shoeCategories: ELEGANT_SHOES,
       shoeTypes: ['topuklu', 'ayakkabi'],
-      avoidCategories: ['jeans', 'shorts'],
-      avoidTypes: ['jean', 'sort'],
+      avoidCategories: ['jeans', 'shorts', 'sandal', 'sneaker', 'loafer', 'boot', 'sunglasses'],
+      avoidTypes: ['jean', 'sort', 'gozluk', 'bot'],
       maxFormality: 0.95,
       allowOuterwear: 'weather',
-      allowWatch: true,
+      allowWatch: false,
       allowBoldAccent: false,
       preferBag: true,
     },
@@ -572,7 +579,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'walking_comfort',
       label: 'Walking comfort',
       structure: 'separates',
-      paletteModes: ['neutral_accent', 'tonal', 'cool_classic'],
+      paletteModes: ['neutral_plus_accent', 'tonal', 'tonal'],
       topCategories: ['t_shirt', 'blouse', 'sweater', 'shirt'],
       topTypes: ['tisort', 'gomlek', 'kazak'],
       bottomCategories: ['jeans', 'shorts', 'tailored_trousers'],
@@ -595,7 +602,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'practical_daily',
       label: 'Practical daily',
       structure: 'separates',
-      paletteModes: ['neutral_accent', 'tonal', 'summer_light'],
+      paletteModes: ['neutral_plus_accent', 'tonal', 'analogous'],
       topCategories: ['t_shirt', 'blouse', 'shirt', 'sweater'],
       topTypes: ['tisort', 'gomlek', 'kazak'],
       bottomCategories: ['jeans', 'skirt', 'shorts', 'tailored_trousers'],
@@ -618,7 +625,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'travel_day_comfort',
       label: 'Travel day comfort',
       structure: 'separates',
-      paletteModes: ['neutral_accent', 'tonal', 'cool_classic'],
+      paletteModes: ['neutral_plus_accent', 'tonal', 'tonal'],
       topCategories: ['t_shirt', 'blouse', 'sweater', 'shirt'],
       topTypes: ['tisort', 'gomlek', 'kazak'],
       bottomCategories: ['jeans', 'tailored_trousers', 'shorts'],
@@ -639,7 +646,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'relaxed_summer_travel',
       label: 'Relaxed travel',
       structure: 'either',
-      paletteModes: ['summer_light', 'warm_earthy'],
+      paletteModes: ['analogous', 'analogous'],
       topCategories: ['t_shirt', 'blouse'],
       topTypes: ['tisort', 'gomlek'],
       bottomCategories: ['jeans', 'shorts', 'skirt'],
@@ -662,7 +669,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'soft_smart_casual',
       label: 'Soft smart casual',
       structure: 'separates',
-      paletteModes: ['warm_earthy', 'neutral_accent', 'tonal'],
+      paletteModes: ['analogous', 'neutral_plus_accent', 'tonal'],
       topCategories: ['blouse', 'shirt', 'sweater'],
       topTypes: ['gomlek', 'kazak'],
       bottomCategories: ['jeans', 'skirt', 'tailored_trousers'],
@@ -683,7 +690,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'modest_romantic',
       label: 'Modest romantic',
       structure: 'either',
-      paletteModes: ['soft_pastel', 'warm_earthy', 'neutral_accent'],
+      paletteModes: ['tonal', 'analogous', 'neutral_plus_accent'],
       topCategories: ['blouse', 'sweater'],
       topTypes: ['gomlek', 'kazak'],
       bottomCategories: ['skirt', 'tailored_trousers'],
@@ -704,7 +711,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       id: 'clean_daily',
       label: 'Clean daily',
       structure: 'separates',
-      paletteModes: ['monochrome', 'tonal', 'cool_classic'],
+      paletteModes: ['monochrome', 'tonal', 'tonal'],
       topCategories: ['blouse', 'shirt', 't_shirt'],
       topTypes: ['gomlek', 'tisort'],
       bottomCategories: ['jeans', 'skirt', 'tailored_trousers'],
@@ -753,10 +760,10 @@ export function selectOutfitConcept(params: {
   const hot = params.weather && params.weather.temperature >= 26;
   const cool = params.weather && (params.weather.temperature <= 16 || params.weather.needsOuterwear);
 
-  if (hot && occasion === 'daily') {
+  if (hot && (occasion === 'daily' || occasion === 'coffee')) {
     concepts = concepts.sort((a, b) => {
-      const aSummer = a.id.includes('summer') ? -1 : 0;
-      const bSummer = b.id.includes('summer') ? -1 : 0;
+      const aSummer = a.id.includes('summer') || a.id.includes('denim') || a.id.includes('relaxed') ? -1 : 0;
+      const bSummer = b.id.includes('summer') || b.id.includes('denim') || b.id.includes('relaxed') ? -1 : 0;
       return aSummer - bSummer;
     });
   }
@@ -799,6 +806,9 @@ export function scoreItemForConcept(
   role: 'top' | 'bottom' | 'one_piece' | 'shoes' | 'bag' | 'outerwear' | 'accessory',
 ): number {
   const profile = getEffectiveStyleProfile(item);
+  const category = hasUserWardrobeMetadata(item)
+    ? authoritativeProductCategory(item)
+    : profile.category;
   let score = 0;
 
   const cats =
@@ -823,13 +833,13 @@ export function scoreItemForConcept(
             ? concept.shoeTypes
             : [];
 
-  if (cats.includes(profile.category)) score += 10;
-  else if (types.includes(item.itemType)) score += 7;
+  if (cats.includes(category)) score += hasUserWardrobeMetadata(item) ? 14 : 10;
+  else if (!hasUserWardrobeMetadata(item) && types.includes(item.itemType)) score += 7;
   else if (cats.length === 0 && types.length === 0) score += 2;
-  else score -= 6;
+  else score -= hasUserWardrobeMetadata(item) ? 10 : 6;
 
-  if (concept.avoidCategories.includes(profile.category)) score -= 22;
-  if (concept.avoidTypes.includes(item.itemType)) score -= 18;
+  if (concept.avoidCategories.includes(category)) score -= 22;
+  if (!hasUserWardrobeMetadata(item) && concept.avoidTypes.includes(item.itemType)) score -= 18;
 
   const formality = profile.formality === 'formal' ? 0.95 : profile.formality === 'elegant' ? 0.85 : profile.formality === 'office' ? 0.8 : profile.formality === 'smart_casual' ? 0.65 : profile.formality === 'casual' ? 0.4 : 0.5;
   if (formality > concept.maxFormality + 0.08) score -= 12;
@@ -850,7 +860,7 @@ export function conceptAllowsOuterwear(
 ): boolean {
   if (concept.allowOuterwear === 'never') return false;
   if (!weather) return concept.allowOuterwear === 'smart' && hasRealTopUnder;
-  const hot = weather.temperature >= 28 && !weather.isRainy;
+  const hot = weather.temperature >= HOT_WEATHER_HARD_C && !weather.isRainy;
   if (hot) return false;
   const needs =
     weather.needsOuterwear ||

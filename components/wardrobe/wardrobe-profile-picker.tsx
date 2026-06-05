@@ -1,141 +1,76 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTranslation } from '@/contexts/locale-context';
+import type { WardrobeItemTypeId } from '@/i18n/types';
 import {
-  buildStyleProfile,
+  buildStyleProfileFromUpload,
+  deriveItemTypeFromProfile,
   WARDROBE_COLOR_IDS,
-  WARDROBE_SEASON_IDS,
-  WARDROBE_SLOT_ORDER,
-  WARDROBE_STYLE_TAG_IDS,
-  WARDROBE_SUBCATEGORIES,
-  WARDROBE_USE_CASE_IDS,
-  type BuildStyleProfileInput,
+  WARDROBE_UPLOAD_PRODUCT_ORDER,
+  WARDROBE_UPLOAD_USE_CASE_ORDER,
   type WardrobeColorId,
-  type WardrobeFormalityTag,
-  type WardrobeSeasonId,
-  type WardrobeSlotId,
-  type WardrobeStyleTagId,
+  type WardrobeStyleProfile,
   type WardrobeUseCaseId,
 } from '@/lib/wardrobe-style-profile';
-import { deriveItemTypeFromProfile } from '@/lib/wardrobe-style-profile';
-import type { WardrobeItemTypeId } from '@/i18n/types';
 import { StyloveColors } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 
 export type WardrobeProfileSelection = {
   name: string;
   itemType: WardrobeItemTypeId;
-  styleProfile: ReturnType<typeof buildStyleProfile>;
+  styleProfile: WardrobeStyleProfile;
 };
 
 type WardrobeProfilePickerProps = {
   onComplete: (selection: WardrobeProfileSelection) => void;
 };
 
-const FORMALITY_OPTIONS: WardrobeFormalityTag[] = [
-  'casual',
-  'smart_casual',
-  'office',
-  'elegant',
-  'formal',
-  'sporty',
-];
-
-function toggleInList<T extends string>(list: T[], value: T, max?: number): T[] {
+function toggleInList<T extends string>(list: T[], value: T): T[] {
   if (list.includes(value)) return list.filter((v) => v !== value);
-  if (max && list.length >= max) return list;
   return [...list, value];
+}
+
+function productTypeLabel(subcategory: string, t: ReturnType<typeof useTranslation>): string {
+  return t.wardrobe.profileUploadProducts[subcategory] ?? t.wardrobe.profileSubtypes[subcategory] ?? subcategory;
 }
 
 function WardrobeProfilePickerComponent({ onComplete }: WardrobeProfilePickerProps) {
   const t = useTranslation();
-  const [slot, setSlot] = useState<WardrobeSlotId | null>(null);
-  const [subcategory, setSubcategory] = useState<string | null>(null);
+  const [productType, setProductType] = useState<string | null>(null);
   const [color, setColor] = useState<WardrobeColorId | null>(null);
-  const [styleTags, setStyleTags] = useState<WardrobeStyleTagId[]>([]);
-  const [season, setSeason] = useState<WardrobeSeasonId | null>(null);
   const [useCases, setUseCases] = useState<WardrobeUseCaseId[]>([]);
-  const [formality, setFormality] = useState<WardrobeFormalityTag | null>(null);
 
-  const subtypes = useMemo(
-    () => (slot ? [...WARDROBE_SUBCATEGORIES[slot]] : []),
-    [slot],
-  );
-
-  const canSave =
-    slot &&
-    subcategory &&
-    color &&
-    styleTags.length > 0 &&
-    season &&
-    useCases.length > 0 &&
-    formality;
+  const canSave = productType && color && useCases.length > 0;
 
   const emitSave = useCallback(() => {
-    if (!canSave || !slot || !subcategory || !color || !season || !formality) return;
-    const input: BuildStyleProfileInput = {
-      slot,
-      subcategory,
+    if (!canSave || !productType || !color) return;
+    const styleProfile = buildStyleProfileFromUpload({
+      subcategory: productType,
       color,
-      styleTags,
-      season,
       useCases,
-      formality,
-      isStatementPiece: false,
-    };
-    const styleProfile = buildStyleProfile(input);
+    });
     const itemType = deriveItemTypeFromProfile(styleProfile);
-    const name =
-      t.wardrobe.profileSubtypes[subcategory] ?? t.wardrobe.profileSlots[slot];
+    const name = productTypeLabel(productType, t);
     onComplete({ name, itemType, styleProfile });
-  }, [
-    canSave,
-    slot,
-    subcategory,
-    color,
-    styleTags,
-    season,
-    useCases,
-    formality,
-    t,
-    onComplete,
-  ]);
+  }, [canSave, productType, color, useCases, t, onComplete]);
 
   return (
     <ScrollView style={styles.scroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>{t.wardrobe.profileTitle}</Text>
 
-      <Section label={t.wardrobe.profileStepSlot}>
+      <Section label={t.wardrobe.profileStepProductType}>
         <ChipGrid>
-          {WARDROBE_SLOT_ORDER.map((id) => (
+          {WARDROBE_UPLOAD_PRODUCT_ORDER.map((id) => (
             <Chip
               key={id}
-              label={t.wardrobe.profileSlots[id]}
-              active={slot === id}
-              onPress={() => {
-                setSlot(id);
-                setSubcategory(null);
-              }}
+              label={productTypeLabel(id, t)}
+              active={productType === id}
+              onPress={() => setProductType(id)}
             />
           ))}
         </ChipGrid>
       </Section>
-
-      {slot ? (
-        <Section label={t.wardrobe.profileStepSubtype}>
-          <ChipGrid>
-            {subtypes.map((id) => (
-              <Chip
-                key={id}
-                label={t.wardrobe.profileSubtypes[id] ?? id}
-                active={subcategory === id}
-                onPress={() => setSubcategory(id)}
-              />
-            ))}
-          </ChipGrid>
-        </Section>
-      ) : null}
 
       <Section label={t.wardrobe.profileStepColor}>
         <ChipGrid>
@@ -150,53 +85,14 @@ function WardrobeProfilePickerComponent({ onComplete }: WardrobeProfilePickerPro
         </ChipGrid>
       </Section>
 
-      <Section label={t.wardrobe.profileStepStyle}>
-        <ChipGrid>
-          {WARDROBE_STYLE_TAG_IDS.map((id) => (
-            <Chip
-              key={id}
-              label={t.wardrobe.profileStyleTags[id]}
-              active={styleTags.includes(id)}
-              onPress={() => setStyleTags((prev) => toggleInList(prev, id, 4))}
-            />
-          ))}
-        </ChipGrid>
-      </Section>
-
-      <Section label={t.wardrobe.profileStepSeason}>
-        <ChipGrid>
-          {WARDROBE_SEASON_IDS.map((id) => (
-            <Chip
-              key={id}
-              label={t.wardrobe.profileSeasons[id]}
-              active={season === id}
-              onPress={() => setSeason(id)}
-            />
-          ))}
-        </ChipGrid>
-      </Section>
-
       <Section label={t.wardrobe.profileStepUseCase}>
         <ChipGrid>
-          {WARDROBE_USE_CASE_IDS.map((id) => (
+          {WARDROBE_UPLOAD_USE_CASE_ORDER.map((id) => (
             <Chip
               key={id}
               label={t.wardrobe.profileUseCases[id]}
               active={useCases.includes(id)}
-              onPress={() => setUseCases((prev) => toggleInList(prev, id, 4))}
-            />
-          ))}
-        </ChipGrid>
-      </Section>
-
-      <Section label={t.wardrobe.profileStepFormality}>
-        <ChipGrid>
-          {FORMALITY_OPTIONS.map((id) => (
-            <Chip
-              key={id}
-              label={t.wardrobe.profileFormalities[id]}
-              active={formality === id}
-              onPress={() => setFormality(id)}
+              onPress={() => setUseCases((prev) => toggleInList(prev, id))}
             />
           ))}
         </ChipGrid>

@@ -262,6 +262,7 @@ export type TranslationKeys = {
     chooseFromGallery: string;
     chooseType: string;
     profileTitle: string;
+    profileStepProductType: string;
     profileStepSlot: string;
     profileStepSubtype: string;
     profileStepColor: string;
@@ -272,6 +273,7 @@ export type TranslationKeys = {
     profileSave: string;
     profileSlots: Record<import('@/lib/wardrobe-style-profile').WardrobeSlotId, string>;
     profileSubtypes: Record<string, string>;
+    profileUploadProducts: Record<string, string>;
     profileColors: Record<import('@/lib/wardrobe-style-profile').WardrobeColorId, string>;
     profileStyleTags: Record<import('@/lib/wardrobe-style-profile').WardrobeStyleTagId, string>;
     profileSeasons: Record<import('@/lib/wardrobe-style-profile').WardrobeSeasonId, string>;

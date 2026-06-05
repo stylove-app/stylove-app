@@ -353,12 +353,6 @@ function scoreColorHarmonyBible(
   if (statementCount > 3) score -= 6;
   else if (statementCount === 3) score -= 2;
 
-  const matchesPalette = SAFE_PALETTES.some((palette) => {
-    const hits = uniqueTones.filter((tone) => palette.includes(tone)).length;
-    return hits >= 2;
-  });
-  if (matchesPalette) score += 2;
-
   const heavyPattern = profiles.filter((p) => p.patternLevel >= 2).length;
   if (heavyPattern >= 2) score -= 5;
 

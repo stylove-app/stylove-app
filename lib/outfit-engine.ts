@@ -17,6 +17,7 @@ import {
 } from '@/lib/wardrobe-style-profile';
 import type { SelectedOccasionId } from '@/lib/selected-occasion';
 import { resolveSelectedOccasion } from '@/lib/selected-occasion';
+import { hasUserWardrobeMetadata } from '@/lib/wardrobe-metadata-authority';
 import { scoreWomenPieceForOccasion } from '@/lib/women-outfit-scoring';
 import {
   buildHarmonyOutfitExplanation,
@@ -626,7 +627,7 @@ function buildCompleteOutfit(
             seed: candidateSeed,
           });
 
-    const validation = validateOutfitStructure(pieces, params.selectedOccasion);
+    const validation = validateOutfitStructure(pieces, params.selectedOccasion, params.weather);
     if (!validation.valid) {
       logInvalidOutfitCandidate(validation.reason ?? 'unknown', attempt);
       logOutfitCandidateRejection({
@@ -658,7 +659,8 @@ function buildCompleteOutfit(
     if (params.selectedOccasion) {
       for (const piece of pieces) {
         const profile = analyzeWardrobeItem(toStylingWardrobeItem(piece.item));
-        score += scoreWomenPieceForOccasion(piece.item, profile, params.selectedOccasion) * 0.06;
+        const metadataWeight = hasUserWardrobeMetadata(piece.item) ? 0.14 : 0.06;
+        score += scoreWomenPieceForOccasion(piece.item, profile, params.selectedOccasion) * metadataWeight;
       }
     }
     score += scoreRegenerateCoreDiversity(
@@ -753,7 +755,7 @@ function buildWardrobeLedCopy(
   whyThisWorks?: string;
 } {
   if (pieces.length === 0) return {};
-  const structure = validateOutfitStructure(pieces, occasion);
+  const structure = validateOutfitStructure(pieces, occasion, weather);
   if (!structure.valid) return {};
 
   const primary =

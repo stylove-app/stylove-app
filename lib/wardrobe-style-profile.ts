@@ -80,6 +80,7 @@ export type WardrobeSeasonId = 'summer' | 'winter' | 'spring_autumn' | 'all_seas
 export type WardrobeUseCaseId =
   | 'daily'
   | 'office'
+  | 'coffee'
   | 'dinner'
   | 'date'
   | 'wedding'
@@ -154,6 +155,7 @@ export const WARDROBE_SEASON_IDS: WardrobeSeasonId[] = [
 export const WARDROBE_USE_CASE_IDS: WardrobeUseCaseId[] = [
   'daily',
   'office',
+  'coffee',
   'dinner',
   'date',
   'wedding',
@@ -162,6 +164,18 @@ export const WARDROBE_USE_CASE_IDS: WardrobeUseCaseId[] = [
   'shopping',
   'walking',
   'sport',
+];
+
+/** Home-aligned usage places shown on the upload/profile form (multi-select). */
+export const WARDROBE_UPLOAD_USE_CASE_ORDER: WardrobeUseCaseId[] = [
+  'daily',
+  'office',
+  'coffee',
+  'shopping',
+  'date',
+  'dinner',
+  'wedding',
+  'beach',
 ];
 
 export const WARDROBE_SUBCATEGORIES: Record<WardrobeSlotId, readonly string[]> = {
@@ -196,6 +210,43 @@ export const WARDROBE_SUBCATEGORIES: Record<WardrobeSlotId, readonly string[]> =
   accessory: ['belt', 'sunglasses', 'scarf', 'accessory'],
   jewelry: ['watch', 'necklace', 'earrings'],
 };
+
+/** Flat product-type list for upload form (single-select). */
+export const WARDROBE_UPLOAD_PRODUCT_ORDER: readonly string[] = [
+  't_shirt',
+  'shirt',
+  'blouse',
+  'crop_top',
+  'sweater',
+  'cardigan',
+  'jeans',
+  'tailored_trousers',
+  'skirt',
+  'shorts',
+  'midi_dress',
+  'matching_set',
+  'sneaker',
+  'loafer',
+  'heel',
+  'sandal',
+  'boot',
+  'bag',
+  'belt',
+  'watch',
+  'sunglasses',
+  'earrings',
+  'necklace',
+];
+
+const SUBCATEGORY_TO_SLOT: Record<string, WardrobeSlotId> = Object.fromEntries(
+  Object.entries(WARDROBE_SUBCATEGORIES).flatMap(([slot, subs]) =>
+    subs.map((sub) => [sub, slot as WardrobeSlotId]),
+  ),
+) as Record<string, WardrobeSlotId>;
+
+export function slotForSubcategory(subcategory: string): WardrobeSlotId {
+  return SUBCATEGORY_TO_SLOT[subcategory] ?? 'accessory';
+}
 
 const ONE_PIECE_SLOTS = new Set<WardrobeSlotId>(['dress', 'jumpsuit', 'set']);
 
@@ -332,6 +383,94 @@ export function buildStyleProfile(input: BuildStyleProfileInput): WardrobeStyleP
   };
 }
 
+const SPORTY_SUBCATEGORIES = new Set(['sneaker', 'shorts', 'crop_top', 't_shirt']);
+const ELEGANT_SUBCATEGORIES = new Set(['heel', 'evening_dress', 'necklace', 'earrings']);
+const OFFICE_SUBCATEGORIES = new Set(['shirt', 'blouse', 'tailored_trousers', 'office_dress', 'loafer']);
+const SUMMER_LEAN_SUBCATEGORIES = new Set(['sandal', 'shorts', 'crop_top', 't_shirt', 'summer_dress']);
+
+/** Derives hidden style_profile fields from product type + usage places (upload form). */
+export function deriveUploadStyleDefaults(
+  subcategory: string,
+  useCases: WardrobeUseCaseId[],
+): Pick<BuildStyleProfileInput, 'styleTags' | 'season' | 'formality'> {
+  const tags = new Set<WardrobeStyleTagId>();
+
+  for (const useCase of useCases) {
+    switch (useCase) {
+      case 'daily':
+      case 'shopping':
+        tags.add('casual');
+        break;
+      case 'office':
+        tags.add('office');
+        break;
+      case 'coffee':
+        tags.add('smart_casual');
+        break;
+      case 'date':
+        tags.add('romantic');
+        tags.add('elegant');
+        break;
+      case 'dinner':
+      case 'wedding':
+        tags.add('evening');
+        tags.add('elegant');
+        break;
+      case 'beach':
+        tags.add('vacation');
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (tags.size === 0) tags.add('casual');
+
+  let formality: WardrobeFormalityTag = 'smart_casual';
+  if (SPORTY_SUBCATEGORIES.has(subcategory)) {
+    formality = useCases.includes('office') ? 'smart_casual' : 'casual';
+  } else if (ELEGANT_SUBCATEGORIES.has(subcategory)) {
+    formality = 'elegant';
+  } else if (OFFICE_SUBCATEGORIES.has(subcategory) && useCases.includes('office')) {
+    formality = 'office';
+  } else if (useCases.includes('wedding') || useCases.includes('dinner')) {
+    formality = 'elegant';
+  } else if (useCases.includes('office')) {
+    formality = 'office';
+  } else if (useCases.includes('daily') || useCases.includes('beach') || useCases.includes('shopping')) {
+    formality = 'casual';
+  }
+
+  const season: WardrobeSeasonId = SUMMER_LEAN_SUBCATEGORIES.has(subcategory)
+    ? 'summer'
+    : subcategory === 'sweater' || subcategory === 'boot'
+      ? 'spring_autumn'
+      : 'all_season';
+
+  return { styleTags: [...tags], season, formality };
+}
+
+export type BuildStyleProfileFromUploadInput = {
+  subcategory: string;
+  color: WardrobeColorId;
+  useCases: WardrobeUseCaseId[];
+};
+
+export function buildStyleProfileFromUpload(input: BuildStyleProfileFromUploadInput): WardrobeStyleProfile {
+  const slot = slotForSubcategory(input.subcategory);
+  const derived = deriveUploadStyleDefaults(input.subcategory, input.useCases);
+  return buildStyleProfile({
+    slot,
+    subcategory: input.subcategory,
+    color: input.color,
+    styleTags: derived.styleTags,
+    season: derived.season,
+    useCases: input.useCases,
+    formality: derived.formality,
+    isStatementPiece: false,
+  });
+}
+
 export function deriveItemTypeFromProfile(profile: WardrobeStyleProfile): WardrobeItemTypeId {
   return itemTypeForSubcategory(profile.category);
 }
@@ -418,6 +557,9 @@ export function fallbackStyleProfileFromItem(item: StyleProfileSourceItem): Ward
 }
 
 export function getEffectiveStyleProfile(item: StyleProfileSourceItem): WardrobeStyleProfile {
+  if (item.styleProfile?.genderMode === 'women') {
+    return item.styleProfile;
+  }
   return fallbackStyleProfileFromItem(item);
 }
 

@@ -39,6 +39,18 @@ import {
 import { getEffectiveStyleProfile } from '@/lib/wardrobe-style-profile';
 import type { StyleMemory } from '@/lib/style-memory';
 import type { WeatherSnapshot } from '@/lib/weather';
+import {
+  filterPoolByOccasionAuthority,
+  scoreOccasionAuthorityPreference,
+  type OccasionAssemblyRole,
+} from '@/lib/occasion-style-authority';
+import {
+  classifyUseCaseMatch,
+  hasUserWardrobeMetadata,
+  poolHasDirectUseCaseMatch,
+  scoreMetadataProductTypeAlignment,
+  scoreUseCaseOccasionMatch,
+} from '@/lib/wardrobe-metadata-authority';
 import { scoreWomenPieceForOccasion } from '@/lib/women-outfit-scoring';
 
 export type ConceptAssemblyResult = {
@@ -103,12 +115,32 @@ function scoreCandidateItem(
 ): number {
   const profile = analyzeWardrobeItem(toStylingItem(item));
   let score = scoreItemForConcept(item, concept, role);
-  score += scoreItemPaletteFit(item, palette) * 1.4;
+  const paletteWeight = role === 'shoes' || role === 'bag' ? 2.2 : 1.5;
+  score += scoreItemPaletteFit(item, palette) * paletteWeight;
   score += scoreHotWeatherItem(toStylingItem(item), params.weather, params.selectedOccasion);
   score += scoreItemUsageDiversity(toStylingItem(item), params.recentOutfitSets ?? [], new Set(params.recentItemIds ?? []));
 
   if (params.selectedOccasion) {
-    score += scoreWomenPieceForOccasion(item, profile, params.selectedOccasion) * 0.5;
+    const useCaseScore = scoreUseCaseOccasionMatch(item, params.selectedOccasion);
+    const isUser = hasUserWardrobeMetadata(item);
+    score += useCaseScore * (isUser ? 1.15 : 0.45);
+    score += scoreWomenPieceForOccasion(item, profile, params.selectedOccasion) * (isUser ? 0.25 : 0.5);
+    if (!isUser) {
+      score += scoreOccasionAuthorityPreference(item, params.selectedOccasion, role) * 0.8;
+    }
+    const expectedCats =
+      role === 'top'
+        ? concept.topCategories
+        : role === 'bottom'
+          ? concept.bottomCategories
+          : role === 'one_piece'
+            ? concept.onePieceCategories
+            : role === 'shoes'
+              ? concept.shoeCategories
+              : [];
+    if (expectedCats.length > 0) {
+      score += scoreMetadataProductTypeAlignment(item, expectedCats) * (isUser ? 1.2 : 0.3);
+    }
   }
 
   if (anchor) {
@@ -124,7 +156,8 @@ function scoreCandidateItem(
     preferredTypes: [],
     seed: params.seed,
   };
-  score += scorePieceCandidate(profile, draftCtx) * 0.12;
+  const heuristicWeight = hasUserWardrobeMetadata(item) ? 0.04 : 0.12;
+  score += scorePieceCandidate(profile, draftCtx) * heuristicWeight;
 
   return score;
 }
@@ -138,8 +171,35 @@ function rankPool(
   anchor: ItemStylingProfile | null,
   selected: ItemStylingProfile[],
 ): WardrobeItem[] {
-  const offset = params.seed % Math.max(1, pool.length);
-  const rotated = [...pool.slice(offset), ...pool.slice(0, offset)];
+  const authorityRole = role as OccasionAssemblyRole;
+  const eligible = filterPoolByOccasionAuthority(
+    pool,
+    params.selectedOccasion,
+    authorityRole,
+    params.weather,
+  );
+
+  let rankedPool = eligible;
+  if (params.selectedOccasion && poolHasDirectUseCaseMatch(eligible, params.selectedOccasion)) {
+    const direct = eligible.filter(
+      (item) =>
+        classifyUseCaseMatch(
+          getEffectiveStyleProfile(item).useCases,
+          params.selectedOccasion!,
+        ) === 'direct',
+    );
+    const related = eligible.filter(
+      (item) =>
+        classifyUseCaseMatch(
+          getEffectiveStyleProfile(item).useCases,
+          params.selectedOccasion!,
+        ) === 'related',
+    );
+    rankedPool = [...direct, ...related, ...eligible.filter((i) => !direct.includes(i) && !related.includes(i))];
+  }
+
+  const offset = params.seed % Math.max(1, rankedPool.length);
+  const rotated = [...rankedPool.slice(offset), ...rankedPool.slice(0, offset)];
   return [...rotated]
     .map((item, index) => ({
       item,
@@ -285,6 +345,8 @@ export function assembleOutfitWithConcept(
     corePool,
     concept,
     seed: params.seed + params.attempt * 3,
+    occasion: params.selectedOccasion,
+    weather: params.weather,
   });
 
   const selected: ItemStylingProfile[] = [];

@@ -9,6 +9,7 @@ import {
   type WardrobeSlotId,
   type WardrobeStyleProfile,
 } from '@/lib/wardrobe-style-profile';
+import { HOT_WEATHER_HARD_C, validateOccasionAuthority } from '@/lib/occasion-style-authority';
 import { isQaTestMode } from '@/lib/qa-test-mode';
 
 const FINISHING_SLOTS = new Set<WardrobeSlotId>(['shoes', 'bag', 'accessory', 'jewelry']);
@@ -36,7 +37,7 @@ const ACCESSORY_ONLY_TYPES = new Set<WardrobeItemTypeId>([
   'canta',
 ]);
 
-const HOT_WEATHER_C = 29;
+const HOT_WEATHER_C = HOT_WEATHER_HARD_C;
 
 export type WardrobePools = {
   tops: WardrobeItem[];
@@ -157,6 +158,7 @@ export function allowsWatchForOccasion(occasion?: SelectedOccasionId, weather?: 
 export function validateOutfitStructure(
   pieces: OutfitPiece[],
   occasion?: SelectedOccasionId,
+  weather?: WeatherSnapshot,
 ): { valid: boolean; reason?: string } {
   const ids = pieces.map((p) => p.item.id);
   if (new Set(ids).size !== ids.length) {
@@ -218,6 +220,11 @@ export function validateOutfitStructure(
 
   if (!roles.includes('shoes') && pieces.length > 0) {
     return { valid: false, reason: 'missing_shoes' };
+  }
+
+  const occasionFit = validateOccasionAuthority(pieces, occasion, weather);
+  if (!occasionFit.valid) {
+    return occasionFit;
   }
 
   return { valid: true };
@@ -290,9 +297,10 @@ export function scoreHotWeatherItem(
   if (lightBoost.has(profile.category)) score += 8;
   if (profile.season === 'summer') score += 3;
 
-  const heavyBan = new Set(['blazer', 'coat', 'jacket', 'sweater', 'boot', 'heel', 'tailored_trousers']);
-  if (heavyBan.has(profile.category)) score -= 12;
-  if (OUTERWEAR_SUBCATEGORIES.has(profile.category)) score -= 10;
+  const heavyBan = new Set(['blazer', 'coat', 'jacket', 'sweater', 'boot', 'heel', 'tailored_trousers', 'cardigan']);
+  if (heavyBan.has(profile.category)) score -= 18;
+  if (OUTERWEAR_SUBCATEGORIES.has(profile.category)) score -= 16;
+  if (profile.slot === 'outerwear') score -= 20;
 
   if (occasion === 'beach' || occasion === 'vacation' || occasion === 'shopping' || occasion === 'sport_walk') {
     if (profile.category === 'heel') score -= 14;

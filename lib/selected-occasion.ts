@@ -15,16 +15,22 @@ export type SelectedOccasionId =
   | 'travel'
   | 'family_visit';
 
-export const SELECTED_OCCASION_ORDER: SelectedOccasionId[] = [
+/** Home occasion grid — 8 cards shown on the Home tab. */
+export const HOME_OCCASION_CARD_ORDER: SelectedOccasionId[] = [
   'daily',
   'office',
-  'dinner',
-  'date',
-  'shopping',
   'coffee',
-  'beach',
-  'vacation',
+  'shopping',
+  'date',
+  'dinner',
   'wedding',
+  'beach',
+];
+
+/** Full occasion ID list (engine, travel, saved looks). Hidden IDs stay supported internally. */
+export const SELECTED_OCCASION_ORDER: SelectedOccasionId[] = [
+  ...HOME_OCCASION_CARD_ORDER,
+  'vacation',
   'sport_walk',
   'travel',
   'family_visit',

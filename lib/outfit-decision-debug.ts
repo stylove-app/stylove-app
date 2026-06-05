@@ -111,7 +111,7 @@ export function buildOutfitDecisionReport(params: {
   extraNotes?: string[];
 }): OutfitDecisionReport {
   const items = params.pieces.map((p) => p.item);
-  const validation = validateOutfitStructure(params.pieces, params.occasion);
+  const validation = validateOutfitStructure(params.pieces, params.occasion, params.weather);
   const harmony = scoreOutfitHarmonyLayer({
     items,
     selectedOccasion: params.occasion,

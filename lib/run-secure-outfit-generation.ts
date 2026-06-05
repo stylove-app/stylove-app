@@ -131,7 +131,7 @@ export async function runSecureOutfitGeneration({
   const isHomeFlow = analyticsSource === 'home' || analyticsSource === 'replace';
   if (isHomeFlow) {
     const finalPieces = look.completeOutfit ?? [];
-    const finalValidation = validateOutfitStructure(finalPieces, selectedOccasion);
+    const finalValidation = validateOutfitStructure(finalPieces, selectedOccasion, resolvedWeather);
 
     logSecureOutfitFinalDiagnostic({
       path: remoteOk ? 'local_validated_openai_copy_only' : 'local_validated',
