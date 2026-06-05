@@ -46,6 +46,14 @@ import {
   scoreOutfitPiecesWithBible,
 } from '@/lib/styling-bible';
 import {
+  computeChangedCorePercent,
+  logStyloveDiversity,
+  repeatedItemIds,
+  scoreOutfitComboRepeat,
+  stylingComboSignature,
+} from '@/lib/outfit-diversity';
+import {
+  allowsSunglassesForOccasion,
   allowsWatchForOccasion,
   corePieceIdsFromOutfit,
   isRealTopItem,
@@ -107,6 +115,8 @@ export type CuratedLook = {
   archiveCategory?: string;
   /** Internal: last styling concept used for regenerate rotation. */
   stylingConceptId?: string;
+  /** Internal: palette mode used for regenerate rotation. */
+  paletteMode?: string;
 };
 
 export type OutfitPieceRole =
@@ -272,7 +282,11 @@ function pickLimitedAccessories(
   },
 ): { jewelry?: WardrobeItem; accessory?: WardrobeItem } {
   if (params.maxCount <= 0) return {};
-  const { jewelry: jewelryPool, accessories: accessoryPool } = pickAccessoryCandidates(pools, params.allowWatch);
+  const { jewelry: jewelryPool, accessories: accessoryPool } = pickAccessoryCandidates(
+    pools,
+    params.allowWatch,
+    allowsSunglassesForOccasion(base.selectedOccasion, base.weather),
+  );
   const combined = [...jewelryPool, ...accessoryPool];
   if (combined.length === 0) return {};
 
@@ -574,8 +588,13 @@ function buildCompleteOutfit(
     regenerate?: boolean;
     styleMemory?: StyleMemory;
     previousConceptId?: string;
+    previousPaletteMode?: string;
+    previousComboSignature?: string;
+    previousItemIds?: string[];
+    previousWasOnePiece?: boolean;
+    diversitySource?: 'home' | 'replace' | 'looks' | 'engine';
   },
-): { pieces: OutfitPiece[]; stylingConceptId?: string } {
+): { pieces: OutfitPiece[]; stylingConceptId?: string; paletteMode?: string } {
   const pools = partitionWardrobeBySlot(params.wardrobe);
   const stylingWardrobe = params.wardrobe.map((item) => ({
     id: item.id,
@@ -585,7 +604,14 @@ function buildCompleteOutfit(
   }));
   let bestPieces: OutfitPiece[] = [];
   let bestConceptId: string | undefined;
+  let bestPaletteMode: string | undefined;
+  let bestDiversityPenalty = 0;
   let bestScore = -Infinity;
+  const previousCore = params.recentCoreSets?.[params.recentCoreSets.length - 1] ?? [];
+  const wardrobeHasCoreAlternatives =
+    pools.onePieces.length >= 2 ||
+    (pools.tops.length >= 2 && pools.bottoms.length >= 2) ||
+    pools.onePieces.length >= 1 && pools.tops.length >= 1 && pools.bottoms.length >= 1;
   const attemptCount = params.regenerate ? REGENERATE_OUTFIT_CANDIDATE_COUNT : OUTFIT_CANDIDATE_COUNT;
   const bibleContext = {
     mood: params.mood,
@@ -617,6 +643,10 @@ function buildCompleteOutfit(
       styleMemory: params.styleMemory,
       regenerate: params.regenerate,
       previousConceptId: params.previousConceptId,
+      previousPaletteMode: params.previousPaletteMode,
+      previousWasOnePiece: params.previousWasOnePiece,
+      previousComboSignature: params.previousComboSignature,
+      previousItemIds: params.previousItemIds,
     });
 
     const pieces =
@@ -663,15 +693,35 @@ function buildCompleteOutfit(
         score += scoreWomenPieceForOccasion(piece.item, profile, params.selectedOccasion) * metadataWeight;
       }
     }
+    const comboPenalty = scoreOutfitComboRepeat(pieces, params.recentOutfitSets ?? [], {
+      regenerate: params.regenerate,
+      previousComboSignature: params.previousComboSignature,
+      previousItemIds: params.previousItemIds,
+      slotPoolSizes: { bags: pools.bags.length, shoes: pools.shoes.length },
+    });
+    score += comboPenalty;
+
     score += scoreRegenerateCoreDiversity(
       corePieceIdsFromOutfit(pieces),
       params.recentCoreSets ?? params.recentOutfitSets ?? [],
       params.regenerate,
+      wardrobeHasCoreAlternatives,
     );
+
+    if (params.regenerate && params.previousComboSignature) {
+      const candidateSig = stylingComboSignature(pieces);
+      if (candidateSig === params.previousComboSignature) {
+        score -= 40;
+      }
+    }
+
+    const diversityPenalty = comboPenalty;
     if (score > bestScore) {
       bestScore = score;
       bestPieces = pieces;
       bestConceptId = conceptResult?.concept.id;
+      bestPaletteMode = conceptResult?.palette.mode;
+      bestDiversityPenalty = diversityPenalty;
     }
   }
 
@@ -695,7 +745,28 @@ function buildCompleteOutfit(
     logOutfitDecisionReport(report);
   }
 
-  return { pieces: bestPieces, stylingConceptId: bestConceptId };
+  if (bestPieces.length > 0) {
+    const newItemIds = bestPieces.map((p) => p.item.id);
+    const newCore = corePieceIdsFromOutfit(bestPieces);
+    logStyloveDiversity({
+      source: params.diversitySource ?? 'engine',
+      occasion: params.selectedOccasion,
+      regenerate: Boolean(params.regenerate),
+      previousItemIds: params.previousItemIds ?? [],
+      newItemIds,
+      repeatedItemIds: repeatedItemIds(params.previousItemIds ?? [], newItemIds),
+      changedCorePercent: computeChangedCorePercent(newCore, previousCore),
+      conceptChanged: Boolean(params.previousConceptId && bestConceptId !== params.previousConceptId),
+      paletteChanged: Boolean(params.previousPaletteMode && bestPaletteMode !== params.previousPaletteMode),
+      diversityPenaltyApplied: bestDiversityPenalty,
+      previousConceptId: params.previousConceptId,
+      newConceptId: bestConceptId,
+      previousPaletteMode: params.previousPaletteMode,
+      newPaletteMode: bestPaletteMode,
+    });
+  }
+
+  return { pieces: bestPieces, stylingConceptId: bestConceptId, paletteMode: bestPaletteMode };
 }
 
 function paletteRejectionReasonFromPieces(pieces: OutfitPiece[], palette: PlannedPalette): string | null {
@@ -813,6 +884,11 @@ export function generateLook(
     selectedOccasion?: SelectedOccasionId;
     displayOccasion?: string;
     previousStylingConceptId?: string;
+    previousPaletteMode?: string;
+    previousItemIds?: string[];
+    previousComboSignature?: string;
+    previousWasOnePiece?: boolean;
+    diversitySource?: 'home' | 'replace' | 'looks' | 'engine';
   },
 ): CuratedLook {
   const { intent, wardrobe, weather, variant = 'default', styleMemory, moodOverride, selectedOccasion } = params;
@@ -856,7 +932,7 @@ export function generateLook(
   }
 
   const stylingWardrobe = getStylingWardrobe(wardrobe);
-  const { pieces: outfitPieces, stylingConceptId } = buildCompleteOutfit(t, {
+  const { pieces: outfitPieces, stylingConceptId, paletteMode } = buildCompleteOutfit(t, {
     intent,
     resolvedIntent,
     selectedOccasion,
@@ -871,6 +947,11 @@ export function generateLook(
     seenSignatures: params.seenSignatures,
     regenerate: params.regenerate,
     previousConceptId: params.previousStylingConceptId,
+    previousPaletteMode: params.previousPaletteMode,
+    previousComboSignature: params.previousComboSignature,
+    previousItemIds: params.previousItemIds,
+    previousWasOnePiece: params.previousWasOnePiece,
+    diversitySource: params.diversitySource,
   });
   const wardrobeHint =
     stylingWardrobe.length === 1 ? t.home.wardrobeHintSingle : undefined;
@@ -1019,6 +1100,7 @@ export function generateLook(
     eventContext,
     intent,
     stylingConceptId,
+    paletteMode,
   };
 }
 

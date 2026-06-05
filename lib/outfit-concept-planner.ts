@@ -773,14 +773,20 @@ export function selectOutfitConcept(params: {
   }
 
   if (params.regenerate && params.previousConceptId) {
-    const prevIdx = concepts.findIndex((c) => c.id === params.previousConceptId);
-    if (prevIdx >= 0) {
-      const rotated = [...concepts.slice(prevIdx + 1), ...concepts.slice(0, prevIdx + 1)];
-      concepts = rotated;
+    const withoutPrevious = concepts.filter((c) => c.id !== params.previousConceptId);
+    if (withoutPrevious.length > 0) {
+      concepts = withoutPrevious;
+    } else {
+      const prevIdx = concepts.findIndex((c) => c.id === params.previousConceptId);
+      if (prevIdx >= 0) {
+        concepts = [...concepts.slice(prevIdx + 1), ...concepts.slice(0, prevIdx + 1)];
+      }
     }
   }
 
-  const index = (params.seed + params.attempt * 11) % concepts.length;
+  const index = params.regenerate
+    ? params.attempt % concepts.length
+    : (params.seed + params.attempt * 11) % concepts.length;
   return concepts[index] ?? concepts[0];
 }
 
@@ -788,7 +794,17 @@ export function resolveConceptStructure(
   concept: OutfitConcept,
   pools: { onePieces: unknown[]; tops: unknown[]; bottoms: unknown[] },
   seed: number,
+  options?: { regenerate?: boolean; previousWasOnePiece?: boolean },
 ): OutfitStructure {
+  if (options?.regenerate) {
+    if (options.previousWasOnePiece && pools.tops.length > 0 && pools.bottoms.length > 0) {
+      return 'separates';
+    }
+    if (!options.previousWasOnePiece && pools.onePieces.length > 0 && concept.structure !== 'separates') {
+      return seed % 2 === 0 ? 'one_piece' : 'separates';
+    }
+  }
+
   if (concept.structure === 'one_piece') {
     return pools.onePieces.length > 0 ? 'one_piece' : 'separates';
   }

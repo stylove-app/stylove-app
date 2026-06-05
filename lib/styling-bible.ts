@@ -462,31 +462,33 @@ export function scoreOutfitDiversity(
   if (seenSignatures.has(signature)) return -40;
 
   let score = 5;
-  const recent = recentOutfitSets.slice(-3);
-  const recentCore = (recentCoreSets ?? recentOutfitSets).slice(-3);
+  const recent = recentOutfitSets.slice(-5);
+  const recentCore = (recentCoreSets ?? recentOutfitSets).slice(-5);
   for (let i = 0; i < recent.length; i += 1) {
     const prior = recent[i];
     const priorCore = recentCore[i] ?? prior;
     const overlap = prior.filter((id) => itemIds.includes(id)).length;
-    if (overlap >= itemIds.length) score -= 25;
-    else if (overlap >= Math.max(1, itemIds.length - 1)) score -= 12;
+    if (overlap >= itemIds.length) score -= 30;
+    else if (overlap >= Math.max(1, itemIds.length - 1)) score -= 16;
     const diff = countOutfitPieceDifference(itemIds, prior);
-    if (diff < 2) score -= 15;
-    else if (diff >= 2) score += 2;
+    if (diff < 2) score -= 20;
+    else if (diff >= 3) score += 3;
+    else if (diff >= 2) score += 1;
 
     if (priorCore.length > 0) {
       const coreOverlap = priorCore.filter((id) => itemIds.includes(id)).length;
       const coreRatio = coreOverlap / Math.max(priorCore.length, 1);
-      if (coreRatio >= 0.5) score -= 22;
-      else if (coreRatio >= 0.34) score -= 10;
-      else if (coreRatio === 0) score += 3;
+      if (coreRatio >= 0.5) score -= 28;
+      else if (coreRatio >= 0.34) score -= 14;
+      else if (coreRatio === 0) score += 4;
     }
   }
 
   const uniqueItems = new Set(itemIds);
   for (const id of itemIds) {
     const usedInRecent = recent.filter((set) => set.includes(id)).length;
-    if (usedInRecent >= 2) score -= 4;
+    if (usedInRecent >= 3) score -= 10;
+    else if (usedInRecent >= 2) score -= 6;
   }
   if (uniqueItems.size >= 3) score += 1;
 
@@ -659,7 +661,7 @@ export function buildOutfitDiversityContext(
   recentItemIds: string[];
 } {
   const sets = looks.map((look) => look.itemIds.filter(Boolean)).filter((ids) => ids.length > 0);
-  const recentOutfitSets = sets.slice(-5);
+  const recentOutfitSets = sets.slice(-6);
   const recentCoreSets = looks
     .map((look) => {
       if (!look.completeOutfit?.length) return look.itemIds.filter(Boolean);
@@ -668,9 +670,9 @@ export function buildOutfitDiversityContext(
         .map((piece) => piece.item.id);
     })
     .filter((ids) => ids.length > 0)
-    .slice(-5);
+    .slice(-6);
   const seenSignatures = new Set(recentOutfitSets.map((ids) => outfitItemSignature(ids)));
-  const recentItemIds = [...new Set(recentOutfitSets.slice(-3).flat())];
+  const recentItemIds = [...new Set(recentOutfitSets.slice(-5).flat())];
   return { recentOutfitSets, recentCoreSets, seenSignatures, recentItemIds };
 }
 

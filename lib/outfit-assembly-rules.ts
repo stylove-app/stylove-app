@@ -10,6 +10,7 @@ import {
   type WardrobeStyleProfile,
 } from '@/lib/wardrobe-style-profile';
 import { HOT_WEATHER_HARD_C, validateOccasionAuthority } from '@/lib/occasion-style-authority';
+import { scoreEnhancedItemUsageDiversity, scoreRegenerateCoreChange } from '@/lib/outfit-diversity';
 import { isQaTestMode } from '@/lib/qa-test-mode';
 
 const FINISHING_SLOTS = new Set<WardrobeSlotId>(['shoes', 'bag', 'accessory', 'jewelry']);
@@ -124,21 +125,20 @@ export function coreOverlapRatio(current: string[], prior: string[]): number {
 }
 
 export function maxAccessoriesForOccasion(occasion?: SelectedOccasionId): number {
-  if (!occasion) return 2;
+  if (!occasion) return 1;
   switch (occasion) {
-    case 'office':
-    case 'daily':
-    case 'shopping':
-    case 'sport_walk':
-    case 'travel':
-      return 1;
     case 'date':
     case 'dinner':
     case 'wedding':
       return 2;
     case 'beach':
     case 'vacation':
-      return 2;
+      return 1;
+    case 'office':
+    case 'daily':
+    case 'shopping':
+    case 'sport_walk':
+    case 'travel':
     case 'coffee':
     case 'family_visit':
       return 1;
@@ -148,11 +148,32 @@ export function maxAccessoriesForOccasion(occasion?: SelectedOccasionId): number
 }
 
 export function allowsWatchForOccasion(occasion?: SelectedOccasionId, weather?: WeatherSnapshot): boolean {
-  if (!occasion) return true;
+  if (!occasion) return false;
   if (occasion === 'beach' || occasion === 'vacation') return false;
   if (weather && weather.temperature >= HOT_WEATHER_C) return false;
-  if (occasion === 'sport_walk' || occasion === 'shopping') return false;
-  return true;
+  if (
+    occasion === 'sport_walk' ||
+    occasion === 'shopping' ||
+    occasion === 'daily' ||
+    occasion === 'coffee' ||
+    occasion === 'date' ||
+    occasion === 'dinner' ||
+    occasion === 'wedding'
+  ) {
+    return false;
+  }
+  return occasion === 'office' || occasion === 'family_visit' || occasion === 'travel';
+}
+
+export function allowsSunglassesForOccasion(
+  occasion?: SelectedOccasionId,
+  weather?: WeatherSnapshot,
+): boolean {
+  if (!occasion) return false;
+  if (occasion === 'beach' || occasion === 'vacation') return true;
+  if (occasion === 'shopping' && weather?.isDay) return true;
+  if (weather && weather.temperature >= 22 && weather.isDay && occasion === 'daily') return true;
+  return false;
 }
 
 export function validateOutfitStructure(
@@ -239,35 +260,39 @@ export function scoreItemUsageDiversity(
   item: StylingWardrobeItem,
   recentOutfitSets: string[][],
   recentItemIds: Set<string>,
+  slotPoolSize?: number,
 ): number {
-  let score = 0;
-  const id = item.id;
-  const slot = getItemSlot(item);
+  return scoreEnhancedItemUsageDiversity(item, recentOutfitSets, recentItemIds, {
+    slotPoolSize,
+  });
+}
 
-  const recentUses = recentOutfitSets.slice(-3).filter((set) => set.includes(id)).length;
-  if (recentItemIds.has(id)) score -= 12;
-  if (recentUses >= 2) score -= 14;
-  else if (recentUses === 1) score -= 6;
-
-  if (slot === 'bag') {
-    const bagUsesLast3 = recentOutfitSets.slice(-3).filter((set) =>
-      set.some((pieceId) => {
-        return pieceId === id;
-      }),
-    ).length;
-    if (bagUsesLast3 >= 1) score -= 10;
-  }
-
+export function scoreAccessoryPickBias(
+  item: StylingWardrobeItem,
+  occasion?: SelectedOccasionId,
+  allowWatch?: boolean,
+  allowSunglasses?: boolean,
+): number {
   const profile = getEffectiveStyleProfile(item);
-  if (profile.category === 'watch' || item.itemType === 'saat') {
-    const watchInLast2 = recentOutfitSets.slice(-2).some((set) =>
-      set.some((pieceId) => pieceId === id),
-    );
-    if (watchInLast2) score -= 18;
+  let score = 0;
+
+  if (item.itemType === 'saat' || profile.category === 'watch') {
+    score -= allowWatch ? 10 : 36;
+    if (occasion === 'office') score += 2;
   }
 
-  const usesEver = recentOutfitSets.flat().filter((x) => x === id).length;
-  if (usesEver === 0) score += 4;
+  if (item.itemType === 'gozluk' || profile.category === 'sunglasses') {
+    score -= allowSunglasses ? 12 : 40;
+  }
+
+  if (['necklace', 'earrings', 'bracelet'].includes(profile.category)) {
+    if (occasion === 'date' || occasion === 'dinner' || occasion === 'wedding') score += 10;
+  }
+
+  if (occasion === 'daily' || occasion === 'coffee' || occasion === 'shopping') {
+    if (item.itemType === 'saat' || profile.category === 'watch') score -= 14;
+    if (item.itemType === 'gozluk') score -= 18;
+  }
 
   return score;
 }
@@ -325,24 +350,24 @@ export function scoreRegenerateCoreDiversity(
   coreIds: string[],
   recentCoreSets: string[][],
   regenerate?: boolean,
+  wardrobeHasAlternatives?: boolean,
 ): number {
-  if (!regenerate || recentCoreSets.length === 0 || coreIds.length === 0) return 0;
-  const lastCore = recentCoreSets[recentCoreSets.length - 1];
-  if (!lastCore?.length) return 0;
-
-  const overlap = coreOverlapRatio(coreIds, lastCore);
-  if (overlap >= 0.5) return -35;
-  if (overlap >= 0.34) return -18;
-  if (overlap === 0) return 6;
-  return 2;
+  return scoreRegenerateCoreChange(coreIds, recentCoreSets, regenerate, wardrobeHasAlternatives);
 }
 
 export function pickAccessoryCandidates(
   pools: WardrobePools,
   allowWatch: boolean,
+  allowSunglasses?: boolean,
 ): { jewelry: WardrobeItem[]; accessories: WardrobeItem[] } {
   const jewelry = allowWatch ? pools.jewelry : pools.jewelry.filter((i) => i.itemType !== 'saat');
-  const accessories = pools.accessories.filter((i) => i.itemType !== 'saat');
+  const accessories = pools.accessories.filter((i) => {
+    if (i.itemType === 'saat') return false;
+    if (i.itemType === 'gozluk' && !allowSunglasses) return false;
+    const profile = getEffectiveStyleProfile(i);
+    if (profile.category === 'sunglasses' && !allowSunglasses) return false;
+    return true;
+  });
   return { jewelry, accessories };
 }
 

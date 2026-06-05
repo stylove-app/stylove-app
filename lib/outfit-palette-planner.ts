@@ -99,8 +99,25 @@ function pickModeFromConcept(
   seed: number,
   occasion?: SelectedOccasionId,
   weather?: WeatherSnapshot,
+  options?: { regenerate?: boolean; previousPaletteMode?: PaletteMode; paletteAttempt?: number },
 ): WardrobePaletteMode {
   const contextModes = rankPaletteModesForContext(available, occasion, weather);
+  const candidateModes = [
+    ...concept.paletteModes.map(resolvePaletteMode),
+    ...contextModes,
+  ];
+  const uniqueModes = [...new Set(candidateModes)];
+
+  if (options?.regenerate && options.previousPaletteMode) {
+    const previousResolved = resolvePaletteMode(options.previousPaletteMode);
+    const withoutPrevious = uniqueModes.filter((m) => m !== previousResolved);
+    const rotated = withoutPrevious.length > 0 ? withoutPrevious : uniqueModes;
+    const start = (options.paletteAttempt ?? 1) % rotated.length;
+    for (let i = 0; i < rotated.length; i += 1) {
+      const mode = rotated[(start + i) % rotated.length];
+      if (modeFitsWardrobe(mode, available)) return mode;
+    }
+  }
 
   for (const preferred of concept.paletteModes) {
     const resolved = resolvePaletteMode(preferred);
@@ -135,6 +152,9 @@ export function planOutfitPalette(params: {
   seed: number;
   occasion?: SelectedOccasionId;
   weather?: WeatherSnapshot;
+  regenerate?: boolean;
+  previousPaletteMode?: PaletteMode;
+  paletteAttempt?: number;
 }): PlannedPalette {
   const sourceItems = params.corePool.length > 0 ? params.corePool : params.wardrobe;
   const available = collectWardrobeColorFamilies(sourceItems);
@@ -151,12 +171,21 @@ export function planOutfitPalette(params: {
     };
   }
 
+  const paletteSeed = params.regenerate
+    ? params.seed + (params.paletteAttempt ?? 1) * 17
+    : params.seed;
+
   const wardrobeMode = pickModeFromConcept(
     params.concept,
     available,
-    params.seed,
+    paletteSeed,
     params.occasion,
     params.weather,
+    {
+      regenerate: params.regenerate,
+      previousPaletteMode: params.previousPaletteMode,
+      paletteAttempt: params.paletteAttempt,
+    },
   );
 
   const conceptPreferred = params.concept.paletteModes
@@ -170,7 +199,7 @@ export function planOutfitPalette(params: {
   const built = buildWardrobePalette(
     wardrobeMode,
     available,
-    params.seed,
+    paletteSeed,
     params.concept.allowBoldAccent,
   );
 

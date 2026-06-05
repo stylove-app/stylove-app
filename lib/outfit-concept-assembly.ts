@@ -2,10 +2,12 @@ import type { TranslationKeys } from '@/i18n/types';
 import type { MoodId } from '@/i18n/types';
 import type { ResolvedIntent } from '@/lib/intent-engine';
 import {
+  allowsSunglassesForOccasion,
   allowsWatchForOccasion,
   isRealTopItem,
   maxAccessoriesForOccasion,
   pickAccessoryCandidates,
+  scoreAccessoryPickBias,
   scoreHotWeatherItem,
   scoreItemUsageDiversity,
   type WardrobePools,
@@ -76,6 +78,10 @@ type AssemblyParams = {
   styleMemory?: StyleMemory;
   regenerate?: boolean;
   previousConceptId?: string;
+  previousPaletteMode?: string;
+  previousWasOnePiece?: boolean;
+  previousComboSignature?: string;
+  previousItemIds?: string[];
 };
 
 function toStylingItem(item: WardrobeItem): StylingWardrobeItem {
@@ -104,6 +110,19 @@ function stylingBase(params: AssemblyParams): Omit<OutfitStylingContext, 'anchor
   };
 }
 
+function slotPoolSizeForRole(pools: WardrobePools, role: Parameters<typeof scoreItemForConcept>[2]): number {
+  switch (role) {
+    case 'shoes':
+      return pools.shoes.length;
+    case 'bag':
+      return pools.bags.length;
+    case 'accessory':
+      return pools.accessories.length + pools.jewelry.length;
+    default:
+      return 0;
+  }
+}
+
 function scoreCandidateItem(
   item: WardrobeItem,
   params: AssemblyParams,
@@ -118,7 +137,20 @@ function scoreCandidateItem(
   const paletteWeight = role === 'shoes' || role === 'bag' ? 2.2 : 1.5;
   score += scoreItemPaletteFit(item, palette) * paletteWeight;
   score += scoreHotWeatherItem(toStylingItem(item), params.weather, params.selectedOccasion);
-  score += scoreItemUsageDiversity(toStylingItem(item), params.recentOutfitSets ?? [], new Set(params.recentItemIds ?? []));
+  score += scoreItemUsageDiversity(
+    toStylingItem(item),
+    params.recentOutfitSets ?? [],
+    new Set(params.recentItemIds ?? []),
+    slotPoolSizeForRole(params.pools, role),
+  );
+  if (role === 'accessory' || role === 'bag') {
+    score += scoreAccessoryPickBias(
+      toStylingItem(item),
+      params.selectedOccasion,
+      concept.allowWatch && allowsWatchForOccasion(params.selectedOccasion, params.weather),
+      allowsSunglassesForOccasion(params.selectedOccasion, params.weather),
+    );
+  }
 
   if (params.selectedOccasion) {
     const useCaseScore = scoreUseCaseOccasionMatch(item, params.selectedOccasion);
@@ -288,21 +320,47 @@ function pickLimitedAccessoriesForConcept(
   allowWatch: boolean,
 ): { jewelry?: WardrobeItem; accessory?: WardrobeItem } {
   if (maxCount <= 0) return {};
-  const { jewelry: jewelryPool, accessories: accessoryPool } = pickAccessoryCandidates(pools, allowWatch);
-  const combined = [...accessoryPool, ...jewelryPool];
+  const allowSunglasses = allowsSunglassesForOccasion(params.selectedOccasion, params.weather);
+  const { jewelry: jewelryPool, accessories: accessoryPool } = pickAccessoryCandidates(
+    pools,
+    allowWatch,
+    allowSunglasses,
+  );
+
+  const elegantOccasion =
+    params.selectedOccasion === 'date' ||
+    params.selectedOccasion === 'dinner' ||
+    params.selectedOccasion === 'wedding';
+  const jewelryFirst = jewelryPool.filter(
+    (item) => item.itemType !== 'saat' && getEffectiveStyleProfile(item).category !== 'watch',
+  );
+  const combined = elegantOccasion
+    ? [...jewelryFirst, ...accessoryPool, ...jewelryPool.filter((i) => i.itemType === 'saat')]
+    : [...accessoryPool, ...jewelryFirst];
   if (combined.length === 0) return {};
 
   const ranked = rankPool(combined, params, concept, palette, 'accessory', anchor, selected);
   const first = ranked[0];
   if (!first) return {};
 
-  const result: { jewelry?: WardrobeItem; accessory?: WardrobeItem } =
-    first.itemType === 'saat' ? { jewelry: first } : { accessory: first };
+  const profile = getEffectiveStyleProfile(first);
+  const isJewelry =
+    first.itemType !== 'gozluk' &&
+    profile.category !== 'sunglasses' &&
+    (profile.slot === 'jewelry' || ['necklace', 'earrings', 'bracelet', 'watch'].includes(profile.category));
+  const result: { jewelry?: WardrobeItem; accessory?: WardrobeItem } = isJewelry
+    ? { jewelry: first }
+    : { accessory: first };
 
   if (maxCount < 2) return result;
   const second = ranked.find((item) => item.id !== first.id);
   if (!second) return result;
-  if (second.itemType === 'saat') result.jewelry = second;
+  const secondProfile = getEffectiveStyleProfile(second);
+  const secondIsJewelry =
+    second.itemType !== 'gozluk' &&
+    secondProfile.category !== 'sunglasses' &&
+    (secondProfile.slot === 'jewelry' || ['necklace', 'earrings', 'bracelet', 'watch'].includes(secondProfile.category));
+  if (secondIsJewelry) result.jewelry = second;
   else result.accessory = second;
   return result;
 }
@@ -333,7 +391,10 @@ export function assembleOutfitWithConcept(
     previousConceptId: params.previousConceptId,
   });
 
-  const structure = resolveConceptStructure(concept, params.pools, params.seed + params.attempt);
+  const structure = resolveConceptStructure(concept, params.pools, params.seed + params.attempt, {
+    regenerate: params.regenerate,
+    previousWasOnePiece: params.previousWasOnePiece,
+  });
   const corePool = [
     ...params.pools.tops,
     ...params.pools.bottoms,
@@ -347,6 +408,9 @@ export function assembleOutfitWithConcept(
     seed: params.seed + params.attempt * 3,
     occasion: params.selectedOccasion,
     weather: params.weather,
+    regenerate: params.regenerate,
+    previousPaletteMode: params.previousPaletteMode as PlannedPalette['mode'] | undefined,
+    paletteAttempt: params.regenerate ? params.attempt + 1 : 0,
   });
 
   const selected: ItemStylingProfile[] = [];

@@ -14,6 +14,7 @@ import type { SelectedOccasionId } from '@/lib/selected-occasion';
 import { enginePhraseForOccasion } from '@/lib/selected-occasion';
 import { logSecureOutfitFinalDiagnostic } from '@/lib/outfit-decision-debug';
 import { validateOutfitStructure } from '@/lib/outfit-assembly-rules';
+import { stylingComboSignature } from '@/lib/outfit-diversity';
 
 export const OUTFIT_GENERATION_MS = 5500;
 
@@ -88,6 +89,14 @@ export async function runSecureOutfitGeneration({
     ? enginePhraseForOccasion(selectedOccasion)
     : intentText;
 
+  const previousComboSignature =
+    currentLook?.completeOutfit?.length
+      ? stylingComboSignature(currentLook.completeOutfit)
+      : undefined;
+  const previousWasOnePiece = Boolean(
+    currentLook?.completeOutfit?.some((piece) => piece.role === 'dress'),
+  );
+
   const fallbackLook = generateLook(t, {
     intent: engineIntent,
     wardrobe: wardrobeForLook,
@@ -102,6 +111,11 @@ export async function runSecureOutfitGeneration({
     regenerate: isRegenerate,
     selectedOccasion,
     previousStylingConceptId: currentLook?.stylingConceptId,
+    previousPaletteMode: currentLook?.paletteMode,
+    previousItemIds: currentLook?.itemIds,
+    previousComboSignature: isRegenerate ? previousComboSignature : undefined,
+    previousWasOnePiece: isRegenerate ? previousWasOnePiece : undefined,
+    diversitySource: analyticsSource,
     displayOccasion: selectedOccasion
       ? t.home.occasions[selectedOccasion].title
       : undefined,
