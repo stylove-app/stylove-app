@@ -1,16 +1,22 @@
-import type { TranslationKeys, StyleMoodId, TravelVibeId, WardrobeCategoryId } from '@/i18n/types';
+import type { TranslationKeys, TravelVibeId } from '@/i18n/types';
 import type { WardrobeItem } from '@/lib/outfit-engine';
-import { styleMoodToEngine } from '@/lib/style-mood';
-import { normalizeWeather, type DailyWeatherSummary, type WeatherCondition } from '@/lib/weather';
 import { generateLook } from '@/lib/outfit-engine';
+import { normalizeWeather, type DailyWeatherSummary, type WeatherCondition, type WeatherSnapshot } from '@/lib/weather';
 import { getStylingWardrobe } from '@/lib/wardrobe-utils';
 import type { SelectedOccasionId } from '@/lib/selected-occasion';
+import { enginePhraseForOccasion } from '@/lib/selected-occasion';
 import { outfitItemSignature } from '@/lib/styling-bible';
+import {
+  corePieceIdsFromOutfit,
+  validateOutfitStructure,
+} from '@/lib/outfit-assembly-rules';
 import {
   buildOutfitDecisionReport,
   isOutfitDecisionDebugEnabled,
   logOutfitDecisionReport,
 } from '@/lib/outfit-decision-debug';
+import { stylingComboSignature } from '@/lib/outfit-diversity';
+import type { StyleMemory } from '@/lib/style-memory';
 
 export type DestinationWeather = {
   city: string;
@@ -34,12 +40,8 @@ export type DestinationWeather = {
 
 export type TravelDayPlan = {
   day: number;
-  title: string;
-  mood: string;
-  weatherNote: string;
   items: WardrobeItem[];
   lookImage: string;
-  lookTitle: string;
 };
 
 export type LuxurySpot = {
@@ -71,6 +73,9 @@ export type TravelPlan = {
   wardrobeHint?: string;
 };
 
+const TRAVEL_OCCASION: SelectedOccasionId = 'travel';
+const MAX_DAY_ATTEMPTS = 6;
+
 const DESTINATION_WEATHER: Record<
   string,
   Pick<DestinationWeather, 'temperature' | 'condition' | 'isDay' | 'nightTemperature' | 'nightCondition'>
@@ -82,38 +87,6 @@ const DESTINATION_WEATHER: Record<
   dubai: { temperature: 34, condition: 'clear', isDay: true, nightTemperature: 26, nightCondition: 'clear' },
   istanbul: { temperature: 22, condition: 'partlyCloudy', isDay: true, nightTemperature: 16, nightCondition: 'cloudy' },
 };
-
-const SPOT_IMAGES = {
-  rooftop: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80',
-  cafe: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&q=80',
-  restaurant: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80',
-  beachClub: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80',
-  gallery: 'https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=600&q=80',
-};
-
-const VIBE_MOOD: Record<TravelVibeId, StyleMoodId> = {
-  cityExplore: 'dailyChic',
-  romanticEscape: 'romantic',
-  businessTrip: 'minimal',
-  beachClub: 'confident',
-  luxuryEscape: 'elegant',
-  minimalTravel: 'minimal',
-};
-
-function travelOccasionForVibe(vibe: TravelVibeId): SelectedOccasionId {
-  switch (vibe) {
-    case 'beachClub':
-      return 'beach';
-    case 'businessTrip':
-      return 'office';
-    case 'romanticEscape':
-      return 'date';
-    case 'luxuryEscape':
-      return 'dinner';
-    default:
-      return 'travel';
-  }
-}
 
 function hashString(value: string): number {
   let hash = 0;
@@ -201,34 +174,36 @@ function buildWeatherFromForecast(destination: string, forecast: DailyWeatherSum
   };
 }
 
-function pickItems(items: WardrobeItem[], count: number, seed: number): WardrobeItem[] {
-  if (items.length === 0) return [];
-  const result: WardrobeItem[] = [];
-  for (let i = 0; i < count; i += 1) {
-    result.push(items[(seed + i) % items.length]);
-  }
-  return result;
+function dayWeatherSnapshot(
+  destination: string,
+  dayWeather: DailyWeatherSummary,
+  useDaytime: boolean,
+): WeatherSnapshot {
+  const condition = useDaytime ? dayWeather.condition : dayWeather.condition;
+  const temp = useDaytime ? dayWeather.temperature : dayWeather.lowTemperature;
+  return {
+    city: dayWeather.city || destination,
+    temperature: temp,
+    feelsLike: dayWeather.feelsLike,
+    precipitation: dayWeather.precipitation,
+    wind: dayWeather.wind,
+    condition,
+    summary: condition,
+    isDay: useDaytime,
+    hour: useDaytime ? 14 : 21,
+    isCold: dayWeather.isCold,
+    isRainy: dayWeather.isRainy,
+    needsOuterwear: dayWeather.needsOuterwear,
+  };
 }
 
-function byCategory(items: WardrobeItem[], category: WardrobeCategoryId): WardrobeItem[] {
-  return items.filter((item) => item.category === category);
-}
-
-function buildSpots(t: TranslationKeys, destination: string, vibe: TravelVibeId, seed: number): LuxurySpot[] {
-  const types: LuxurySpot['type'][] =
-    vibe === 'beachClub'
-      ? ['beachClub', 'restaurant', 'cafe']
-      : vibe === 'businessTrip'
-        ? ['restaurant', 'cafe', 'gallery']
-        : ['rooftop', 'cafe', 'restaurant', 'gallery', 'beachClub'];
-
-  return types.slice(0, 4).map((type, index) => ({
-    id: `${type}-${index}`,
-    name: t.travel.spotNames[(seed + index) % t.travel.spotNames.length].replace('{city}', destination),
-    type,
-    image: SPOT_IMAGES[type],
-    outfitSuggested: index % 2 === 0,
-  }));
+function uniqueWardrobeItems(items: WardrobeItem[]): WardrobeItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 }
 
 export function generateTravelPlan(
@@ -243,13 +218,14 @@ export function generateTravelPlan(
     weatherSource?: string;
     forecastUnavailable?: boolean;
     seed?: number;
+    styleMemory?: StyleMemory;
   },
 ): TravelPlan {
-  const { destination, duration, departureDate, vibe, wardrobe } = params;
+  const { destination, duration, departureDate, vibe, wardrobe, styleMemory } = params;
   const stylingWardrobe = getStylingWardrobe(wardrobe);
   const wardrobeHint =
     stylingWardrobe.length === 1 ? t.travel.wardrobeHintSingle : undefined;
-  const seed = params.seed ?? hashString(`${destination}-${vibe}-${departureDate}`);
+  const seed = params.seed ?? hashString(`${destination}-${departureDate}`);
   const weatherDays = params.weatherForecast?.length
     ? params.weatherForecast
     : [buildWeatherFromForecast(destination, undefined)].map((day) => ({
@@ -267,114 +243,99 @@ export function generateTravelPlan(
         needsOuterwear: day.needsOuterwear,
       }));
   const weather = buildWeatherFromForecast(destination, weatherDays);
+  const travelIntent = enginePhraseForOccasion(TRAVEL_OCCASION);
 
-  const moodEngine = styleMoodToEngine(VIBE_MOOD[vibe]);
-  const packedCount = Math.min(
-    Math.max(duration + 2, 4),
-    stylingWardrobe.length || 0,
-  );
-  const packedItems = pickItems(stylingWardrobe, packedCount, seed);
-
-  const accessories = byCategory(packedItems, 'accessory').length
-    ? byCategory(packedItems, 'accessory')
-    : pickItems(byCategory(stylingWardrobe, 'accessory'), 2, seed + 1);
-  const shoes = byCategory(packedItems, 'shoes').length
-    ? byCategory(packedItems, 'shoes')
-    : pickItems(byCategory(stylingWardrobe, 'shoes'), 2, seed + 2);
-  const shouldPackOuterwear = weatherDays.some((day) => day.needsOuterwear);
-  const outerwear = shouldPackOuterwear
-    ? byCategory(packedItems, 'outerwear').length
-      ? byCategory(packedItems, 'outerwear')
-      : pickItems(byCategory(stylingWardrobe, 'outerwear'), 1, seed + 3)
-    : [];
-
-  const dayTitles = t.travel.dayTitles[vibe];
-  const missingPieces = [
-    shoes.length === 0 ? t.completeLook.missingShoeCompletion : undefined,
-    shouldPackOuterwear && outerwear.length === 0 ? t.completeLook.missingOuterwearCompletion : undefined,
-    accessories.length === 0 ? t.completeLook.missingJewelryCompletion : undefined,
-  ].filter((item): item is string => Boolean(item));
-  const packingGuidance = [
-    t.travel.layeringHint,
-    shouldPackOuterwear ? t.completeLook.missingOuterwearCompletion : t.completeLook.missingBagCompletion,
-  ];
-  const travelOccasion = travelOccasionForVibe(vibe);
   const sessionRecentSets: string[][] = [];
+  const sessionRecentCoreSets: string[][] = [];
   const sessionSeenSignatures = new Set<string>();
   const sessionRecentIds: string[] = [];
+  let previousItemIds: string[] | undefined;
+  let previousComboSignature: string | undefined;
 
   const dailyLooks: TravelDayPlan[] = Array.from({ length: duration }, (_, index) => {
     const day = index + 1;
-    const daySeed = seed + day * 17;
-    const titleTemplate = dayTitles[index % dayTitles.length];
-    const title = titleTemplate.replace('{day}', String(day));
-    const mood = t.travel.moodLabels[(daySeed + index) % t.travel.moodLabels.length];
     const dayWeather = weatherDays[index % weatherDays.length];
-    const conditionKey = daySeed % 2 === 0 ? dayWeather.condition : weather.nightCondition;
-    const temp = daySeed % 2 === 0 ? dayWeather.temperature : dayWeather.lowTemperature;
-    const weatherNote = t.travel.weatherDayNote
-      .replace('{temp}', String(temp))
-      .replace('{condition}', t.weather.conditions[conditionKey]);
+    const useDaytime = index % 2 === 0;
+    const dayWeatherSnapshotValue = dayWeatherSnapshot(destination, dayWeather, useDaytime);
 
-    const dayWeatherSnapshot = {
-      city: destination,
-      temperature: temp,
-      feelsLike: dayWeather.feelsLike,
-      precipitation: dayWeather.precipitation,
-      wind: dayWeather.wind,
-      condition: conditionKey,
-      summary: conditionKey,
-      isDay: daySeed % 2 === 0,
-      hour: daySeed % 2 === 0 ? 14 : 21,
-      isCold: dayWeather.isCold,
-      isRainy: dayWeather.isRainy,
-      needsOuterwear: dayWeather.needsOuterwear,
-    };
-
-    const look = generateLook(t, {
-      intent: `${destination} — ${title}`,
+    let look = generateLook(t, {
+      intent: travelIntent,
       wardrobe: stylingWardrobe,
-      weather: dayWeatherSnapshot,
-      seed: daySeed,
-      moodOverride: moodEngine,
-      selectedOccasion: travelOccasion,
+      weather: dayWeatherSnapshotValue,
+      seed: seed + day * 17,
+      styleMemory,
+      selectedOccasion: TRAVEL_OCCASION,
+      displayOccasion: t.home.occasions.travel.title,
       recentOutfitSets: sessionRecentSets,
+      recentCoreSets: sessionRecentCoreSets,
       recentItemIds: sessionRecentIds,
       seenSignatures: sessionSeenSignatures,
+      regenerate: index > 0,
+      previousItemIds,
+      previousComboSignature,
+      diversitySource: 'engine',
     });
 
-    const outfitItems = look.completeOutfit?.map((piece) => piece.item) ?? [];
-    const itemIds = outfitItems.map((item) => item.id);
-    if (itemIds.length > 0) {
-      sessionRecentSets.push(itemIds);
-      sessionRecentIds.push(...itemIds);
-      sessionSeenSignatures.add(outfitItemSignature(itemIds));
+    for (let attempt = 1; attempt < MAX_DAY_ATTEMPTS; attempt += 1) {
+      const pieces = look.completeOutfit ?? [];
+      const validation = validateOutfitStructure(pieces, TRAVEL_OCCASION, dayWeatherSnapshotValue);
+      if (validation.valid && pieces.length > 0) break;
+
+      look = generateLook(t, {
+        intent: travelIntent,
+        wardrobe: stylingWardrobe,
+        weather: dayWeatherSnapshotValue,
+        seed: seed + day * 17 + attempt * 31,
+        styleMemory,
+        selectedOccasion: TRAVEL_OCCASION,
+        displayOccasion: t.home.occasions.travel.title,
+        recentOutfitSets: sessionRecentSets,
+        recentCoreSets: sessionRecentCoreSets,
+        recentItemIds: sessionRecentIds,
+        seenSignatures: sessionSeenSignatures,
+        regenerate: true,
+        previousItemIds,
+        previousComboSignature,
+        diversitySource: 'engine',
+      });
     }
 
-    if (isOutfitDecisionDebugEnabled() && look.completeOutfit?.length) {
+    const outfitPieces = look.completeOutfit ?? [];
+    const outfitItems = outfitPieces.map((piece) => piece.item);
+    const itemIds = outfitItems.map((item) => item.id);
+
+    if (itemIds.length > 0) {
+      sessionRecentSets.push(itemIds);
+      sessionRecentCoreSets.push(corePieceIdsFromOutfit(outfitPieces));
+      sessionRecentIds.push(...itemIds);
+      sessionSeenSignatures.add(outfitItemSignature(itemIds));
+      previousItemIds = itemIds;
+      previousComboSignature = stylingComboSignature(outfitPieces);
+    }
+
+    if (isOutfitDecisionDebugEnabled() && outfitPieces.length > 0) {
       logOutfitDecisionReport(
         buildOutfitDecisionReport({
           path: 'travel_local',
-          pieces: look.completeOutfit,
-          occasion: travelOccasion,
-          weather: dayWeatherSnapshot,
+          pieces: outfitPieces,
+          occasion: TRAVEL_OCCASION,
+          weather: dayWeatherSnapshotValue,
           recentOutfitSets: sessionRecentSets,
+          recentCoreSets: sessionRecentCoreSets,
           seenSignatures: sessionSeenSignatures,
-          extraNotes: [`travel day=${day} temp=${temp}°C`],
+          extraNotes: [`travel day=${day} temp=${dayWeatherSnapshotValue.temperature}°C`],
         }),
       );
     }
 
     return {
       day,
-      title,
-      mood,
-      weatherNote,
-      items: outfitItems.length > 0 ? outfitItems : stylingWardrobe.slice(0, Math.min(4, stylingWardrobe.length)),
+      items: outfitItems.length > 0 ? outfitItems : [],
       lookImage: outfitItems[0]?.imageUri ?? look.image,
-      lookTitle: look.title,
     };
   });
+
+  const packedItems = uniqueWardrobeItems(dailyLooks.flatMap((day) => day.items));
 
   return {
     destination: destination.trim(),
@@ -386,12 +347,12 @@ export function generateTravelPlan(
     weatherSource: params.weatherSource ?? weather.source ?? 'Open-Meteo',
     forecastUnavailable: params.forecastUnavailable ?? false,
     baggageType: 'cabin',
-    packingGuidance,
-    missingPieces,
+    packingGuidance: [],
+    missingPieces: [],
     packedItems,
-    accessories,
-    shoes,
-    outerwear,
+    accessories: [],
+    shoes: [],
+    outerwear: [],
     dailyLooks,
     spots: [],
     wardrobeHint,

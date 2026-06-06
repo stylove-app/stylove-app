@@ -646,6 +646,7 @@ export type TranslationKeys = {
     outerwear: string;
     timelineTitle: string;
     timelineSubtitle: string;
+    outfitLabel: string;
     dayLabel: string;
     spotsTitle: string;
     spotsSubtitle: string;

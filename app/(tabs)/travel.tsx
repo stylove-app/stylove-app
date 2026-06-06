@@ -27,6 +27,7 @@ import { usePremium } from '@/contexts/premium-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from '@/contexts/locale-context';
 import { useTheme, StyloveShadow } from '@/contexts/theme-context';
+import { useStyleMemory } from '@/contexts/style-memory-context';
 import { useWardrobeState } from '@/contexts/wardrobe-context';
 import { generateTravelPlan, type TravelPlan } from '@/lib/travel-engine';
 import { getDestinationWeatherForecast } from '@/services/weather-service';
@@ -60,6 +61,7 @@ function TravelScreen() {
   const { isPremium, ready: premiumReady } = usePremium();
   const { userId } = useAuth();
   const { stylingItems } = useWardrobeState();
+  const { memory } = useStyleMemory();
 
   const [destination, setDestination] = useState('');
   const [durationInput, setDurationInput] = useState('');
@@ -106,13 +108,14 @@ function TravelScreen() {
       weatherSource: weatherResult.source,
       forecastUnavailable: weatherResult.forecastUnavailable,
       seed: Date.now(),
+      styleMemory: memory,
     });
     setPlan(nextPlan);
     if (userId) {
       void saveTravelPlan(userId, nextPlan).catch(() => undefined);
     }
     setIsPreparing(false);
-  }, [destination, durationInput, departureDate, vibe, stylingItems, t, userId]);
+  }, [destination, durationInput, departureDate, vibe, stylingItems, memory, t, userId]);
 
   if (!premiumReady) {
     return <View style={screenStyle} />;
