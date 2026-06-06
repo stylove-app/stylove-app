@@ -224,7 +224,8 @@ export function preferredTypesForOccasion(
     if (isBusinessContext(occasion) || occasion === 'formal' || occasion === 'dinner' || occasion === 'date') {
       return ['topuklu', 'bot', 'ayakkabi'];
     }
-    if (occasion === 'travel' || occasion === 'vacation') return ['ayakkabi', 'bot', 'topuklu'];
+    if (occasion === 'travel') return ['ayakkabi', 'bot'];
+    if (occasion === 'vacation') return ['ayakkabi', 'bot', 'topuklu'];
     return ['ayakkabi', 'bot', 'topuklu'];
   }
 

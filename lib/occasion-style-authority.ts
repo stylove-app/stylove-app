@@ -109,6 +109,22 @@ const DINNER_DATE_FORBIDDEN: OccasionAuthorityRules = {
   forbidAllSneakers: true,
 };
 
+/** Practical city / airport travel — at least as strict as daily + shopping. */
+const TRAVEL_FORBIDDEN: OccasionAuthorityRules = {
+  forbiddenCategories: {
+    any: ['sandal', 'evening_dress', 'office_dress', 'sunglasses', 'heel'],
+    shoes: ['sandal', 'heel'],
+    accessory: ['sunglasses'],
+    top: ['blazer'],
+  },
+  forbiddenItemTypes: {
+    any: ['topuklu', 'gozluk'],
+    accessory: ['gozluk'],
+  },
+  forbiddenStyleTags: ['evening', 'vacation'],
+  forbiddenUseCases: ['beach', 'wedding'],
+};
+
 const OCCASION_AUTHORITY: Partial<Record<SelectedOccasionId, OccasionAuthorityRules>> = {
   wedding: WEDDING_FORBIDDEN,
   office: OFFICE_FORBIDDEN,
@@ -116,6 +132,7 @@ const OCCASION_AUTHORITY: Partial<Record<SelectedOccasionId, OccasionAuthorityRu
   coffee: COFFEE_FORBIDDEN,
   dinner: DINNER_DATE_FORBIDDEN,
   date: DINNER_DATE_FORBIDDEN,
+  travel: TRAVEL_FORBIDDEN,
   beach: {
     forbiddenCategories: {
       any: ['heel', 'blazer', 'office_dress', 'evening_dress', 'boot', 'coat'],
@@ -170,6 +187,7 @@ const CASUAL_OCCASIONS = new Set<SelectedOccasionId>([
   'coffee',
   'shopping',
   'sport_walk',
+  'travel',
   'beach',
   'vacation',
 ]);
@@ -287,9 +305,17 @@ export function isItemForbiddenForOccasion(
   }
 
   if (
-    (occasion === 'office' || occasion === 'wedding' || occasion === 'dinner' || occasion === 'date') &&
+    (occasion === 'office' ||
+      occasion === 'wedding' ||
+      occasion === 'dinner' ||
+      occasion === 'date' ||
+      occasion === 'travel') &&
     profile.category === 'sandal'
   ) {
+    return true;
+  }
+
+  if (occasion === 'travel' && isVacationItem(item) && role === 'shoes') {
     return true;
   }
 
@@ -348,6 +374,13 @@ export function scoreOccasionAuthorityPreference(
       if (profile.styleTags.includes('casual') || profile.styleTags.includes('smart_casual')) score += 5;
       if (profile.styleTags.includes('office')) score -= 8;
       if (['evening_dress', 'heel'].includes(profile.category)) score -= 12;
+      break;
+    case 'travel':
+      if (['sneaker', 'flat', 'loafer', 'boot'].includes(profile.category)) score += 6;
+      if (profile.styleTags.includes('casual') || profile.styleTags.includes('smart_casual')) score += 4;
+      if (['sandal', 'heel', 'evening_dress', 'office_dress', 'sunglasses'].includes(profile.category))
+        score -= 35;
+      if (profile.styleTags.includes('vacation') || profile.useCases.includes('beach')) score -= 22;
       break;
     default:
       break;

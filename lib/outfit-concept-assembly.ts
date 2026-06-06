@@ -628,5 +628,9 @@ export function assembleOutfitWithConcept(
     rejectedReason,
   });
 
+  if (rejectedReason) {
+    return null;
+  }
+
   return { pieces, concept, structure, palette };
 }

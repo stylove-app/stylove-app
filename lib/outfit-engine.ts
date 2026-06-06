@@ -47,10 +47,14 @@ import {
 } from '@/lib/styling-bible';
 import {
   computeChangedCorePercent,
+  isHomeRegenerateFlow,
   logStyloveDiversity,
+  regenerateCorePieceIds,
   repeatedItemIds,
   scoreOutfitComboRepeat,
+  scoreRegenerateCoreDiversityV2,
   stylingComboSignature,
+  wardrobeHasRegenerateAlternatives,
 } from '@/lib/outfit-diversity';
 import { filterShoesForWeatherContext, filterWardrobeItemsForWeather } from '@/lib/layer-piece-rules';
 import {
@@ -65,6 +69,7 @@ import {
   pickAccessoryCandidates,
   scoreRegenerateCoreDiversity,
   shouldPreferOnePiece,
+  isWearableOutfit,
   validateOutfitStructure,
   type WardrobePools,
 } from '@/lib/outfit-assembly-rules';
@@ -610,6 +615,7 @@ function buildCompleteOutfit(
     previousShoeId?: string;
     previousShoeCategory?: string;
     previousHadShorts?: boolean;
+    previousOutfitPieces?: OutfitPiece[];
     diversitySource?: 'home' | 'replace' | 'looks' | 'engine';
   },
 ): { pieces: OutfitPiece[]; stylingConceptId?: string; paletteMode?: string } {
@@ -626,10 +632,7 @@ function buildCompleteOutfit(
   let bestDiversityPenalty = 0;
   let bestScore = -Infinity;
   const previousCore = params.recentCoreSets?.[params.recentCoreSets.length - 1] ?? [];
-  const wardrobeHasCoreAlternatives =
-    pools.onePieces.length >= 2 ||
-    (pools.tops.length >= 2 && pools.bottoms.length >= 2) ||
-    pools.onePieces.length >= 1 && pools.tops.length >= 1 && pools.bottoms.length >= 1;
+  const wardrobeHasCoreAlternatives = wardrobeHasRegenerateAlternatives(pools);
   const attemptCount = params.regenerate ? REGENERATE_OUTFIT_CANDIDATE_COUNT : OUTFIT_CANDIDATE_COUNT;
   const bibleContext = {
     mood: params.mood,
@@ -722,12 +725,22 @@ function buildCompleteOutfit(
     });
     score += comboPenalty;
 
-    score += scoreRegenerateCoreDiversity(
-      corePieceIdsFromOutfit(pieces),
-      params.recentCoreSets ?? params.recentOutfitSets ?? [],
-      params.regenerate,
-      wardrobeHasCoreAlternatives,
-    );
+    if (isHomeRegenerateFlow(params.regenerate, params.diversitySource)) {
+      score += scoreRegenerateCoreDiversityV2({
+        pieces,
+        regenerate: params.regenerate,
+        diversitySource: params.diversitySource,
+        previousOutfitPieces: params.previousOutfitPieces,
+        wardrobeHasAlternatives: wardrobeHasCoreAlternatives,
+      });
+    } else {
+      score += scoreRegenerateCoreDiversity(
+        corePieceIdsFromOutfit(pieces),
+        params.recentCoreSets ?? params.recentOutfitSets ?? [],
+        params.regenerate,
+        wardrobeHasCoreAlternatives,
+      );
+    }
 
     if (params.regenerate && params.previousComboSignature) {
       const candidateSig = stylingComboSignature(pieces);
@@ -768,7 +781,12 @@ function buildCompleteOutfit(
 
   if (bestPieces.length > 0) {
     const newItemIds = bestPieces.map((p) => p.item.id);
-    const newCore = corePieceIdsFromOutfit(bestPieces);
+    const newCore = params.previousOutfitPieces?.length
+      ? regenerateCorePieceIds(bestPieces)
+      : corePieceIdsFromOutfit(bestPieces);
+    const previousCoreForLog = params.previousOutfitPieces?.length
+      ? regenerateCorePieceIds(params.previousOutfitPieces)
+      : previousCore;
     logStyloveDiversity({
       source: params.diversitySource ?? 'engine',
       occasion: params.selectedOccasion,
@@ -776,7 +794,7 @@ function buildCompleteOutfit(
       previousItemIds: params.previousItemIds ?? [],
       newItemIds,
       repeatedItemIds: repeatedItemIds(params.previousItemIds ?? [], newItemIds),
-      changedCorePercent: computeChangedCorePercent(newCore, previousCore),
+      changedCorePercent: computeChangedCorePercent(newCore, previousCoreForLog),
       conceptChanged: Boolean(params.previousConceptId && bestConceptId !== params.previousConceptId),
       paletteChanged: Boolean(params.previousPaletteMode && bestPaletteMode !== params.previousPaletteMode),
       diversityPenaltyApplied: bestDiversityPenalty,
@@ -785,6 +803,15 @@ function buildCompleteOutfit(
       previousPaletteMode: params.previousPaletteMode,
       newPaletteMode: bestPaletteMode,
     });
+  }
+
+  if (
+    bestPieces.length > 0 &&
+    !isWearableOutfit(bestPieces, params.selectedOccasion, params.weather)
+  ) {
+    bestPieces = [];
+    bestConceptId = undefined;
+    bestPaletteMode = undefined;
   }
 
   return { pieces: bestPieces, stylingConceptId: bestConceptId, paletteMode: bestPaletteMode };
@@ -912,6 +939,7 @@ export function generateLook(
     previousShoeId?: string;
     previousShoeCategory?: string;
     previousHadShorts?: boolean;
+    previousOutfitPieces?: OutfitPiece[];
     diversitySource?: 'home' | 'replace' | 'looks' | 'engine';
   },
 ): CuratedLook {
@@ -978,6 +1006,7 @@ export function generateLook(
     previousShoeId: params.previousShoeId,
     previousShoeCategory: params.previousShoeCategory,
     previousHadShorts: params.previousHadShorts,
+    previousOutfitPieces: params.previousOutfitPieces,
     diversitySource: params.diversitySource,
   });
   const wardrobeHint =

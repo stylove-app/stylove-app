@@ -127,6 +127,7 @@ export async function runSecureOutfitGeneration({
     previousShoeId: isRegenerate ? previousShoeId : undefined,
     previousShoeCategory: isRegenerate ? previousShoeCategory : undefined,
     previousHadShorts: isRegenerate ? previousHadShorts : undefined,
+    previousOutfitPieces: isRegenerate ? currentLook?.completeOutfit : undefined,
     diversitySource: analyticsSource,
     displayOccasion: selectedOccasion
       ? t.home.occasions[selectedOccasion].title

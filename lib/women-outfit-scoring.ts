@@ -62,6 +62,7 @@ const WEDDING_BAN = new Set([
 ]);
 
 const OFFICE_BAN = new Set(['sandal', 'shorts', 'crop_top', 't_shirt', 'sunglasses']);
+const TRAVEL_BAN = new Set(['sandal', 'heel', 'sunglasses', 'evening_dress', 'office_dress']);
 const DAILY_OFFICE_LEAN = new Set(['blazer', 'office_dress', 'tailored_trousers', 'shirt']);
 
 function scoreLegacyHeuristicOccasion(
@@ -133,8 +134,10 @@ function scoreLegacyHeuristicOccasion(
       if (tags.has('sporty') || tags.has('vacation')) score -= 20;
       break;
     case 'travel':
-      if (['sneaker', 'flat', 'boot', 'jacket'].includes(cat)) score += 5;
+      if (['sneaker', 'flat', 'loafer', 'boot'].includes(cat)) score += 6;
       if (tags.has('casual') || tags.has('smart_casual')) score += 3;
+      if (TRAVEL_BAN.has(cat)) score -= 28;
+      if (tags.has('vacation') || useCases.has('beach')) score -= 18;
       break;
     case 'family_visit':
       if (tags.has('smart_casual') || tags.has('classic')) score += 5;

@@ -187,6 +187,22 @@ export function allowsSunglassesForOccasion(
   return false;
 }
 
+export function isWearableOutfit(
+  pieces: OutfitPiece[],
+  occasion?: SelectedOccasionId,
+  weather?: WeatherSnapshot,
+): boolean {
+  if (pieces.length === 0) return false;
+  const structure = validateOutfitStructure(pieces, occasion, weather);
+  if (!structure.valid) return false;
+
+  const roles = pieces.map((piece) => piece.role);
+  if (roles.includes('dress')) {
+    return true;
+  }
+  return roles.includes('top') && roles.includes('bottom');
+}
+
 export function validateOutfitStructure(
   pieces: OutfitPiece[],
   occasion?: SelectedOccasionId,

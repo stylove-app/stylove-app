@@ -55,6 +55,152 @@ export function corePieceIdsFromPieces(pieces: OutfitPiece[]): string[] {
     .map((p) => p.item.id);
 }
 
+const REGENERATE_CORE_ROLES = new Set<OutfitPiece['role']>([
+  'top',
+  'bottom',
+  'dress',
+  'shoes',
+  'outerwear',
+  'bag',
+]);
+
+const DRESS_SUPPORT_ROLES = new Set<OutfitPiece['role']>(['shoes', 'bag', 'outerwear']);
+
+export function regenerateCorePieceIds(pieces: OutfitPiece[]): string[] {
+  return pieces.filter((piece) => REGENERATE_CORE_ROLES.has(piece.role)).map((piece) => piece.item.id);
+}
+
+export function countChangedCorePieces(previousIds: string[], nextIds: string[]): number {
+  const prior = new Set(previousIds);
+  return nextIds.filter((id) => !prior.has(id)).length;
+}
+
+export function isDressOutfitPieces(pieces: OutfitPiece[]): boolean {
+  return pieces.some((piece) => piece.role === 'dress');
+}
+
+export function isHomeRegenerateFlow(
+  regenerate?: boolean,
+  diversitySource?: DiversityLogSource,
+): boolean {
+  return Boolean(
+    regenerate &&
+      (diversitySource === 'home' || diversitySource === 'replace' || diversitySource === 'looks'),
+  );
+}
+
+export function wardrobeHasRegenerateAlternatives(pools: {
+  tops: unknown[];
+  bottoms: unknown[];
+  onePieces: unknown[];
+  shoes: unknown[];
+  bags: unknown[];
+  outerwear: unknown[];
+}): boolean {
+  return (
+    pools.onePieces.length >= 2 ||
+    (pools.tops.length >= 2 && pools.bottoms.length >= 2) ||
+    pools.shoes.length >= 2 ||
+    pools.bags.length >= 2 ||
+    pools.outerwear.length >= 2 ||
+    (pools.onePieces.length >= 1 && pools.tops.length >= 1 && pools.bottoms.length >= 1)
+  );
+}
+
+export function evaluateRegenerateCoreTarget(
+  previousPieces: OutfitPiece[],
+  nextPieces: OutfitPiece[],
+  wardrobeHasAlternatives: boolean,
+): { meetsTarget: boolean; requiredMin: number; changed: number } {
+  const prevCore = regenerateCorePieceIds(previousPieces);
+  const nextCore = regenerateCorePieceIds(nextPieces);
+  const changed = countChangedCorePieces(prevCore, nextCore);
+
+  if (!wardrobeHasAlternatives) {
+    return { meetsTarget: true, requiredMin: 0, changed };
+  }
+
+  if (isDressOutfitPieces(previousPieces)) {
+    const prevDressId = previousPieces.find((piece) => piece.role === 'dress')?.item.id;
+    const nextDressId = nextPieces.find((piece) => piece.role === 'dress')?.item.id;
+    if (prevDressId && nextDressId && prevDressId !== nextDressId) {
+      return { meetsTarget: true, requiredMin: 1, changed };
+    }
+
+    const prevSupport = previousPieces
+      .filter((piece) => DRESS_SUPPORT_ROLES.has(piece.role))
+      .map((piece) => piece.item.id);
+    const nextSupport = nextPieces
+      .filter((piece) => DRESS_SUPPORT_ROLES.has(piece.role))
+      .map((piece) => piece.item.id);
+    const supportChanged = countChangedCorePieces(prevSupport, nextSupport);
+    return { meetsTarget: supportChanged >= 2, requiredMin: 2, changed: supportChanged };
+  }
+
+  const prevCount = prevCore.length;
+  if (prevCount >= 4) {
+    return { meetsTarget: changed >= 2, requiredMin: 2, changed };
+  }
+  if (prevCount === 3) {
+    if (changed >= 2) {
+      return { meetsTarget: true, requiredMin: 2, changed };
+    }
+    return { meetsTarget: changed >= 1, requiredMin: 1, changed };
+  }
+
+  return { meetsTarget: changed >= 1, requiredMin: 1, changed };
+}
+
+export function scoreRegenerateCoreDiversityV2(options: {
+  pieces: OutfitPiece[];
+  regenerate?: boolean;
+  diversitySource?: DiversityLogSource;
+  previousOutfitPieces?: OutfitPiece[];
+  wardrobeHasAlternatives?: boolean;
+}): number {
+  if (!isHomeRegenerateFlow(options.regenerate, options.diversitySource)) return 0;
+
+  const previousPieces = options.previousOutfitPieces;
+  if (!previousPieces?.length) return 0;
+
+  const prevCore = regenerateCorePieceIds(previousPieces);
+  const nextCore = regenerateCorePieceIds(options.pieces);
+  const changed = countChangedCorePieces(prevCore, nextCore);
+  const target = evaluateRegenerateCoreTarget(
+    previousPieces,
+    options.pieces,
+    options.wardrobeHasAlternatives ?? false,
+  );
+
+  let score = 0;
+  const prevAllIds = new Set(previousPieces.map((piece) => piece.item.id));
+  const nextAllIds = options.pieces.map((piece) => piece.item.id);
+  const outfitChanged = nextAllIds.some((id) => !prevAllIds.has(id)) || previousPieces.some(
+    (piece) => !nextAllIds.includes(piece.item.id),
+  );
+
+  if (outfitChanged && changed === 0) {
+    score -= 68;
+  }
+
+  if (options.wardrobeHasAlternatives) {
+    if (!target.meetsTarget) {
+      if (changed === 0) score -= 78;
+      else if (changed === 1 && target.requiredMin >= 2) score -= 56;
+      else score -= 42;
+    } else {
+      score += 14;
+    }
+  } else if (changed === 0 && prevCore.length > 0) {
+    score -= 50;
+  }
+
+  if (changed >= 2) score += 10;
+  if (changed >= 3) score += 5;
+
+  return score;
+}
+
 export function computeChangedCorePercent(currentCore: string[], previousCore: string[]): number {
   if (previousCore.length === 0) return 100;
   const priorSet = new Set(previousCore);
