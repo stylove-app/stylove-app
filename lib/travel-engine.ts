@@ -1,22 +1,10 @@
 import type { TranslationKeys, TravelVibeId } from '@/i18n/types';
-import type { CuratedLook, OutfitPiece, WardrobeItem } from '@/lib/outfit-engine';
-import { generateLook } from '@/lib/outfit-engine';
+import type { WardrobeItem } from '@/lib/outfit-engine';
 import { normalizeWeather, type DailyWeatherSummary, type WeatherCondition, type WeatherSnapshot } from '@/lib/weather';
 import { getStylingWardrobe } from '@/lib/wardrobe-utils';
 import type { SelectedOccasionId } from '@/lib/selected-occasion';
 import { enginePhraseForOccasion } from '@/lib/selected-occasion';
-import { outfitItemSignature } from '@/lib/styling-bible';
-import {
-  corePieceIdsFromOutfit,
-  isWearableOutfit,
-} from '@/lib/outfit-assembly-rules';
-import { shoeCategory } from '@/lib/layer-piece-rules';
-import {
-  buildOutfitDecisionReport,
-  isOutfitDecisionDebugEnabled,
-  logOutfitDecisionReport,
-} from '@/lib/outfit-decision-debug';
-import { stylingComboSignature } from '@/lib/outfit-diversity';
+import { planTravelDailyOutfits } from '@/lib/travel-planner';
 import type { StyleMemory } from '@/lib/style-memory';
 
 export type DestinationWeather = {
@@ -75,152 +63,6 @@ export type TravelPlan = {
 };
 
 const TRAVEL_OCCASION: SelectedOccasionId = 'travel';
-const MAX_DAY_ATTEMPTS_PER_PHASE = 12;
-
-type TravelSessionState = {
-  recentSets: string[][];
-  recentCoreSets: string[][];
-  seenSignatures: Set<string>;
-  recentIds: string[];
-  usedShoeIds: string[];
-  usedShoeCategories: string[];
-};
-
-type TravelLookAttemptOptions = {
-  seed: number;
-  regenerate: boolean;
-  useSession: boolean;
-  previousItemIds?: string[];
-  previousComboSignature?: string;
-};
-
-function generateTravelDayLook(
-  t: TranslationKeys,
-  params: {
-    wardrobe: WardrobeItem[];
-    weather: WeatherSnapshot;
-    styleMemory?: StyleMemory;
-    travelIntent: string;
-    session: TravelSessionState;
-    options: TravelLookAttemptOptions;
-  },
-): CuratedLook {
-  const { wardrobe, weather, styleMemory, travelIntent, session, options } = params;
-  return generateLook(t, {
-    intent: travelIntent,
-    wardrobe,
-    weather,
-    seed: options.seed,
-    styleMemory,
-    selectedOccasion: TRAVEL_OCCASION,
-    displayOccasion: t.home.occasions.travel.title,
-    recentOutfitSets: options.useSession ? session.recentSets : [],
-    recentCoreSets: options.useSession ? session.recentCoreSets : [],
-    recentItemIds: options.useSession ? session.recentIds : [],
-    seenSignatures: options.useSession ? session.seenSignatures : new Set<string>(),
-    regenerate: options.regenerate,
-    previousItemIds: options.previousItemIds,
-    previousComboSignature: options.previousComboSignature,
-    travelPreviousShoeIds: options.useSession ? session.usedShoeIds : [],
-    travelPreviousShoeCategories: options.useSession ? session.usedShoeCategories : [],
-    diversitySource: 'engine',
-  });
-}
-
-function pickValidatedTravelDayLook(
-  t: TranslationKeys,
-  params: {
-    day: number;
-    baseSeed: number;
-    wardrobe: WardrobeItem[];
-    weather: WeatherSnapshot;
-    styleMemory?: StyleMemory;
-    travelIntent: string;
-    session: TravelSessionState;
-    dayIndex: number;
-    previousItemIds?: string[];
-    previousComboSignature?: string;
-  },
-): { pieces: OutfitPiece[]; look: CuratedLook } | null {
-  const phases: TravelLookAttemptOptions[] = [
-    {
-      seed: params.baseSeed,
-      regenerate: params.dayIndex > 0,
-      useSession: true,
-      previousItemIds: params.previousItemIds,
-      previousComboSignature: params.previousComboSignature,
-    },
-    {
-      seed: params.baseSeed + 401,
-      regenerate: false,
-      useSession: true,
-      previousItemIds: params.previousItemIds,
-      previousComboSignature: params.previousComboSignature,
-    },
-    {
-      seed: params.baseSeed + 907,
-      regenerate: false,
-      useSession: false,
-    },
-  ];
-
-  for (const [phaseIndex, phase] of phases.entries()) {
-    for (let attempt = 0; attempt < MAX_DAY_ATTEMPTS_PER_PHASE; attempt += 1) {
-      const look = generateTravelDayLook(t, {
-        wardrobe: params.wardrobe,
-        weather: params.weather,
-        styleMemory: params.styleMemory,
-        travelIntent: params.travelIntent,
-        session: params.session,
-        options: {
-          ...phase,
-          seed: phase.seed + attempt * 37,
-        },
-      });
-
-      const pieces = look.completeOutfit ?? [];
-      if (!isWearableOutfit(pieces, TRAVEL_OCCASION, params.weather)) {
-        continue;
-      }
-
-      if (isOutfitDecisionDebugEnabled()) {
-        logOutfitDecisionReport(
-          buildOutfitDecisionReport({
-            path: 'travel_local',
-            pieces,
-            occasion: TRAVEL_OCCASION,
-            weather: params.weather,
-            recentOutfitSets: params.session.recentSets,
-            recentCoreSets: params.session.recentCoreSets,
-            seenSignatures: params.session.seenSignatures,
-            extraNotes: [
-              `travel day=${params.day} phase=${phaseIndex} attempt=${attempt} temp=${params.weather.temperature}°C`,
-            ],
-          }),
-        );
-      }
-
-      return { pieces, look };
-    }
-  }
-
-  return null;
-}
-
-function recordTravelSessionOutfit(session: TravelSessionState, pieces: OutfitPiece[]): void {
-  const itemIds = pieces.map((piece) => piece.item.id);
-  if (itemIds.length === 0) return;
-  session.recentSets.push(itemIds);
-  session.recentCoreSets.push(corePieceIdsFromOutfit(pieces));
-  session.recentIds.push(...itemIds);
-  session.seenSignatures.add(outfitItemSignature(itemIds));
-
-  const shoePiece = pieces.find((piece) => piece.role === 'shoes');
-  if (shoePiece) {
-    session.usedShoeIds.push(shoePiece.item.id);
-    session.usedShoeCategories.push(shoeCategory(shoePiece.item));
-  }
-}
 
 const DESTINATION_WEATHER: Record<
   string,
@@ -391,53 +233,30 @@ export function generateTravelPlan(
   const weather = buildWeatherFromForecast(destination, weatherDays);
   const travelIntent = enginePhraseForOccasion(TRAVEL_OCCASION);
 
-  const session: TravelSessionState = {
-    recentSets: [],
-    recentCoreSets: [],
-    seenSignatures: new Set<string>(),
-    recentIds: [],
-    usedShoeIds: [],
-    usedShoeCategories: [],
-  };
-  let previousItemIds: string[] | undefined;
-  let previousComboSignature: string | undefined;
-
-  const dailyLooks: TravelDayPlan[] = [];
+  const weatherByDay: WeatherSnapshot[] = [];
   for (let index = 0; index < duration; index += 1) {
-    const day = index + 1;
     const dayWeather = weatherDays[index % weatherDays.length];
     const useDaytime = index % 2 === 0;
-    const dayWeatherSnapshotValue = dayWeatherSnapshot(destination, dayWeather, useDaytime);
-
-    const validated = pickValidatedTravelDayLook(t, {
-      day,
-      baseSeed: seed + day * 17,
-      wardrobe: stylingWardrobe,
-      weather: dayWeatherSnapshotValue,
-      styleMemory,
-      travelIntent,
-      session,
-      dayIndex: index,
-      previousItemIds,
-      previousComboSignature,
-    });
-
-    if (!validated) {
-      continue;
-    }
-
-    const { pieces: outfitPieces, look } = validated;
-    const outfitItems = outfitPieces.map((piece) => piece.item);
-    recordTravelSessionOutfit(session, outfitPieces);
-    previousItemIds = outfitItems.map((item) => item.id);
-    previousComboSignature = stylingComboSignature(outfitPieces);
-
-    dailyLooks.push({
-      day: dailyLooks.length + 1,
-      items: outfitItems,
-      lookImage: outfitItems[0]?.imageUri ?? look.image,
-    });
+    weatherByDay.push(dayWeatherSnapshot(destination, dayWeather, useDaytime));
   }
+
+  const { selected } = planTravelDailyOutfits(t, {
+    duration,
+    baseSeed: seed,
+    wardrobe: stylingWardrobe,
+    weatherByDay,
+    styleMemory,
+    travelIntent,
+  });
+
+  const dailyLooks: TravelDayPlan[] = selected.map((candidate, index) => {
+    const outfitItems = candidate.pieces.map((piece) => piece.item);
+    return {
+      day: index + 1,
+      items: outfitItems,
+      lookImage: outfitItems[0]?.imageUri ?? candidate.look.image,
+    };
+  });
 
   const packedItems = uniqueWardrobeItems(dailyLooks.flatMap((day) => day.items));
 
