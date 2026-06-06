@@ -10,6 +10,7 @@ import {
   corePieceIdsFromOutfit,
   isWearableOutfit,
 } from '@/lib/outfit-assembly-rules';
+import { shoeCategory } from '@/lib/layer-piece-rules';
 import {
   buildOutfitDecisionReport,
   isOutfitDecisionDebugEnabled,
@@ -81,6 +82,8 @@ type TravelSessionState = {
   recentCoreSets: string[][];
   seenSignatures: Set<string>;
   recentIds: string[];
+  usedShoeIds: string[];
+  usedShoeCategories: string[];
 };
 
 type TravelLookAttemptOptions = {
@@ -118,6 +121,8 @@ function generateTravelDayLook(
     regenerate: options.regenerate,
     previousItemIds: options.previousItemIds,
     previousComboSignature: options.previousComboSignature,
+    travelPreviousShoeIds: options.useSession ? session.usedShoeIds : [],
+    travelPreviousShoeCategories: options.useSession ? session.usedShoeCategories : [],
     diversitySource: 'engine',
   });
 }
@@ -209,6 +214,12 @@ function recordTravelSessionOutfit(session: TravelSessionState, pieces: OutfitPi
   session.recentCoreSets.push(corePieceIdsFromOutfit(pieces));
   session.recentIds.push(...itemIds);
   session.seenSignatures.add(outfitItemSignature(itemIds));
+
+  const shoePiece = pieces.find((piece) => piece.role === 'shoes');
+  if (shoePiece) {
+    session.usedShoeIds.push(shoePiece.item.id);
+    session.usedShoeCategories.push(shoeCategory(shoePiece.item));
+  }
 }
 
 const DESTINATION_WEATHER: Record<
@@ -385,6 +396,8 @@ export function generateTravelPlan(
     recentCoreSets: [],
     seenSignatures: new Set<string>(),
     recentIds: [],
+    usedShoeIds: [],
+    usedShoeCategories: [],
   };
   let previousItemIds: string[] | undefined;
   let previousComboSignature: string | undefined;

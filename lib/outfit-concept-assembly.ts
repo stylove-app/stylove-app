@@ -55,11 +55,14 @@ import {
   scoreUseCaseOccasionMatch,
 } from '@/lib/wardrobe-metadata-authority';
 import {
+  filterShoesForWeatherContext,
   filterWardrobeItemsForWeather,
   isShortsItem,
   scoreFootwearWeatherPreference,
   scoreShoeRegenerateDiversity,
   scoreShortsRegenerateDiversity,
+  scoreTravelShoeDiversity,
+  shoeCategory,
 } from '@/lib/layer-piece-rules';
 import { scoreWomenPieceForOccasion } from '@/lib/women-outfit-scoring';
 
@@ -93,6 +96,9 @@ type AssemblyParams = {
   previousShoeId?: string;
   previousShoeCategory?: string;
   previousHadShorts?: boolean;
+  travelPreviousShoeIds?: string[];
+  travelPreviousShoeCategories?: string[];
+  diversitySource?: 'home' | 'replace' | 'looks' | 'engine';
 };
 
 function toStylingItem(item: WardrobeItem): StylingWardrobeItem {
@@ -162,6 +168,15 @@ function scoreCandidateItem(
       previousShoeCategory: params.previousShoeCategory,
       slotPoolSize: params.pools.shoes.length,
     });
+    if (params.diversitySource === 'engine') {
+      const eligibleShoes = filterShoesForWeatherContext(params.pools.shoes, params.weather);
+      score += scoreTravelShoeDiversity(item, {
+        previousShoeIds: params.travelPreviousShoeIds,
+        previousShoeCategories: params.travelPreviousShoeCategories,
+        availableShoeCategories: eligibleShoes.map((shoe) => shoeCategory(shoe)),
+        slotPoolSize: eligibleShoes.length,
+      });
+    }
   }
   if (role === 'bottom') {
     score += scoreShortsRegenerateDiversity(item, {

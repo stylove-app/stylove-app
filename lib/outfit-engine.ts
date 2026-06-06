@@ -56,7 +56,12 @@ import {
   stylingComboSignature,
   wardrobeHasRegenerateAlternatives,
 } from '@/lib/outfit-diversity';
-import { filterShoesForWeatherContext, filterWardrobeItemsForWeather } from '@/lib/layer-piece-rules';
+import {
+  filterShoesForWeatherContext,
+  filterWardrobeItemsForWeather,
+  scoreTravelShoeDiversity,
+  shoeCategory,
+} from '@/lib/layer-piece-rules';
 import {
   allowsSunglassesForOccasion,
   allowsWatchForOccasion,
@@ -616,6 +621,8 @@ function buildCompleteOutfit(
     previousShoeCategory?: string;
     previousHadShorts?: boolean;
     previousOutfitPieces?: OutfitPiece[];
+    travelPreviousShoeIds?: string[];
+    travelPreviousShoeCategories?: string[];
     diversitySource?: 'home' | 'replace' | 'looks' | 'engine';
   },
 ): { pieces: OutfitPiece[]; stylingConceptId?: string; paletteMode?: string } {
@@ -671,6 +678,9 @@ function buildCompleteOutfit(
       previousShoeId: params.previousShoeId,
       previousShoeCategory: params.previousShoeCategory,
       previousHadShorts: params.previousHadShorts,
+      travelPreviousShoeIds: params.travelPreviousShoeIds,
+      travelPreviousShoeCategories: params.travelPreviousShoeCategories,
+      diversitySource: params.diversitySource,
     });
 
     const pieces =
@@ -724,6 +734,19 @@ function buildCompleteOutfit(
       slotPoolSizes: { bags: pools.bags.length, shoes: pools.shoes.length },
     });
     score += comboPenalty;
+
+    if (params.diversitySource === 'engine' && params.travelPreviousShoeIds?.length) {
+      const shoePiece = pieces.find((piece) => piece.role === 'shoes');
+      if (shoePiece) {
+        const eligibleShoes = filterShoesForWeatherContext(pools.shoes, params.weather);
+        score += scoreTravelShoeDiversity(shoePiece.item, {
+          previousShoeIds: params.travelPreviousShoeIds,
+          previousShoeCategories: params.travelPreviousShoeCategories,
+          availableShoeCategories: eligibleShoes.map((shoe) => shoeCategory(shoe)),
+          slotPoolSize: eligibleShoes.length,
+        });
+      }
+    }
 
     if (isHomeRegenerateFlow(params.regenerate, params.diversitySource)) {
       score += scoreRegenerateCoreDiversityV2({
@@ -940,6 +963,8 @@ export function generateLook(
     previousShoeCategory?: string;
     previousHadShorts?: boolean;
     previousOutfitPieces?: OutfitPiece[];
+    travelPreviousShoeIds?: string[];
+    travelPreviousShoeCategories?: string[];
     diversitySource?: 'home' | 'replace' | 'looks' | 'engine';
   },
 ): CuratedLook {
@@ -1007,6 +1032,8 @@ export function generateLook(
     previousShoeCategory: params.previousShoeCategory,
     previousHadShorts: params.previousHadShorts,
     previousOutfitPieces: params.previousOutfitPieces,
+    travelPreviousShoeIds: params.travelPreviousShoeIds,
+    travelPreviousShoeCategories: params.travelPreviousShoeCategories,
     diversitySource: params.diversitySource,
   });
   const wardrobeHint =

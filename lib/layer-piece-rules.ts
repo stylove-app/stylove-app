@@ -225,6 +225,57 @@ export function scoreShoeRegenerateDiversity(
   return score;
 }
 
+export function scoreTravelShoeDiversity(
+  item: WardrobeItem,
+  options?: {
+    previousShoeIds?: string[];
+    previousShoeCategories?: string[];
+    availableShoeCategories?: string[];
+    slotPoolSize?: number;
+  },
+): number {
+  const previousIds = options?.previousShoeIds ?? [];
+  const previousCategories = options?.previousShoeCategories ?? [];
+  if (previousIds.length === 0 && previousCategories.length === 0) return 0;
+
+  const availableCategories = new Set(options?.availableShoeCategories ?? []);
+  const hasCategoryAlternatives = availableCategories.size >= 2;
+  const hasItemAlternatives = (options?.slotPoolSize ?? 0) >= 2;
+  if (!hasCategoryAlternatives && !hasItemAlternatives) return 0;
+
+  const category = shoeCategory(item);
+  const lastId = previousIds[previousIds.length - 1];
+  const lastCategory = previousCategories[previousCategories.length - 1];
+  let score = 0;
+
+  if (lastId && item.id === lastId) {
+    score -= hasItemAlternatives ? 46 : 28;
+  } else if (previousIds.includes(item.id)) {
+    score -= 22;
+  } else {
+    score += 8;
+  }
+
+  if (hasCategoryAlternatives) {
+    if (lastCategory && category === lastCategory) {
+      score -= 32;
+    }
+
+    const categoryUses = previousCategories.filter((value) => value === category).length;
+    if (categoryUses >= 2) {
+      score -= 26;
+    }
+
+    if (lastCategory && category !== lastCategory) {
+      score += 16;
+    } else if (!previousCategories.includes(category)) {
+      score += 12;
+    }
+  }
+
+  return score;
+}
+
 export function scoreShortsRegenerateDiversity(
   item: WardrobeItem,
   options?: {
