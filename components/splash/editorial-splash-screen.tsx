@@ -1,10 +1,8 @@
-import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StyloveLogo } from '@/components/brand/stylove-logo';
-import { EDITORIAL_ONBOARDING_IMAGES } from '@/constants/editorial-onboarding-images';
 import {
   EditorialOnboardingColors,
   EditorialOnboardingShadow,
@@ -50,12 +48,11 @@ function EditorialSplashComposition() {
         <View style={[styles.hanger, styles.hangerCenter]} />
         <View style={[styles.hanger, styles.hangerRight]} />
       </View>
-      <Image
-        source={{ uri: EDITORIAL_ONBOARDING_IMAGES.splashAccent }}
-        style={styles.accentImage}
-        contentFit="cover"
-        transition={400}
-      />
+      <View style={styles.garmentRow}>
+        <View style={[styles.garmentShape, styles.garmentLeft]} />
+        <View style={[styles.garmentShape, styles.garmentCenter]} />
+        <View style={[styles.garmentShape, styles.garmentRight]} />
+      </View>
       <View style={styles.swatchRow}>
         <View style={[styles.swatch, styles.swatchIvory]} />
         <View style={[styles.swatch, styles.swatchBeige]} />
@@ -130,12 +127,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 28,
     top: 22,
-    width: 120,
+    width: 200,
     height: 90,
   },
   rackPole: {
     position: 'absolute',
-    left: 54,
+    left: 98,
     top: 0,
     width: 3,
     height: 78,
@@ -147,7 +144,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 8,
     top: 10,
-    width: 96,
+    width: 184,
     height: 3,
     borderRadius: 2,
     backgroundColor: EditorialOnboardingColors.burgundy,
@@ -166,17 +163,27 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 14,
     borderTopRightRadius: 14,
   },
-  hangerLeft: { left: 14 },
-  hangerCenter: { left: 46 },
-  hangerRight: { left: 78 },
-  accentImage: {
+  hangerLeft: { left: 24 },
+  hangerCenter: { left: 86 },
+  hangerRight: { left: 148 },
+  garmentRow: {
     position: 'absolute',
-    right: 0,
-    bottom: 0,
-    width: '58%',
-    height: '100%',
-    opacity: 0.92,
+    top: 34,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
+  garmentShape: {
+    width: 52,
+    height: 64,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: EditorialOnboardingColors.border,
+  },
+  garmentLeft: { backgroundColor: EditorialOnboardingColors.ivory },
+  garmentCenter: { backgroundColor: EditorialOnboardingColors.beigeSoft },
+  garmentRight: { backgroundColor: EditorialOnboardingColors.cream },
   swatchRow: {
     position: 'absolute',
     left: 24,

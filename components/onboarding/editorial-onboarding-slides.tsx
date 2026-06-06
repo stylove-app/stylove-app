@@ -1,9 +1,12 @@
-import { Image } from 'expo-image';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EDITORIAL_ONBOARDING_IMAGES } from '@/constants/editorial-onboarding-images';
+import {
+  OutfitComposeIllustration,
+  TravelPackIllustration,
+  WardrobeIllustration,
+} from '@/components/onboarding/onboarding-illustrations';
 import {
   EditorialOnboardingColors,
   EditorialOnboardingShadow,
@@ -12,13 +15,14 @@ import { softFadeInDown } from '@/constants/luxury-motion';
 import { Fonts } from '@/constants/theme';
 import type { OnboardingSlideCopy } from '@/lib/onboarding-copy';
 
-const SLIDE_IMAGES = [
-  EDITORIAL_ONBOARDING_IMAGES.slide1,
-  EDITORIAL_ONBOARDING_IMAGES.slide2,
-  EDITORIAL_ONBOARDING_IMAGES.slide3,
-] as const;
-
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const ILLUSTRATION_SIZE = Math.min(SCREEN_WIDTH - 72, 300);
+
+const SLIDE_ILLUSTRATIONS = [
+  WardrobeIllustration,
+  OutfitComposeIllustration,
+  TravelPackIllustration,
+] as const;
 
 type EditorialOnboardingSlidesProps = {
   slides: readonly OnboardingSlideCopy[];
@@ -39,31 +43,32 @@ export function EditorialOnboardingSlides({
 }: EditorialOnboardingSlidesProps) {
   const insets = useSafeAreaInsets();
   const slide = slides[slideIndex];
-  const imageUri = SLIDE_IMAGES[slideIndex] ?? SLIDE_IMAGES[0];
+  const Illustration = SLIDE_ILLUSTRATIONS[slideIndex] ?? WardrobeIllustration;
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 20 }]}>
       <Pressable onPress={onSkip} hitSlop={12} style={styles.skipWrap}>
         <Text style={styles.skip}>{skipLabel}</Text>
       </Pressable>
 
-      <Animated.View
-        key={`image-${slideIndex}`}
-        entering={FadeIn.duration(480)}
-        exiting={FadeOut.duration(280)}
-        style={styles.imageFrame}>
-        <Image source={{ uri: imageUri }} style={styles.image} contentFit="cover" transition={320} />
-        <View style={styles.imageVeil} />
-        <View style={styles.imageVeilTint} />
-      </Animated.View>
+      <View style={styles.content}>
+        <Animated.View
+          key={`illustration-${slideIndex}`}
+          entering={FadeIn.duration(520)}
+          exiting={FadeOut.duration(280)}
+          style={styles.illustrationWrap}>
+          <Illustration width={ILLUSTRATION_SIZE} height={ILLUSTRATION_SIZE} />
+        </Animated.View>
 
-      <Animated.View
-        key={`copy-${slideIndex}`}
-        entering={softFadeInDown(60)}
-        style={styles.copyBlock}>
-        <Text style={styles.title}>{slide.title}</Text>
-        <Text style={styles.subtitle}>{slide.subtitle}</Text>
-      </Animated.View>
+        <Animated.View
+          key={`copy-${slideIndex}`}
+          entering={softFadeInDown(80)}
+          style={styles.copyBlock}>
+          <Text style={styles.title}>{slide.title}</Text>
+          <Text style={styles.subtitle}>{slide.subtitle}</Text>
+          <Text style={styles.footnote}>{slide.footnote}</Text>
+        </Animated.View>
+      </View>
 
       <View style={styles.footer}>
         <View style={styles.dots}>
@@ -86,66 +91,57 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: EditorialOnboardingColors.background,
-    paddingHorizontal: 28,
+    paddingHorizontal: 32,
   },
   skipWrap: {
     alignSelf: 'flex-end',
-    paddingVertical: 8,
+    paddingVertical: 6,
     minHeight: 36,
     justifyContent: 'center',
   },
   skip: {
-    fontSize: 14,
+    fontSize: 15,
     color: EditorialOnboardingColors.textMuted,
-    letterSpacing: 0.2,
+    letterSpacing: 0.15,
   },
-  imageFrame: {
-    width: SCREEN_WIDTH - 56,
-    height: SCREEN_WIDTH * 0.92,
-    maxHeight: 420,
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 44,
+    paddingTop: 8,
+  },
+  illustrationWrap: {
     alignSelf: 'center',
-    borderRadius: 32,
-    overflow: 'hidden',
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: EditorialOnboardingColors.border,
     ...EditorialOnboardingShadow.card,
   },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  imageVeil: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(248, 244, 236, 0.1)',
-  },
-  imageVeilTint: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(74, 14, 24, 0.06)',
-  },
   copyBlock: {
-    marginTop: 36,
-    gap: 12,
-    paddingHorizontal: 4,
+    gap: 14,
+    paddingHorizontal: 2,
   },
   title: {
     fontFamily: Fonts.serif,
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 38,
+    lineHeight: 44,
     color: EditorialOnboardingColors.burgundy,
-    letterSpacing: -0.3,
+    letterSpacing: -0.6,
   },
   subtitle: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: EditorialOnboardingColors.textSoft,
+    fontSize: 17,
+    lineHeight: 26,
+    color: EditorialOnboardingColors.text,
+    maxWidth: 340,
+    letterSpacing: 0.1,
+  },
+  footnote: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: EditorialOnboardingColors.textMuted,
     maxWidth: 320,
+    letterSpacing: 0.05,
   },
   footer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    gap: 22,
-    paddingBottom: 8,
+    gap: 24,
+    paddingTop: 12,
   },
   dots: {
     flexDirection: 'row',
@@ -159,11 +155,11 @@ const styles = StyleSheet.create({
     backgroundColor: EditorialOnboardingColors.beige,
   },
   dotActive: {
-    width: 22,
+    width: 24,
     backgroundColor: EditorialOnboardingColors.burgundy,
   },
   cta: {
-    minHeight: 54,
+    minHeight: 56,
     borderRadius: 28,
     backgroundColor: EditorialOnboardingColors.burgundy,
     alignItems: 'center',
@@ -179,6 +175,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: EditorialOnboardingColors.ivory,
-    letterSpacing: 0.3,
+    letterSpacing: 0.35,
   },
 });

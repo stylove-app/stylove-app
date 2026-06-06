@@ -3,6 +3,7 @@ import type { Locale } from '@/i18n/types';
 export type OnboardingSlideCopy = {
   title: string;
   subtitle: string;
+  footnote: string;
 };
 
 export type OnboardingCopy = {
@@ -48,9 +49,21 @@ export const ONBOARDING_COPY: Record<Locale, OnboardingCopy> = {
     languageName: 'Türkçe',
     splashSubtitle: 'Zarif stilin, gardırobundan doğar.',
     slides: [
-      { title: 'Anını seç.', subtitle: 'Gardırobundan, anına uygun kombinler.' },
-      { title: 'Gardırobunu tanı.', subtitle: 'Her parçaya stil profili; kombinler sana özel.' },
-      { title: 'Her gün daha rafine.', subtitle: 'Sakin, zarif, tamamen sana ait.' },
+      {
+        title: 'Gardırobunu Düzenle',
+        subtitle: 'Kıyafetlerini yükle, her parçanı dijital gardırobunda tek bir yerde topla.',
+        footnote: 'Üstlerinden ayakkabılarına kadar tüm parçaların her zaman hazır olsun.',
+      },
+      {
+        title: 'Kendi Kıyafetlerinle Kombinler Oluştur',
+        subtitle: 'Stylove, gardırobundaki parçaları kullanarak sana kombin önerileri hazırlar.',
+        footnote: 'Farklı bir görünüm mü istiyorsun? Tek dokunuşla yeni alternatifler oluştur.',
+      },
+      {
+        title: 'Seyahatlerini Önceden Planla',
+        subtitle: 'Valizine alman gereken parçaları ve günlük kombinlerini seyahate çıkmadan önce gör.',
+        footnote: 'Daha az eşya taşı, her gün ne giyeceğini önceden bil.',
+      },
     ],
     continueCta: 'Devam Et',
     skipCta: 'Atla',
@@ -78,9 +91,21 @@ export const ONBOARDING_COPY: Record<Locale, OnboardingCopy> = {
     languageName: 'English',
     splashSubtitle: 'Elegant style, shaped by your wardrobe.',
     slides: [
-      { title: 'Choose the moment.', subtitle: 'Occasion-led looks from your wardrobe.' },
-      { title: 'Know every piece.', subtitle: 'A style profile per item—combinations feel yours.' },
-      { title: 'Refined, every day.', subtitle: 'Calm, elegant, unmistakably you.' },
+      {
+        title: 'Organize Your Wardrobe',
+        subtitle: 'Upload your clothes and keep every piece in one digital wardrobe.',
+        footnote: 'From tops to shoes — everything ready when you need it.',
+      },
+      {
+        title: 'Create Looks From Your Clothes',
+        subtitle: 'Stylove builds outfit suggestions using pieces already in your wardrobe.',
+        footnote: 'Want a different look? Generate fresh alternatives with a single tap.',
+      },
+      {
+        title: 'Plan Your Trips Ahead',
+        subtitle: 'See what to pack and your daily outfits before you leave.',
+        footnote: 'Pack less and know what to wear every day of your trip.',
+      },
     ],
     continueCta: 'Continue',
     skipCta: 'Skip',
@@ -108,9 +133,21 @@ export const ONBOARDING_COPY: Record<Locale, OnboardingCopy> = {
     languageName: 'Deutsch',
     splashSubtitle: 'Dein eleganter Stil, aus deinem Kleiderschrank.',
     slides: [
-      { title: 'Wähle den Moment.', subtitle: 'Looks passend zum Anlass — aus deiner Garderobe.' },
-      { title: 'Kenne jedes Stück.', subtitle: 'Stilprofil pro Teil — Kombinationen, die zu dir gehören.' },
-      { title: 'Jeden Tag raffinierter.', subtitle: 'Ruhig, elegant, unverwechselbar du.' },
+      {
+        title: 'Ordne deine Garderobe',
+        subtitle: 'Lade deine Kleidung hoch und sammle jedes Teil an einem Ort.',
+        footnote: 'Von Oberteilen bis Schuhen — alles griffbereit.',
+      },
+      {
+        title: 'Looks aus deinen Kleidungsstücken',
+        subtitle: 'Stylove erstellt Outfit-Vorschläge aus deiner eigenen Garderobe.',
+        footnote: 'Neuer Look gewünscht? Mit einem Tipp frische Alternativen.',
+      },
+      {
+        title: 'Reisen im Voraus planen',
+        subtitle: 'Sieh Kofferinhalt und Tages-Outfits, bevor du abreist.',
+        footnote: 'Weniger packen und jeden Tag dein Outfit kennen.',
+      },
     ],
     continueCta: 'Weiter',
     skipCta: 'Überspringen',
@@ -138,9 +175,21 @@ export const ONBOARDING_COPY: Record<Locale, OnboardingCopy> = {
     languageName: 'Français',
     splashSubtitle: 'Un style élégant, né de votre garde-robe.',
     slides: [
-      { title: 'Choisissez l’instant.', subtitle: 'Des tenues selon l’occasion, depuis votre garde-robe.' },
-      { title: 'Connaissez chaque pièce.', subtitle: 'Un profil de style par article — des looks qui vous ressemblent.' },
-      { title: 'Plus raffinée, chaque jour.', subtitle: 'Calme, élégante, uniquement vous.' },
+      {
+        title: 'Organisez votre garde-robe',
+        subtitle: 'Importez vos vêtements et regroupez chaque pièce au même endroit.',
+        footnote: 'Des hauts aux chaussures — tout est prêt quand vous en avez besoin.',
+      },
+      {
+        title: 'Créez des looks avec vos vêtements',
+        subtitle: 'Stylove prépare des suggestions à partir de votre garde-robe.',
+        footnote: 'Envie d’un autre style ? De nouvelles options en un geste.',
+      },
+      {
+        title: 'Planifiez vos voyages à l’avance',
+        subtitle: 'Voyez quoi emporter et vos tenues quotidiennes avant le départ.',
+        footnote: 'Voyagez léger et sachez quoi porter chaque jour.',
+      },
     ],
     continueCta: 'Continuer',
     skipCta: 'Passer',
@@ -168,9 +217,21 @@ export const ONBOARDING_COPY: Record<Locale, OnboardingCopy> = {
     languageName: 'Español',
     splashSubtitle: 'Tu estilo elegante, desde tu armario.',
     slides: [
-      { title: 'Elige el momento.', subtitle: 'Looks según la ocasión, desde tu armario.' },
-      { title: 'Conoce cada prenda.', subtitle: 'Perfil de estilo por pieza — combinaciones solo tuyas.' },
-      { title: 'Más refinada, cada día.', subtitle: 'Calma, elegante, solo tuya.' },
+      {
+        title: 'Organiza tu armario',
+        subtitle: 'Sube tu ropa y reúne cada prenda en un solo lugar digital.',
+        footnote: 'Desde tops hasta zapatos — todo listo cuando lo necesites.',
+      },
+      {
+        title: 'Crea looks con tu ropa',
+        subtitle: 'Stylove prepara sugerencias usando las piezas de tu armario.',
+        footnote: '¿Quieres otro estilo? Nuevas alternativas con un toque.',
+      },
+      {
+        title: 'Planifica tus viajes',
+        subtitle: 'Ve qué empacar y tus outfits diarios antes de salir.',
+        footnote: 'Viaja con menos y sabe qué ponerte cada día.',
+      },
     ],
     continueCta: 'Continuar',
     skipCta: 'Omitir',
@@ -198,9 +259,21 @@ export const ONBOARDING_COPY: Record<Locale, OnboardingCopy> = {
     languageName: 'Italiano',
     splashSubtitle: 'Il tuo stile elegante, dal guardaroba.',
     slides: [
-      { title: 'Scegli il momento.', subtitle: 'Look per ogni occasione, dal tuo guardaroba.' },
-      { title: 'Conosci ogni capo.', subtitle: 'Profilo di stile per pezzo — combinazioni solo tue.' },
-      { title: 'Più raffinata, ogni giorno.', subtitle: 'Calma, elegante, solo tua.' },
+      {
+        title: 'Organizza il guardaroba',
+        subtitle: 'Carica i tuoi capi e tieni ogni pezzo in un unico posto.',
+        footnote: 'Dai top alle scarpe — tutto pronto quando serve.',
+      },
+      {
+        title: 'Crea look con i tuoi capi',
+        subtitle: 'Stylove prepara suggerimenti usando il tuo guardaroba.',
+        footnote: 'Vuoi un altro stile? Nuove alternative con un tocco.',
+      },
+      {
+        title: 'Pianifica i tuoi viaggi',
+        subtitle: 'Vedi cosa mettere in valigia e gli outfit giornalieri prima di partire.',
+        footnote: 'Viaggia leggera e sappi cosa indossare ogni giorno.',
+      },
     ],
     continueCta: 'Continua',
     skipCta: 'Salta',
@@ -228,9 +301,21 @@ export const ONBOARDING_COPY: Record<Locale, OnboardingCopy> = {
     languageName: 'العربية',
     splashSubtitle: 'أسلوبك الأنيق، من خزانتك.',
     slides: [
-      { title: 'اختاري اللحظة.', subtitle: 'إطلالات تناسب المناسبة — من خزانتك.' },
-      { title: 'تعرّفي كل قطعة.', subtitle: 'ملف أسلوب لكل قطعة — تنسيقات لك وحدك.' },
-      { title: 'أكثر رقياً كل يوم.', subtitle: 'هادئ، أنيق، لك وحدك.' },
+      {
+        title: 'نظّمي خزانتك',
+        subtitle: 'ارفعي ملابسك واجمعي كل قطعة في مكان واحد.',
+        footnote: 'من القمصان إلى الأحذية — كل شيء جاهز عند الحاجة.',
+      },
+      {
+        title: 'أنشئي إطلالات من ملابسك',
+        subtitle: 'Stylove يقترح تنسيقات من قطع خزانتك.',
+        footnote: 'تريدين مظهراً مختلفاً؟ بدائل جديدة بلمسة واحدة.',
+      },
+      {
+        title: 'خططي لسفرك مسبقاً',
+        subtitle: 'اعرفي ما تضعين في الحقيبة وإطلالاتك اليومية قبل السفر.',
+        footnote: 'سافري بأقل عفة واعرفي ماذا ترتدين كل يوم.',
+      },
     ],
     continueCta: 'متابعة',
     skipCta: 'تخطي',
@@ -258,9 +343,21 @@ export const ONBOARDING_COPY: Record<Locale, OnboardingCopy> = {
     languageName: 'Русский',
     splashSubtitle: 'Изящный стиль — из вашего гардероба.',
     slides: [
-      { title: 'Выберите момент.', subtitle: 'Образы под повод — из вашего гардероба.' },
-      { title: 'Знайте каждую вещь.', subtitle: 'Профиль стиля для каждой детали — образы только ваши.' },
-      { title: 'Изысканнее каждый день.', subtitle: 'Спокойно, элегантно, только вы.' },
+      {
+        title: 'Организуйте гардероб',
+        subtitle: 'Загрузите одежду и соберите каждую вещь в одном месте.',
+        footnote: 'От верха до обуви — всё готово, когда нужно.',
+      },
+      {
+        title: 'Создавайте образы из своей одежды',
+        subtitle: 'Stylove предлагает сочетания из вашего гардероба.',
+        footnote: 'Нужен другой вид? Новые варианты одним касанием.',
+      },
+      {
+        title: 'Планируйте поездки заранее',
+        subtitle: 'Узнайте, что взять в чемодан и ежедневные образы до отъезда.',
+        footnote: 'Берите меньше и знайте, что надеть каждый день.',
+      },
     ],
     continueCta: 'Продолжить',
     skipCta: 'Пропустить',
