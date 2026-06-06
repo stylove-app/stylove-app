@@ -52,7 +52,7 @@ import {
   scoreOutfitComboRepeat,
   stylingComboSignature,
 } from '@/lib/outfit-diversity';
-import { filterShoesForWeatherContext } from '@/lib/layer-piece-rules';
+import { filterShoesForWeatherContext, filterWardrobeItemsForWeather } from '@/lib/layer-piece-rules';
 import {
   allowsSunglassesForOccasion,
   allowsWatchForOccasion,
@@ -465,7 +465,7 @@ function assembleOutfitCandidate(
     return pieces;
   }
 
-  const topPool = pools.tops.filter(isRealTopItem);
+  const topPool = filterWardrobeItemsForWeather(pools.tops.filter(isRealTopItem), params.weather);
   const topStyling = pickBestPiece(topPool.map(toStylingWardrobeItem), {
     ...base,
     anchor: null,
@@ -485,14 +485,15 @@ function assembleOutfitCandidate(
   const anchor = analyzeWardrobeItem(toStylingWardrobeItem(top));
   selected.push(anchor);
 
-  const bottomPick = pickBestPiece(pools.bottoms.map(toStylingWardrobeItem), {
+  const bottomPool = filterWardrobeItemsForWeather(pools.bottoms, params.weather);
+  const bottomPick = pickBestPiece(bottomPool.map(toStylingWardrobeItem), {
     ...base,
     anchor,
     selected,
     preferredTypes: biblePreferredTypes(params.resolvedIntent, params.wardrobe, 'bottom', params.mood, 'bottom'),
     seed: params.seed + 2,
   });
-  const bottom = resolvePickedItem(pools.bottoms, bottomPick);
+  const bottom = resolvePickedItem(bottomPool, bottomPick);
   if (!bottom) return [];
 
   selected.push(analyzeWardrobeItem(toStylingWardrobeItem(bottom)));
@@ -608,6 +609,7 @@ function buildCompleteOutfit(
     previousWasOnePiece?: boolean;
     previousShoeId?: string;
     previousShoeCategory?: string;
+    previousHadShorts?: boolean;
     diversitySource?: 'home' | 'replace' | 'looks' | 'engine';
   },
 ): { pieces: OutfitPiece[]; stylingConceptId?: string; paletteMode?: string } {
@@ -665,6 +667,7 @@ function buildCompleteOutfit(
       previousItemIds: params.previousItemIds,
       previousShoeId: params.previousShoeId,
       previousShoeCategory: params.previousShoeCategory,
+      previousHadShorts: params.previousHadShorts,
     });
 
     const pieces =
@@ -908,6 +911,7 @@ export function generateLook(
     previousWasOnePiece?: boolean;
     previousShoeId?: string;
     previousShoeCategory?: string;
+    previousHadShorts?: boolean;
     diversitySource?: 'home' | 'replace' | 'looks' | 'engine';
   },
 ): CuratedLook {
@@ -973,6 +977,7 @@ export function generateLook(
     previousWasOnePiece: params.previousWasOnePiece,
     previousShoeId: params.previousShoeId,
     previousShoeCategory: params.previousShoeCategory,
+    previousHadShorts: params.previousHadShorts,
     diversitySource: params.diversitySource,
   });
   const wardrobeHint =

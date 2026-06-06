@@ -14,8 +14,8 @@ import {
   isLayerPieceCategory,
   isLayerPieceItem,
   normalizeLayerCategory,
-  validateFootwearWeatherRules,
   validateLayerPieceRules,
+  validateWardrobeWeatherRules,
 } from '@/lib/layer-piece-rules';
 import { HOT_WEATHER_HARD_C, validateOccasionAuthority } from '@/lib/occasion-style-authority';
 import { scoreEnhancedItemUsageDiversity, scoreRegenerateCoreChange } from '@/lib/outfit-diversity';
@@ -27,7 +27,7 @@ const CORE_BOTTOM_SLOTS = new Set<WardrobeSlotId>(['bottom']);
 const ONE_PIECE_SLOTS = new Set<WardrobeSlotId>(['dress', 'jumpsuit', 'set']);
 const OUTERWEAR_SLOTS = new Set<WardrobeSlotId>(['outerwear']);
 
-const OUTERWEAR_SUBCATEGORIES = new Set(['blazer', 'jacket', 'trenchcoat', 'coat', 'cardigan']);
+const OUTERWEAR_SUBCATEGORIES = new Set(['blazer', 'jacket', 'trenchcoat', 'coat', 'cardigan', 'mont']);
 const REAL_TOP_SUBCATEGORIES = new Set([
   't_shirt',
   'blouse',
@@ -269,9 +269,9 @@ export function validateOutfitStructure(
     return layerFit;
   }
 
-  const footwearFit = validateFootwearWeatherRules(pieces, weather);
-  if (!footwearFit.valid) {
-    return footwearFit;
+  const weatherFit = validateWardrobeWeatherRules(pieces, weather);
+  if (!weatherFit.valid) {
+    return weatherFit;
   }
 
   return { valid: true };
@@ -356,7 +356,7 @@ export function scoreHotWeatherItem(
   if (lightBoost.has(profile.category)) score += 8;
   if (profile.season === 'summer') score += 3;
 
-  const heavyBan = new Set(['blazer', 'coat', 'jacket', 'sweater', 'boot', 'heel', 'tailored_trousers', 'cardigan']);
+  const heavyBan = new Set(['blazer', 'coat', 'jacket', 'mont', 'sweater', 'boot', 'heel', 'tailored_trousers', 'cardigan', 'trenchcoat']);
   if (heavyBan.has(profile.category)) score -= 18;
   if (OUTERWEAR_SUBCATEGORIES.has(profile.category)) score -= 16;
   if (profile.slot === 'outerwear') score -= 20;

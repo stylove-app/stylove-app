@@ -393,7 +393,7 @@ export function generateTravelPlan(
     shoes,
     outerwear,
     dailyLooks,
-    spots: buildSpots(t, destination.trim() || t.travel.defaultCity, vibe, seed),
+    spots: [],
     wardrobeHint,
   };
 }

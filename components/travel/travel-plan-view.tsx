@@ -197,31 +197,6 @@ export function TravelPlanView({ plan }: TravelPlanViewProps) {
         ))}
       </View>
 
-      <SectionHeader title={t.travel.spotsTitle} subtitle={t.travel.spotsSubtitle} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.spotsRow}>
-        {plan.spots.map((spot, index) => (
-          <Animated.View
-            key={spot.id}
-            entering={softFadeInDown(160 + index * 70)}
-            style={[
-              styles.spotCard,
-              { backgroundColor: colors.cardDark, borderColor: 'rgba(196,160,98,0.16)' },
-              StyloveShadow.soft,
-            ]}>
-            <Image source={{ uri: spot.image }} style={styles.spotImage} contentFit="cover" transition={300} />
-            <View style={styles.spotVeil} />
-            <View style={styles.spotBody}>
-              <Text style={[styles.spotType, { color: colors.goldSoft }]}>{t.travel.spotTypes[spot.type]}</Text>
-              <Text style={[styles.spotName, { color: colors.creamText }]} numberOfLines={2}>
-                {spot.name}
-              </Text>
-              {spot.outfitSuggested ? (
-                <Text style={[styles.spotNote, { color: colors.goldMuted }]}>{t.travel.spotOutfitNote}</Text>
-              ) : null}
-            </View>
-          </Animated.View>
-        ))}
-      </ScrollView>
     </View>
   );
 }

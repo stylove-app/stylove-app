@@ -55,9 +55,11 @@ import {
   scoreUseCaseOccasionMatch,
 } from '@/lib/wardrobe-metadata-authority';
 import {
-  filterShoesForWeatherContext,
+  filterWardrobeItemsForWeather,
+  isShortsItem,
   scoreFootwearWeatherPreference,
   scoreShoeRegenerateDiversity,
+  scoreShortsRegenerateDiversity,
 } from '@/lib/layer-piece-rules';
 import { scoreWomenPieceForOccasion } from '@/lib/women-outfit-scoring';
 
@@ -90,6 +92,7 @@ type AssemblyParams = {
   previousItemIds?: string[];
   previousShoeId?: string;
   previousShoeCategory?: string;
+  previousHadShorts?: boolean;
 };
 
 function toStylingItem(item: WardrobeItem): StylingWardrobeItem {
@@ -160,6 +163,13 @@ function scoreCandidateItem(
       slotPoolSize: params.pools.shoes.length,
     });
   }
+  if (role === 'bottom') {
+    score += scoreShortsRegenerateDiversity(item, {
+      regenerate: params.regenerate,
+      previousHadShorts: params.previousHadShorts,
+      poolSize: params.pools.bottoms.length,
+    });
+  }
   if (role === 'accessory' || role === 'bag') {
     score += scoreAccessoryPickBias(
       toStylingItem(item),
@@ -227,8 +237,12 @@ function rankPool(
     authorityRole,
     params.weather,
   );
-  if (role === 'shoes') {
-    eligible = filterShoesForWeatherContext(eligible, params.weather);
+  eligible = filterWardrobeItemsForWeather(eligible, params.weather);
+  if (role === 'bottom' && params.regenerate && params.previousHadShorts) {
+    const nonShorts = eligible.filter((item) => !isShortsItem(item));
+    if (nonShorts.length > 0) {
+      eligible = nonShorts;
+    }
   }
 
   let rankedPool = eligible;

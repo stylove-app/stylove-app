@@ -3,7 +3,13 @@ import type { WardrobeItem } from '@/lib/outfit-engine';
 import { getEffectiveStyleProfile } from '@/lib/wardrobe-style-profile';
 import type { WeatherSnapshot } from '@/lib/weather';
 
-export type LayerPieceCategory = 'blazer' | 'jacket' | 'trenchcoat' | 'coat' | 'cardigan';
+export type LayerPieceCategory =
+  | 'blazer'
+  | 'jacket'
+  | 'trenchcoat'
+  | 'coat'
+  | 'cardigan'
+  | 'mont';
 
 export const LAYER_PIECE_CATEGORIES = new Set<LayerPieceCategory>([
   'blazer',
@@ -11,6 +17,7 @@ export const LAYER_PIECE_CATEGORIES = new Set<LayerPieceCategory>([
   'trenchcoat',
   'coat',
   'cardigan',
+  'mont',
 ]);
 
 export const BASE_TOP_CATEGORIES = new Set([
@@ -21,10 +28,32 @@ export const BASE_TOP_CATEGORIES = new Set([
   'sweater',
 ]);
 
-export const LAYER_FORBIDDEN_TEMP_C = 25;
+/** Normal / cool band — light layers only. */
+export const COOL_WEATHER_MIN_C = 13;
+export const COOL_WEATHER_MAX_C = 18;
+
+/** Cold band — heavy layers, sweater, boots. */
+export const COLD_WEATHER_MAX_C = 15;
+
+/** Warm — no heavy garments above this. */
+export const WARM_WEATHER_MIN_C = 18;
+
+export const SHORTS_MIN_TEMP_C = 30;
 export const LAYER_DRESS_EXCEPTION_TEMP_C = 18;
-export const BOOT_FORBIDDEN_TEMP_C = 25;
-export const BOOT_PREFERRED_TEMP_C = 13;
+
+const LIGHT_OUTERWEAR = new Set(['cardigan', 'blazer', 'jacket']);
+const HEAVY_OUTERWEAR = new Set(['trenchcoat', 'coat', 'mont']);
+
+const WARM_BANNED_CATEGORIES = new Set([
+  'cardigan',
+  'blazer',
+  'jacket',
+  'trenchcoat',
+  'coat',
+  'mont',
+  'boot',
+  'sweater',
+]);
 
 export function normalizeLayerCategory(category: string): string {
   if (category === 'denim_jacket') return 'jacket';
@@ -38,12 +67,22 @@ export function isLayerPieceCategory(category: string): category is LayerPieceCa
 export function isLayerPieceItem(item: WardrobeItem): boolean {
   const profile = getEffectiveStyleProfile(item);
   if (isLayerPieceCategory(profile.category)) return true;
-  if (profile.slot === 'outerwear' && item.itemType === 'trenchcoat') return true;
+  if (profile.slot === 'outerwear' && (item.itemType === 'trenchcoat' || item.itemType === 'mont')) {
+    return true;
+  }
   return false;
 }
 
 export function isBaseTopCategory(category: string): boolean {
   return BASE_TOP_CATEGORIES.has(category);
+}
+
+export function isShortsCategory(category: string): boolean {
+  return category === 'shorts';
+}
+
+export function isShortsItem(item: WardrobeItem): boolean {
+  return isShortsCategory(getEffectiveStyleProfile(item).category);
 }
 
 export function shoeCategory(item: WardrobeItem): string {
@@ -55,19 +94,55 @@ export function isBootItem(item: WardrobeItem): boolean {
   return profile.category === 'boot' || item.itemType === 'bot';
 }
 
-export function layerForbiddenAtTemperature(temperature: number): boolean {
-  return temperature >= LAYER_FORBIDDEN_TEMP_C;
+function isRainyOrSnowy(weather: WeatherSnapshot): boolean {
+  return (
+    weather.isRainy ||
+    weather.condition === 'snow' ||
+    ['rain', 'drizzle', 'snow'].includes(weather.condition)
+  );
 }
 
-export function bootForbiddenAtTemperature(temperature: number): boolean {
-  return temperature >= BOOT_FORBIDDEN_TEMP_C;
+export function itemAllowedForWeather(item: WardrobeItem, weather?: WeatherSnapshot): boolean {
+  if (!weather) return true;
+
+  const profile = getEffectiveStyleProfile(item);
+  const category = normalizeLayerCategory(profile.category);
+  const temp = weather.temperature;
+  const rainy = isRainyOrSnowy(weather);
+
+  if (isShortsCategory(category)) {
+    return temp >= SHORTS_MIN_TEMP_C && !rainy;
+  }
+
+  if (isBootItem(item)) {
+    return temp <= COLD_WEATHER_MAX_C;
+  }
+
+  if (category === 'sweater') {
+    if (temp > WARM_WEATHER_MIN_C) return false;
+    return temp <= COLD_WEATHER_MAX_C;
+  }
+
+  if (HEAVY_OUTERWEAR.has(category)) {
+    if (temp > WARM_WEATHER_MIN_C) return false;
+    return temp <= COLD_WEATHER_MAX_C;
+  }
+
+  if (LIGHT_OUTERWEAR.has(category)) {
+    if (temp > COOL_WEATHER_MAX_C || temp < COOL_WEATHER_MIN_C) return false;
+    return true;
+  }
+
+  if (temp > WARM_WEATHER_MIN_C && WARM_BANNED_CATEGORIES.has(category)) {
+    return false;
+  }
+
+  return true;
 }
 
 export function layerAllowedWithDress(weather?: WeatherSnapshot): boolean {
   if (!weather) return false;
-  const rainy =
-    weather.isRainy || ['rain', 'drizzle', 'snow'].includes(weather.condition);
-  return rainy || weather.temperature < LAYER_DRESS_EXCEPTION_TEMP_C;
+  return isRainyOrSnowy(weather) || weather.temperature < LAYER_DRESS_EXCEPTION_TEMP_C;
 }
 
 export function layerPieceAllowedInContext(
@@ -76,15 +151,13 @@ export function layerPieceAllowedInContext(
   hasDress?: boolean,
 ): boolean {
   if (!isLayerPieceItem(item)) return true;
-  if (weather && layerForbiddenAtTemperature(weather.temperature)) return false;
+  if (!itemAllowedForWeather(item, weather)) return false;
   if (hasDress && !layerAllowedWithDress(weather)) return false;
   return true;
 }
 
 export function shoeAllowedInContext(item: WardrobeItem, weather?: WeatherSnapshot): boolean {
-  if (!isBootItem(item)) return true;
-  if (!weather) return true;
-  return !bootForbiddenAtTemperature(weather.temperature);
+  return itemAllowedForWeather(item, weather);
 }
 
 export function filterLayerPiecesForContext(
@@ -102,16 +175,26 @@ export function filterShoesForWeatherContext(
   return items.filter((item) => shoeAllowedInContext(item, weather));
 }
 
+export function filterWardrobeItemsForWeather(
+  items: WardrobeItem[],
+  weather?: WeatherSnapshot,
+): WardrobeItem[] {
+  return items.filter((item) => itemAllowedForWeather(item, weather));
+}
+
 export function scoreFootwearWeatherPreference(
   item: WardrobeItem,
   weather?: WeatherSnapshot,
 ): number {
-  if (!weather) return 0;
-  if (isBootItem(item)) {
-    if (bootForbiddenAtTemperature(weather.temperature)) return -40;
-    if (weather.temperature < BOOT_PREFERRED_TEMP_C) return 10;
+  if (!weather || !isBootItem(item)) return 0;
+
+  if (weather.temperature > COLD_WEATHER_MAX_C) return -40;
+
+  let score = 6;
+  if (weather.temperature <= COLD_WEATHER_MAX_C && isRainyOrSnowy(weather)) {
+    score += 10;
   }
-  return 0;
+  return score;
 }
 
 export function scoreShoeRegenerateDiversity(
@@ -142,6 +225,19 @@ export function scoreShoeRegenerateDiversity(
   return score;
 }
 
+export function scoreShortsRegenerateDiversity(
+  item: WardrobeItem,
+  options?: {
+    regenerate?: boolean;
+    previousHadShorts?: boolean;
+    poolSize?: number;
+  },
+): number {
+  if (!options?.regenerate || !options.previousHadShorts || !isShortsItem(item)) return 0;
+  const poolScale = options.poolSize;
+  return poolScale && poolScale <= 2 ? -28 : -40;
+}
+
 function pieceLayerCategory(piece: OutfitPiece): LayerPieceCategory | null {
   const category = normalizeLayerCategory(getEffectiveStyleProfile(piece.item).category);
   return isLayerPieceCategory(category) ? category : null;
@@ -153,10 +249,6 @@ export function validateLayerPieceRules(
 ): { valid: boolean; reason?: string } {
   const layerPieces = pieces.filter((piece) => pieceLayerCategory(piece) != null);
   if (layerPieces.length === 0) return { valid: true };
-
-  if (weather && layerForbiddenAtTemperature(weather.temperature)) {
-    return { valid: false, reason: 'layer_forbidden_hot_weather' };
-  }
 
   const hasDress = pieces.some((piece) => piece.role === 'dress');
   if (hasDress && !layerAllowedWithDress(weather)) {
@@ -186,20 +278,35 @@ export function validateLayerPieceRules(
   return { valid: true };
 }
 
+export function validateWardrobeWeatherRules(
+  pieces: OutfitPiece[],
+  weather?: WeatherSnapshot,
+): { valid: boolean; reason?: string } {
+  if (!weather) return { valid: true };
+
+  for (const piece of pieces) {
+    if (!itemAllowedForWeather(piece.item, weather)) {
+      const category = getEffectiveStyleProfile(piece.item).category;
+      if (isShortsCategory(category)) return { valid: false, reason: 'shorts_forbidden_weather' };
+      if (isBootItem(piece.item)) return { valid: false, reason: 'boot_forbidden_warm_weather' };
+      if (category === 'sweater') return { valid: false, reason: 'sweater_forbidden_warm_weather' };
+      if (isLayerPieceCategory(category)) return { valid: false, reason: 'layer_forbidden_weather' };
+      return { valid: false, reason: `weather_forbidden:${category}` };
+    }
+  }
+
+  return { valid: true };
+}
+
+/** @deprecated Use validateWardrobeWeatherRules */
 export function validateFootwearWeatherRules(
   pieces: OutfitPiece[],
   weather?: WeatherSnapshot,
 ): { valid: boolean; reason?: string } {
-  if (!weather || !bootForbiddenAtTemperature(weather.temperature)) {
-    return { valid: true };
-  }
-
+  if (!weather) return { valid: true };
   const hotBoot = pieces.find(
-    (piece) => piece.role === 'shoes' && isBootItem(piece.item),
+    (piece) => piece.role === 'shoes' && isBootItem(piece.item) && !itemAllowedForWeather(piece.item, weather),
   );
-  if (hotBoot) {
-    return { valid: false, reason: 'boot_forbidden_hot_weather' };
-  }
-
+  if (hotBoot) return { valid: false, reason: 'boot_forbidden_warm_weather' };
   return { valid: true };
 }

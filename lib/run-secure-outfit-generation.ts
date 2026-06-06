@@ -15,7 +15,7 @@ import { enginePhraseForOccasion } from '@/lib/selected-occasion';
 import { logSecureOutfitFinalDiagnostic } from '@/lib/outfit-decision-debug';
 import { validateOutfitStructure } from '@/lib/outfit-assembly-rules';
 import { stylingComboSignature } from '@/lib/outfit-diversity';
-import { shoeCategory } from '@/lib/layer-piece-rules';
+import { isShortsItem, shoeCategory } from '@/lib/layer-piece-rules';
 
 export const OUTFIT_GENERATION_MS = 5500;
 
@@ -100,6 +100,11 @@ export async function runSecureOutfitGeneration({
   const previousShoePiece = currentLook?.completeOutfit?.find((piece) => piece.role === 'shoes');
   const previousShoeId = previousShoePiece?.item.id;
   const previousShoeCategory = previousShoePiece ? shoeCategory(previousShoePiece.item) : undefined;
+  const previousHadShorts = Boolean(
+    currentLook?.completeOutfit?.some(
+      (piece) => piece.role === 'bottom' && isShortsItem(piece.item),
+    ),
+  );
 
   const fallbackLook = generateLook(t, {
     intent: engineIntent,
@@ -121,6 +126,7 @@ export async function runSecureOutfitGeneration({
     previousWasOnePiece: isRegenerate ? previousWasOnePiece : undefined,
     previousShoeId: isRegenerate ? previousShoeId : undefined,
     previousShoeCategory: isRegenerate ? previousShoeCategory : undefined,
+    previousHadShorts: isRegenerate ? previousHadShorts : undefined,
     diversitySource: analyticsSource,
     displayOccasion: selectedOccasion
       ? t.home.occasions[selectedOccasion].title
