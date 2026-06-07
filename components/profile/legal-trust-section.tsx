@@ -1,12 +1,11 @@
-import { hapticLight } from '@/lib/haptics';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Linking from 'expo-linking';
 import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { EditorialSheet } from '@/components/ui/editorial-sheet';
 import { useTranslation } from '@/contexts/locale-context';
 import { useTheme } from '@/contexts/theme-context';
 import { Fonts } from '@/constants/theme';
+import { hapticLight } from '@/lib/haptics';
 
 type LegalId = 'privacy' | 'terms' | 'kvkk' | 'membership' | 'purchases';
 
@@ -18,17 +17,22 @@ const LEGAL_ITEMS: { id: LegalId; icon: keyof typeof Ionicons.glyphMap }[] = [
   { id: 'purchases', icon: 'card-outline' },
 ];
 
+const LEGAL_URLS: Record<LegalId, string> = {
+  privacy: 'https://stylove.app/privacy',
+  terms: 'https://stylove.app/terms',
+  kvkk: 'https://stylove.app/privacy',
+  membership: 'https://stylove.app/terms',
+  purchases: 'https://stylove.app/terms',
+};
+
 export function LegalTrustSection() {
   const t = useTranslation();
   const { colors, isDark } = useTheme();
-  const [activeId, setActiveId] = useState<LegalId | null>(null);
 
   const openItem = (id: LegalId) => {
     void hapticLight();
-    setActiveId(id);
+    void Linking.openURL(LEGAL_URLS[id]);
   };
-
-  const active = activeId ? t.legal[activeId] : null;
 
   return (
     <View style={styles.section}>
@@ -53,15 +57,6 @@ export function LegalTrustSection() {
           </Pressable>
         ))}
       </View>
-
-      {active ? (
-        <EditorialSheet
-          visible={activeId !== null}
-          title={active.title}
-          body={active.body}
-          onClose={() => setActiveId(null)}
-        />
-      ) : null}
     </View>
   );
 }

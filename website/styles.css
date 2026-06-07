@@ -86,6 +86,38 @@ a:hover {
   color: var(--gold-soft);
 }
 
+.site-header__right {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.lang-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.lang-switch__active {
+  color: var(--gold-soft);
+  font-weight: 600;
+}
+
+.lang-switch__sep {
+  color: rgba(248, 244, 236, 0.35);
+}
+
+.lang-switch a {
+  color: var(--cream-muted);
+}
+
+.lang-switch a:hover {
+  color: var(--gold-soft);
+}
+
 main {
   max-width: var(--max-width);
   margin: 0 auto;
@@ -219,8 +251,12 @@ main {
     padding-top: 2rem;
   }
 
-  .nav {
+  .site-header__right {
     width: 100%;
+    justify-content: center;
+  }
+
+  .nav {
     justify-content: center;
   }
 }
