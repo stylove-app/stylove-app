@@ -129,16 +129,6 @@ export default function PremiumScreen() {
           </View>
         </View>
 
-        <View style={[styles.featureCard, StyloveShadow.editorial]}>
-          <View style={styles.featureGlow} />
-          {t.premium.benefits.map((benefit) => (
-            <View key={benefit} style={styles.benefitRow}>
-              <Ionicons name="checkmark" size={16} color={StyloveColors.goldSoft} />
-              <Text style={styles.benefitText}>{benefit}</Text>
-            </View>
-          ))}
-        </View>
-
         <View style={styles.comparison}>
           <View style={styles.compareHeader}>
             <Text style={styles.comparePlan}>{t.premium.freeTitle}</Text>
@@ -276,36 +266,6 @@ const styles = StyleSheet.create({
   },
   accessTextPremium: {
     color: 'rgba(248,244,237,0.9)',
-  },
-  featureCard: {
-    gap: 14,
-    marginBottom: 22,
-    padding: 22,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(196,160,98,0.22)',
-    backgroundColor: 'rgba(255,250,242,0.05)',
-    overflow: 'hidden',
-  },
-  featureGlow: {
-    position: 'absolute',
-    top: -60,
-    right: -40,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(196,160,98,0.12)',
-  },
-  benefitRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  benefitText: {
-    flex: 1,
-    color: 'rgba(248,244,237,0.88)',
-    fontSize: 14,
-    lineHeight: 21,
   },
   plansIntro: {
     color: StyloveColors.goldSoft,

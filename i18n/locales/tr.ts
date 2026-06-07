@@ -732,9 +732,10 @@ const tr: TranslationKeys = {
     premiumFeatures: [
       'Sınırsız gardırop',
       'Sınırsız kombin oluşturma',
-      'Haftalık stil özeti',
-      'Favori görünüm arşivi',
-      'Premium editoryal styling',
+      'Stil değiştirme ile sınırsız alternatifler',
+      'Özel stil hafızası',
+      'Favori görünümleri kaydetme',
+      'Premium editorial deneyim',
     ],
     freeTitle: 'Ücretsiz',
     premiumTitle: 'Premium',

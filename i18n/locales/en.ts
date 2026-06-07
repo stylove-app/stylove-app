@@ -721,9 +721,10 @@ const en: TranslationKeys = {
     premiumFeatures: [
       'Unlimited wardrobe',
       'Unlimited outfit generation',
-      'Weekly style summary',
-      'Favorite look archive',
-      'Premium editorial styling',
+      'Unlimited alternatives with Change Style',
+      'Personal Style Memory',
+      'Save favorite looks',
+      'Premium editorial experience',
     ],
     freeTitle: 'Free',
     premiumTitle: 'Premium',
