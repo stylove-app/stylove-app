@@ -259,14 +259,6 @@ const ar = {
     themeDark: 'الليل السينمائي',
     premiumCta: 'انتقلي إلى Premium',
   },
-  notifications: {
-    title: 'إشعاراتك',
-    items: [
-      { title: 'هالة الليل جاهزة', body: 'تم تكوين مزاج تحريري جديد لمسائك.', time: 'اليوم' },
-      { title: 'تم حفظ الإطلالة', body: 'انضمت إلى مجموعتك الخاصة.', time: 'أمس' },
-      { title: 'تنسيق العطر', body: 'اختيار عطري ينتظرك في امتيازات Premium.', time: 'منذ يومين' },
-    ],
-  },
   premium: {
     title: 'Stylove Premium',
     subtitle: 'فن ارتداء الملابس، بلا حدود.',

@@ -260,14 +260,6 @@ const fr = {
     themeDark: 'Nuit Cinématique',
     premiumCta: 'Passer à Premium',
   },
-  notifications: {
-    title: 'Vos notifications',
-    items: [
-      { title: 'Votre aura du soir est prête', body: 'Une nouvelle humeur éditoriale a été composée.', time: 'Aujourd\'hui' },
-      { title: 'Look enregistré', body: 'Votre composition rejoint votre collection privée.', time: 'Hier' },
-      { title: 'Accord parfum', body: 'Une sélection olfactive vous attend dans vos privilèges Premium.', time: 'Il y a 2 jours' },
-    ],
-  },
   premium: {
     title: 'Stylove Premium',
     subtitle: 'L\'art de s\'habiller, sans limites.',

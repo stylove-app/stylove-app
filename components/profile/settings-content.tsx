@@ -3,11 +3,9 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AccountSection } from '@/components/profile/account-section';
 import { ProfileDetailsSection } from '@/components/profile/profile-details-section';
-import { PushNotificationsSetting } from '@/components/profile/push-notifications-setting';
 import { LOCALES } from '@/i18n';
 import { useLocale, useTranslation } from '@/contexts/locale-context';
 import { useTheme, StyloveShadow } from '@/contexts/theme-context';
-import { Fonts } from '@/constants/theme';
 import type { Locale } from '@/i18n/types';
 
 const SETTINGS_LANGUAGES = LOCALES.filter((language) =>
@@ -58,9 +56,6 @@ export function SettingsContent({ contentContainerStyle }: SettingsContentProps)
           })}
         </View>
       </View>
-
-      <Text style={[styles.groupLabel, { color: colors.gray }]}>{t.pushNotifications.settingsTitle}</Text>
-      <PushNotificationsSetting />
 
       <Text style={[styles.groupLabel, { color: colors.gray }]}>{t.profile.settingsAppearance}</Text>
       <Pressable

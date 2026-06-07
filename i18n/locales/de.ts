@@ -258,14 +258,6 @@ const de = {
     themeDark: 'Filmische Nacht',
     premiumCta: 'Premium werden',
   },
-  notifications: {
-    title: 'Ihre Mitteilungen',
-    items: [
-      { title: 'Die Aura des Abends ist bereit', body: 'Eine neue editoriale Stimmung wurde komponiert.', time: 'Heute' },
-      { title: 'Look gespeichert', body: 'Ihre Komposition wurde Ihrer privaten Kollektion hinzugefügt.', time: 'Gestern' },
-      { title: 'Duft-Pairing', body: 'Eine Duftauswahl erwartet Sie in Ihren Premium-Privilegien.', time: 'Vor 2 Tagen' },
-    ],
-  },
   premium: {
     title: 'Stylove Premium',
     subtitle: 'Die Kunst des Anziehens, ohne Grenzen.',

@@ -650,40 +650,7 @@ const en: TranslationKeys = {
     ],
     closing: 'Quiet luxury · yours',
   },
-  notifications: {
-    title: 'Your Edits',
-    emptyTitle: 'All caught up',
-    emptySubtitle: 'When new edits arrive, they will appear here.',
-    items: [
-      {
-        id: 'aura',
-        title: 'Tonight\'s aura is ready',
-        body: 'A new editorial mood has been composed for your evening.',
-        time: 'Today',
-      },
-      {
-        id: 'savedLook',
-        title: 'Look saved',
-        body: 'Your curated composition has been added to your private collection.',
-        time: 'Yesterday',
-      },
-      {
-        id: 'fragrance',
-        title: 'Fragrance pairing',
-        body: 'A scent edit aligned with your latest look awaits in Premium privileges.',
-        time: '2 days ago',
-      },
-    ],
-  },
   pushNotifications: {
-    settingsTitle: 'Notifications',
-    settingsSubtitle: 'A gentle reminder when your edit is ready.',
-    enableCta: 'Enable notifications',
-    enabledLabel: 'Notifications enabled',
-    unavailableLabel: 'Notifications are not available in this environment yet.',
-    deniedHint: 'Notifications are off. You can enable them in Settings.',
-    openSettingsCta: 'Open Settings',
-    tokenUnavailableHint: 'Push token unavailable on this build.',
     kinds: {
       daily_style_ready: {
         title: 'Today\'s style is ready',

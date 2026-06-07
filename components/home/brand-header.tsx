@@ -1,11 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo } from 'react';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { NotificationsModal } from '@/components/home/notifications-modal';
 import { StyloveLogo } from '@/components/brand/stylove-logo';
 import { SkeletonWeatherLine } from '@/components/ui/skeleton-shimmer';
 import { useWeather } from '@/contexts/weather-context';
@@ -20,7 +18,6 @@ function BrandHeaderComponent() {
   const insets = useSafeAreaInsets();
   const { weatherLine, loading, timeOfDay } = useWeather();
   const { displayName, avatarUri, profile } = useUserProfile();
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const greeting = useMemo(() => {
     if (timeOfDay === 'morning') return t.home.greetingMorning;
@@ -33,55 +30,36 @@ function BrandHeaderComponent() {
     return `${greeting}, ${name}.`;
   }, [greeting, profile.firstName, displayName]);
 
-  const openNotifications = () => {
-    void hapticLight();
-    setNotificationsOpen(true);
-  };
-
   const openProfile = () => {
     void hapticLight();
     router.push('/(tabs)/profile');
   };
 
   return (
-    <>
-      <View style={[styles.wrap, { paddingTop: insets.top }]}>
-        <View style={styles.glowOrb} />
-        <View style={styles.inner}>
-          <View style={styles.topRow}>
-            <StyloveLogo size="sm" variant="light" />
-            <View style={styles.actions}>
-              <Pressable
-                onPress={openNotifications}
-                style={({ pressed }) => [styles.notifBtn, pressed && styles.btnPressed]}
-                accessibilityLabel={t.notifications.title}
-                accessibilityRole="button">
-                <Ionicons name="notifications-outline" size={18} color={StyloveColors.creamText} />
-                <View style={styles.dot} />
-              </Pressable>
-              <Pressable
-                onPress={openProfile}
-                style={({ pressed }) => [pressed && styles.btnPressed]}
-                accessibilityLabel={t.tabs.profile}
-                accessibilityRole="button">
-                <Image source={{ uri: avatarUri }} style={styles.avatar} contentFit="cover" />
-              </Pressable>
-            </View>
-          </View>
-
-          <Text style={styles.greeting}>{greetingLine}</Text>
-          {loading ? (
-            <View style={styles.weatherSkeleton}>
-              <SkeletonWeatherLine />
-            </View>
-          ) : (
-            <Text style={styles.weather}>{weatherLine}</Text>
-          )}
+    <View style={[styles.wrap, { paddingTop: insets.top }]}>
+      <View style={styles.glowOrb} />
+      <View style={styles.inner}>
+        <View style={styles.topRow}>
+          <StyloveLogo size="sm" variant="light" />
+          <Pressable
+            onPress={openProfile}
+            style={({ pressed }) => [pressed && styles.btnPressed]}
+            accessibilityLabel={t.tabs.profile}
+            accessibilityRole="button">
+            <Image source={{ uri: avatarUri }} style={styles.avatar} contentFit="cover" />
+          </Pressable>
         </View>
-      </View>
 
-      <NotificationsModal visible={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
-    </>
+        <Text style={styles.greeting}>{greetingLine}</Text>
+        {loading ? (
+          <View style={styles.weatherSkeleton}>
+            <SkeletonWeatherLine />
+          </View>
+        ) : (
+          <Text style={styles.weather}>{weatherLine}</Text>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -114,33 +92,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 22,
   },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  notifBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,250,242,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(212,184,120,0.25)',
-  },
   btnPressed: {
     opacity: 0.75,
     transform: [{ scale: 0.96 }],
-  },
-  dot: {
-    position: 'absolute',
-    top: 9,
-    right: 10,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: StyloveColors.goldSoft,
   },
   avatar: {
     width: 38,

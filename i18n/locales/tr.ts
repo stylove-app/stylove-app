@@ -660,41 +660,7 @@ const tr: TranslationKeys = {
     ],
     closing: 'Sessiz lüks · sizin',
   },
-  notifications: {
-    title: 'Bildirimleriniz',
-    emptyTitle: 'Her şey güncel',
-    emptySubtitle: 'Yeni bir edit hazır olduğunda burada görünecek.',
-    items: [
-      {
-        id: 'aura',
-        title: 'Bu geceki auranız hazır',
-        body: 'Akşamınız için yeni bir editoryal ruh oluşturuldu.',
-        time: 'Bugün',
-      },
-      {
-        id: 'savedLook',
-        title: 'Stil kaydedildi',
-        body: 'Seçilmiş kompozisyonunuz özel koleksiyonunuza eklendi.',
-        time: 'Dün',
-      },
-      {
-        id: 'fragrance',
-        title: 'Koku eşleşmesi',
-        body: 'Son stilinize uyumlu bir koku seçkisi Premium ayrıcalıklarınızda.',
-        time: '2 gün önce',
-      },
-    ],
-  },
   pushNotifications: {
-    settingsTitle: 'Kişisel bildirimler',
-    settingsSubtitle: 'Stiliniz hazır olduğunda nazik bir hatırlatma alın.',
-    enableCta: 'Bildirimleri aç',
-    enabledLabel: 'Bildirimler açık',
-    unavailableLabel: 'Bu ortamda bildirimler henüz kullanılamıyor.',
-    deniedHint: 'Bildirimler kapalı. Ayarlardan açabilirsiniz.',
-    openSettingsCta: 'Ayarları aç',
-    tokenUnavailableHint:
-      'Bildirim izni verildi, ancak bu cihaz henüz push anahtarı alamıyor. Üretim derlemesi gerekir.',
     kinds: {
       daily_style_ready: {
         title: 'Bugünkü stiliniz hazır',

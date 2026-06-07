@@ -59,7 +59,6 @@ export type OutfitVariant = 'default' | 'elegant' | 'feminine' | 'minimal';
 
 import type { StylovePushKind } from '@/lib/notifications/types';
 export type { StylovePushKind } from '@/lib/notifications/types';
-export type NotificationActionId = 'aura' | 'savedLook' | 'fragrance';
 
 export type TranslationKeys = {
   common: {
@@ -535,26 +534,7 @@ export type TranslationKeys = {
     items: readonly { title: string; description: string }[];
     closing: string;
   };
-  notifications: {
-    title: string;
-    emptyTitle: string;
-    emptySubtitle: string;
-    items: readonly {
-      id: NotificationActionId;
-      title: string;
-      body: string;
-      time: string;
-    }[];
-  };
   pushNotifications: {
-    settingsTitle: string;
-    settingsSubtitle: string;
-    enableCta: string;
-    enabledLabel: string;
-    unavailableLabel: string;
-    deniedHint: string;
-    openSettingsCta: string;
-    tokenUnavailableHint: string;
     kinds: Record<StylovePushKind, { title: string; body: string }>;
   };
   premium: {
