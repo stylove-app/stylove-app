@@ -58,15 +58,49 @@ a:hover {
 }
 
 .logo {
-  font-family: var(--font-serif);
-  font-size: 1.35rem;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  color: var(--cream);
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  text-decoration: none;
 }
 
-.logo:hover {
-  color: var(--gold-soft);
+.logo:hover .brand-mark {
+  opacity: 0.88;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32em;
+  font-family: var(--font-serif);
+  color: #f8f4ec;
+  font-weight: 400;
+  direction: ltr;
+  unicode-bidi: isolate;
+  letter-spacing: 0.04em;
+  transition: opacity 0.2s ease;
+}
+
+.brand-mark--header {
+  font-size: clamp(1.125rem, 3.2vw, 1.375rem);
+  line-height: 1;
+}
+
+.brand-mark--hero {
+  font-size: clamp(2.25rem, 8vw, 3.25rem);
+  line-height: 1.1;
+  letter-spacing: 0.05em;
+}
+
+.brand-mark__text {
+  font-weight: 400;
+}
+
+.brand-mark__heart {
+  font-size: 0.7em;
+  font-weight: 300;
+  line-height: 1;
+  opacity: 0.9;
 }
 
 .nav {
@@ -95,10 +129,12 @@ a:hover {
 
 .lang-switch {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
 }
 
 .lang-switch__active {
@@ -130,12 +166,9 @@ main {
 }
 
 .hero__title {
-  font-family: var(--font-serif);
-  font-size: clamp(2.5rem, 8vw, 3.75rem);
+  margin: 0 0 1.25rem;
+  line-height: 1.1;
   font-weight: 400;
-  letter-spacing: 0.06em;
-  margin: 0 0 1rem;
-  color: var(--cream);
 }
 
 .hero__tagline {
@@ -246,6 +279,33 @@ main {
   color: rgba(212, 184, 120, 0.85);
 }
 
+[dir='rtl'] body {
+  text-align: right;
+}
+
+[dir='rtl'] .site-header__inner {
+  flex-direction: row-reverse;
+}
+
+[dir='rtl'] .site-header__right {
+  flex-direction: row-reverse;
+}
+
+[dir='rtl'] .prose ul {
+  padding-right: 1.25rem;
+  padding-left: 0;
+}
+
+[dir='rtl'] .hero,
+[dir='rtl'] .site-footer {
+  text-align: center;
+}
+
+[dir='rtl'] .brand-mark {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
 @media (max-width: 480px) {
   main {
     padding-top: 2rem;
@@ -258,5 +318,9 @@ main {
 
   .nav {
     justify-content: center;
+  }
+
+  .lang-switch {
+    width: 100%;
   }
 }

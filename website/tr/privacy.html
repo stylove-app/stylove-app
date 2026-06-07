@@ -3,16 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="Stylove Gizlilik Politikası — kişisel verilerinizi nasıl topladığımız, kullandığımız ve koruduğumuz." />
+    <meta name="description" content="Stylove Gizlilik Politikası — kişisel verilerinizi nasıl topladığımız, kullandığımız ve koruduğumuz." />
     <title>Gizlilik Politikası | Stylove</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <header class="site-header">
       <div class="site-header__inner">
-        <a class="logo" href="/tr/index.html">Stylove</a>
+        <a class="logo" href="/tr/index.html" aria-label="Stylove"><span class="brand-mark brand-mark--header" dir="ltr" lang="en"><span class="brand-mark__text">Stylove</span><span class="brand-mark__heart" aria-hidden="true">♡</span></span></a>
         <div class="site-header__right">
           <nav class="nav" aria-label="Ana menü">
             <a href="/tr/index.html">Ana Sayfa</a>
@@ -24,11 +22,22 @@
             <a href="/privacy.html">EN</a>
             <span class="lang-switch__sep" aria-hidden="true">|</span>
             <span class="lang-switch__active" aria-current="true">TR</span>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/de/privacy.html">DE</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/fr/privacy.html">FR</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/es/privacy.html">ES</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/it/privacy.html">IT</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/ar/privacy.html">AR</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/ru/privacy.html">RU</a>
           </div>
         </div>
       </div>
     </header>
-
     <main class="prose">
       <p class="page-meta">Yasal</p>
       <h1 class="page-title">Gizlilik Politikası</h1>
@@ -228,11 +237,9 @@
         </p>
       </div>
     </main>
-
     <footer class="site-footer">
       <p>&copy; <span id="year"></span> Stylove. <a href="/tr/privacy.html">Gizlilik</a> &middot; <a href="/tr/terms.html">Koşullar</a></p>
     </footer>
-
     <script>
       document.getElementById('year').textContent = new Date().getFullYear();
     </script>

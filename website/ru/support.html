@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Поддержка Stylove" />
+    <title>Поддержка | Stylove</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="logo" href="/ru/index.html" aria-label="Stylove"><span class="brand-mark brand-mark--header" dir="ltr" lang="en"><span class="brand-mark__text">Stylove</span><span class="brand-mark__heart" aria-hidden="true">♡</span></span></a>
+        <div class="site-header__right">
+          <nav class="nav" aria-label="Основная навигация">
+            <a href="/ru/index.html">Главная</a>
+            <a href="/ru/privacy.html">Конфиденциальность</a>
+            <a href="/ru/terms.html">Условия</a>
+            <a href="/ru/support.html" aria-current="page">Поддержка</a>
+          </nav>
+          <div class="lang-switch" aria-label="Язык">
+            <a href="/support.html">EN</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/tr/support.html">TR</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/de/support.html">DE</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/fr/support.html">FR</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/es/support.html">ES</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/it/support.html">IT</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <a href="/ar/support.html">AR</a>
+            <span class="lang-switch__sep" aria-hidden="true">|</span>
+            <span class="lang-switch__active" aria-current="true">RU</span>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="prose">
+      <p class="page-meta">Помощь</p>
+      <h1 class="page-title">Поддержка</h1>
+      <p>Мы поможем с вопросами об аккаунте, подписках, запросах на конфиденциальность и общими вопросами о Stylove.</p>
+      <div class="card">
+        <h2>Общие контакты</h2>
+        <p><a href="mailto:hello@stylove.app">hello@stylove.app</a></p>
+      </div>
+      <div class="card">
+        <h2>Поддержка и вопросы по аккаунту</h2>
+        <p><a href="mailto:support@stylove.app">support@stylove.app</a></p>
+      </div>
+      <div class="card">
+        <h2>Бизнес и партнёрство</h2>
+        <p><a href="mailto:business@stylove.app">business@stylove.app</a></p>
+      </div>
+      <div class="card">
+        <h2>Время ответа</h2>
+        <p>Мы стремимся ответить в течение <strong>2&ndash;3 рабочих дней</strong>. Сообщения в выходные и праздники могут обрабатываться дольше.</p>
+      </div>
+      <h2>Перед обращением</h2>
+      <ul>
+        <li>По возможности укажите e-mail, связанный с вашим аккаунтом Stylove.</li>
+        <li>При вопросах о подписке укажите, оформляли ли вы её через App Store.</li>
+        <li>Юридическая информация — в <a href="/ru/privacy.html">Политике конфиденциальности</a> и <a href="/ru/terms.html">Условиях использования</a>.</li>
+      </ul>
+    </main>
+    <footer class="site-footer">
+      <p>&copy; <span id="year"></span> Stylove. <a href="/ru/privacy.html">Конфиденциальность</a> &middot; <a href="/ru/terms.html">Условия</a></p>
+    </footer>
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
