@@ -853,6 +853,8 @@ const tr: TranslationKeys = {
     lockCta: 'Premium’a Geç',
     defaultCity: 'Varış',
     emptyWardrobeHint: 'Gardırobunuza parça ekleyerek valiz önerilerini zenginleştirin.',
+    insufficientWardrobeMessage:
+      'Bu seyahat için yeterli uygun parça bulunamadı. Gardırobuna ayakkabı, üst ve alt ekleyerek tekrar deneyebilirsin.',
     wardrobeHintSingle: 'Valizinizi tamamlamak için daha fazla parça ekleyin.',
     moodLabels: ['Zarif', 'Minimal', 'Cesur', 'Romantik', 'Günlük Şık'],
     spotNames: [

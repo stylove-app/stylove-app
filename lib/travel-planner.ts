@@ -18,6 +18,8 @@ import {
   filterWardrobeItemsForWeather,
   shoeCategory,
 } from '@/lib/layer-piece-rules';
+import { filterPoolByOccasionAuthority } from '@/lib/occasion-style-authority';
+import { filterTravelValidShoes } from '@/lib/travel-shoe-rules';
 import {
   isWearableOutfit,
   partitionWardrobeBySlot,
@@ -69,6 +71,77 @@ export type TravelPlannerDebugLog = {
   diversityScore: number;
   fallbackUsed: boolean;
 };
+
+export type TravelWardrobeAudit = {
+  day: number;
+  rawShoes: number;
+  weatherShoes: number;
+  travelValidShoes: number;
+  tops: number;
+  weatherTops: number;
+  bottoms: number;
+  dresses: number;
+  blockers: string[];
+};
+
+function auditTravelWardrobeForDay(
+  wardrobe: WardrobeItem[],
+  weather: WeatherSnapshot,
+  day: number,
+): TravelWardrobeAudit {
+  const pools = partitionWardrobeBySlot(wardrobe);
+  const weatherFiltered = filterWardrobeItemsForWeather(wardrobe, weather);
+  const weatherPools = partitionWardrobeBySlot(weatherFiltered);
+  const rawShoes = pools.shoes.length;
+  const weatherShoes = filterShoesForWeatherContext(pools.shoes, weather).length;
+  const travelValidShoes = filterTravelValidShoes(pools.shoes, weather).length;
+  const authorityShoes = filterPoolByOccasionAuthority(pools.shoes, 'travel', 'shoes', weather).length;
+
+  const blockers: string[] = [];
+  if (rawShoes === 0) blockers.push('no_valid_shoes');
+  else if (weatherShoes === 0) blockers.push('weather_filtering_removed_shoes');
+  else if (authorityShoes === 0) blockers.push('travel_hard_rules_removed_shoes');
+  else if (travelValidShoes === 0) blockers.push('no_travel_eligible_shoe_category');
+
+  const tops = pools.tops.length;
+  const weatherTops = weatherPools.tops.length;
+  if (tops === 0 && pools.onePieces.length === 0) blockers.push('no_valid_top');
+  else if (weatherTops === 0 && weatherPools.onePieces.length === 0) {
+    blockers.push('weather_filtering_removed_tops');
+  }
+
+  if (pools.bottoms.length === 0 && pools.onePieces.length === 0) blockers.push('no_valid_bottom');
+  else if (weatherPools.bottoms.length === 0 && weatherPools.onePieces.length === 0) {
+    blockers.push('weather_filtering_removed_bottoms');
+  }
+
+  return {
+    day,
+    rawShoes,
+    weatherShoes,
+    travelValidShoes,
+    tops,
+    weatherTops,
+    bottoms: pools.bottoms.length,
+    dresses: pools.onePieces.length,
+    blockers,
+  };
+}
+
+function logTravelCandidateFailure(audit: TravelWardrobeAudit): void {
+  if (!isQaTestMode() && !__DEV__) return;
+  console.log('[Stylove Travel Planner] zero_candidates', {
+    day: audit.day,
+    blockers: audit.blockers.join(',') || 'unknown',
+    rawShoes: audit.rawShoes,
+    weatherShoes: audit.weatherShoes,
+    travelValidShoes: audit.travelValidShoes,
+    tops: audit.tops,
+    weatherTops: audit.weatherTops,
+    bottoms: audit.bottoms,
+    dresses: audit.dresses,
+  });
+}
 
 type BeamState = {
   candidates: TravelOutfitCandidate[];
@@ -216,6 +289,10 @@ function generateDayCandidatePool(
       pool.push(candidate);
       break;
     }
+  }
+
+  if (pool.length === 0) {
+    logTravelCandidateFailure(auditTravelWardrobeForDay(params.wardrobe, params.weather, params.day));
   }
 
   pool.sort((a, b) => b.qualityScore - a.qualityScore);

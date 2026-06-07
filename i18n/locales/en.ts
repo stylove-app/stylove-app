@@ -842,6 +842,8 @@ const en: TranslationKeys = {
     lockCta: 'Go Premium',
     defaultCity: 'Destination',
     emptyWardrobeHint: 'Add wardrobe pieces to enrich packing.',
+    insufficientWardrobeMessage:
+      'Not enough suitable pieces for this trip. Add shoes, tops, and bottoms to your wardrobe and try again.',
     wardrobeHintSingle: 'Add pieces to complete the suitcase.',
     moodLabels: ['Elegant', 'Minimal', 'Bold', 'Romantic', 'Daily Chic'],
     spotNames: [

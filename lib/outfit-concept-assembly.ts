@@ -65,6 +65,7 @@ import {
   shoeCategory,
 } from '@/lib/layer-piece-rules';
 import { scoreWomenPieceForOccasion } from '@/lib/women-outfit-scoring';
+import { filterTravelValidShoes } from '@/lib/travel-shoe-rules';
 
 export type ConceptAssemblyResult = {
   pieces: OutfitPiece[];
@@ -314,10 +315,14 @@ function pickFinishingPair(
   selected: ItemStylingProfile[],
   coreItems: WardrobeItem[],
 ): FinishingPair | null {
-  const shoeCandidates = rankPool(pools.shoes, params, concept, palette, 'shoes', anchor, selected).slice(0, 6);
-  const bagCandidates = concept.preferBag
-    ? rankPool(pools.bags, params, concept, palette, 'bag', anchor, selected).slice(0, 5)
-    : [];
+  let shoeCandidates = rankPool(pools.shoes, params, concept, palette, 'shoes', anchor, selected).slice(0, 6);
+  if (shoeCandidates.length === 0 && params.selectedOccasion === 'travel') {
+    shoeCandidates = filterTravelValidShoes(pools.shoes, params.weather).slice(0, 6);
+  }
+  const bagCandidates =
+    concept.preferBag && pools.bags.length > 0
+      ? rankPool(pools.bags, params, concept, palette, 'bag', anchor, selected).slice(0, 5)
+      : [];
 
   let best: FinishingPair | null = null;
 

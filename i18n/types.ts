@@ -657,6 +657,7 @@ export type TranslationKeys = {
     lockCta: string;
     defaultCity: string;
     emptyWardrobeHint: string;
+    insufficientWardrobeMessage: string;
     wardrobeHintSingle: string;
     moodLabels: readonly string[];
     spotNames: readonly string[];

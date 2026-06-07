@@ -599,6 +599,8 @@ const es: DeepPartial<TranslationKeys> = {
     lockCta: 'Ir a Premium',
     defaultCity: 'Destino',
     emptyWardrobeHint: 'Añada piezas a su armario para enriquecer la maleta.',
+    insufficientWardrobeMessage:
+      'No hay suficientes piezas adecuadas para este viaje. Añada zapatos, parte superior e inferior a su armario e inténtelo de nuevo.',
   },
   legal: {
     title: 'Legal y confianza',

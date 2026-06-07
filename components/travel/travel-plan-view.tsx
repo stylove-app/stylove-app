@@ -45,6 +45,24 @@ export function TravelPlanView({ plan }: TravelPlanViewProps) {
   const t = useTranslation();
   const { colors, isDark } = useTheme();
 
+  if (plan.generationFailed || plan.dailyLooks.length === 0) {
+    return (
+      <SoftEnter delay={80}>
+        <View
+          style={[
+            styles.emptyCard,
+            { backgroundColor: colors.white, borderColor: colors.creamMuted },
+            StyloveShadow.soft,
+          ]}>
+          <Text style={[styles.emptyTitle, { color: colors.black }]}>{t.travel.timelineTitle}</Text>
+          <Text style={[styles.emptyMessage, { color: colors.gray }]}>
+            {plan.generationMessage ?? t.travel.insufficientWardrobeMessage}
+          </Text>
+        </View>
+      </SoftEnter>
+    );
+  }
+
   return (
     <View style={styles.wrap}>
       <SoftEnter delay={40}>
@@ -312,5 +330,23 @@ const styles = StyleSheet.create({
   dayItemImage: {
     width: '100%',
     height: '100%',
+  },
+  emptyCard: {
+    marginHorizontal: 24,
+    marginTop: 8,
+    marginBottom: 24,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 24,
+    gap: 12,
+  },
+  emptyTitle: {
+    fontFamily: Fonts.serif,
+    fontSize: 22,
+    letterSpacing: 0.2,
+  },
+  emptyMessage: {
+    fontSize: 15,
+    lineHeight: 23,
   },
 });

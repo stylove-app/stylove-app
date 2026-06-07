@@ -654,7 +654,7 @@ const CONCEPTS_BY_OCCASION: Record<SelectedOccasionId, OutfitConcept[]> = {
       bottomTypes: ['jean', 'sort', 'etek'],
       onePieceCategories: ['summer_dress'],
       onePieceTypes: ['elbise'],
-      shoeCategories: ['sneaker', 'flat', 'loafer'],
+      shoeCategories: ['sneaker', 'flat', 'loafer', 'boot'],
       shoeTypes: ['ayakkabi', 'bot'],
       avoidCategories: ['heel', 'blazer', 'sandal'],
       avoidTypes: ['topuklu', 'ceket'],

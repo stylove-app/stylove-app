@@ -60,6 +60,8 @@ export type TravelPlan = {
   dailyLooks: TravelDayPlan[];
   spots: LuxurySpot[];
   wardrobeHint?: string;
+  generationFailed?: boolean;
+  generationMessage?: string;
 };
 
 const TRAVEL_OCCASION: SelectedOccasionId = 'travel';
@@ -259,6 +261,8 @@ export function generateTravelPlan(
   });
 
   const packedItems = uniqueWardrobeItems(dailyLooks.flatMap((day) => day.items));
+  const generationFailed = dailyLooks.length === 0;
+  const generationMessage = generationFailed ? t.travel.insufficientWardrobeMessage : undefined;
 
   return {
     destination: destination.trim(),
@@ -279,5 +283,7 @@ export function generateTravelPlan(
     dailyLooks,
     spots: [],
     wardrobeHint,
+    generationFailed,
+    generationMessage,
   };
 }

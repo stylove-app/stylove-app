@@ -4,6 +4,7 @@ import type { SelectedOccasionId } from '@/lib/selected-occasion';
 import { getEffectiveStyleProfile } from '@/lib/wardrobe-style-profile';
 import type { WardrobeItem } from '@/lib/outfit-engine';
 import type { WeatherSnapshot } from '@/lib/weather';
+import { isTravelPracticalShoe } from '@/lib/travel-shoe-rules';
 
 export type OccasionAssemblyRole =
   | 'top'
@@ -109,7 +110,7 @@ const DINNER_DATE_FORBIDDEN: OccasionAuthorityRules = {
   forbidAllSneakers: true,
 };
 
-/** Practical city / airport travel — at least as strict as daily + shopping. */
+/** Practical city / airport travel — sandals and heels banned; sneakers/flats allowed. */
 const TRAVEL_FORBIDDEN: OccasionAuthorityRules = {
   forbiddenCategories: {
     any: ['sandal', 'evening_dress', 'office_dress', 'sunglasses', 'heel'],
@@ -121,8 +122,8 @@ const TRAVEL_FORBIDDEN: OccasionAuthorityRules = {
     any: ['topuklu', 'gozluk'],
     accessory: ['gozluk'],
   },
-  forbiddenStyleTags: ['evening', 'vacation'],
-  forbiddenUseCases: ['beach', 'wedding'],
+  forbiddenStyleTags: ['evening'],
+  forbiddenUseCases: ['wedding'],
 };
 
 const OCCASION_AUTHORITY: Partial<Record<SelectedOccasionId, OccasionAuthorityRules>> = {
@@ -285,8 +286,13 @@ export function isItemForbiddenForOccasion(
   if (categoryForbidden(rules, role, profile.category)) return true;
   if (typeForbidden(rules, role, item.itemType)) return true;
 
-  if (rules.forbiddenStyleTags?.some((tag) => profile.styleTags.includes(tag as never))) return true;
-  if (rules.forbiddenUseCases?.some((uc) => profile.useCases.includes(uc as never))) return true;
+  const travelPracticalShoe =
+    occasion === 'travel' && role === 'shoes' && isTravelPracticalShoe(item);
+
+  if (!travelPracticalShoe) {
+    if (rules.forbiddenStyleTags?.some((tag) => profile.styleTags.includes(tag as never))) return true;
+    if (rules.forbiddenUseCases?.some((uc) => profile.useCases.includes(uc as never))) return true;
+  }
 
   if (rules.forbidAllSneakers && profile.category === 'sneaker') return true;
   if (rules.forbidSportSneakers && isSportSneaker(item)) return true;
@@ -312,10 +318,6 @@ export function isItemForbiddenForOccasion(
       occasion === 'travel') &&
     profile.category === 'sandal'
   ) {
-    return true;
-  }
-
-  if (occasion === 'travel' && isVacationItem(item) && role === 'shoes') {
     return true;
   }
 
@@ -377,10 +379,16 @@ export function scoreOccasionAuthorityPreference(
       break;
     case 'travel':
       if (['sneaker', 'flat', 'loafer', 'boot'].includes(profile.category)) score += 6;
+      if (profile.category === 'sneaker') score += 4;
       if (profile.styleTags.includes('casual') || profile.styleTags.includes('smart_casual')) score += 4;
       if (['sandal', 'heel', 'evening_dress', 'office_dress', 'sunglasses'].includes(profile.category))
         score -= 35;
-      if (profile.styleTags.includes('vacation') || profile.useCases.includes('beach')) score -= 22;
+      if (
+        role !== 'shoes' &&
+        (profile.styleTags.includes('vacation') || profile.useCases.includes('beach'))
+      ) {
+        score -= 22;
+      }
       break;
     default:
       break;
