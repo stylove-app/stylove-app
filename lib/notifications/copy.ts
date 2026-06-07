@@ -14,8 +14,6 @@ export function getDefaultRouteForPushKind(kind: StylovePushKind): StylovePushRo
       return 'home';
     case 'weekly_summary_ready':
       return 'weekly-summary';
-    case 'travel_outfit_ready':
-      return 'travel';
     case 'wardrobe_reminder':
       return 'wardrobe';
     default:

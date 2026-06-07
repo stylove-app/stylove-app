@@ -57,14 +57,6 @@ export type WardrobeItemTypeId =
 
 export type OutfitVariant = 'default' | 'elegant' | 'feminine' | 'minimal';
 
-export type TravelVibeId =
-  | 'cityExplore'
-  | 'romanticEscape'
-  | 'businessTrip'
-  | 'beachClub'
-  | 'luxuryEscape'
-  | 'minimalTravel';
-
 import type { StylovePushKind } from '@/lib/notifications/types';
 export type { StylovePushKind } from '@/lib/notifications/types';
 export type NotificationActionId = 'aura' | 'savedLook' | 'fragrance';
@@ -106,7 +98,6 @@ export type TranslationKeys = {
     home: string;
     wardrobe: string;
     looks: string;
-    travel: string;
     profile: string;
   };
   home: {
@@ -312,7 +303,7 @@ export type TranslationKeys = {
     archiveCategoryDateNight: string;
     archiveCategoryBusiness: string;
     archiveCategorySummer: string;
-    archiveCategoryTravel: string;
+    archiveCategoryEvening: string;
     loadErrorTitle: string;
     loadErrorSubtitle: string;
     retryLoad: string;
@@ -354,7 +345,6 @@ export type TranslationKeys = {
     insights: {
       strongSilhouettes: string;
       neutralCenter: string;
-      travelRhythm: string;
       romanticLine: string;
       relaxedEase: string;
     };
@@ -540,16 +530,9 @@ export type TranslationKeys = {
     cardSubtitle: string;
     homeTitle: string;
     homeSubtitle: string;
-    homeTravelLine: string;
     homeCta: string;
     intro: string;
     items: readonly { title: string; description: string }[];
-    travel: {
-      badge: string;
-      title: string;
-      intro: string;
-      points: readonly string[];
-    };
     closing: string;
   };
   notifications: {
@@ -612,56 +595,6 @@ export type TranslationKeys = {
     note: string;
     inactiveNote: string;
     badgeHint: string;
-  };
-  travel: {
-    title: string;
-    subtitle: string;
-    destinationLabel: string;
-    destinationPlaceholder: string;
-    destinationRequired: string;
-    destinationHint: string;
-    durationLabel: string;
-    durationPlaceholder: string;
-    departureLabel: string;
-    departurePlaceholder: string;
-    vibeLabel: string;
-    vibes: Record<TravelVibeId, string>;
-    prepareCta: string;
-    preparing: readonly string[];
-    weatherTitle: string;
-    weatherDay: string;
-    weatherNight: string;
-    weatherDayNote: string;
-    weatherFeelsLike: string;
-    weatherRain: string;
-    weatherWind: string;
-    layeringHint: string;
-    forecastUnavailable: string;
-    weatherAttribution: string;
-    suitcaseTitle: string;
-    suitcaseSubtitle: string;
-    packedItems: string;
-    accessories: string;
-    shoes: string;
-    outerwear: string;
-    timelineTitle: string;
-    timelineSubtitle: string;
-    outfitLabel: string;
-    dayLabel: string;
-    spotsTitle: string;
-    spotsSubtitle: string;
-    spotOutfitNote: string;
-    spotTypes: Record<'rooftop' | 'cafe' | 'restaurant' | 'beachClub' | 'gallery', string>;
-    lockTitle: string;
-    lockSubtitle: string;
-    lockCta: string;
-    defaultCity: string;
-    emptyWardrobeHint: string;
-    insufficientWardrobeMessage: string;
-    wardrobeHintSingle: string;
-    moodLabels: readonly string[];
-    spotNames: readonly string[];
-    dayTitles: Record<TravelVibeId, readonly string[]>;
   };
   events: {
     time: Record<'morning' | 'afternoon' | 'evening' | 'night', string>;

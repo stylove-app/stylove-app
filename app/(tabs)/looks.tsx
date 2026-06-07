@@ -98,14 +98,14 @@ function LooksScreen() {
       t.looks.archiveCategoryDateNight,
       t.looks.archiveCategoryBusiness,
       t.looks.archiveCategorySummer,
-      t.looks.archiveCategoryTravel,
+      t.looks.archiveCategoryEvening,
     ],
     [
       t.looks.archiveCategoryToday,
       t.looks.archiveCategoryDateNight,
       t.looks.archiveCategoryBusiness,
       t.looks.archiveCategorySummer,
-      t.looks.archiveCategoryTravel,
+      t.looks.archiveCategoryEvening,
     ],
   );
   const activeLookSaved = useMemo(

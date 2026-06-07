@@ -91,33 +91,6 @@ export function AboutStyloveSheet({ visible, onClose }: AboutStyloveSheetProps) 
             ))}
           </View>
 
-          <Animated.View entering={softFadeInDown(500)} style={styles.travelSection}>
-            <GoldShimmerLine width={40} />
-            <View style={styles.travelHeader}>
-              <View style={[styles.travelIconWrap, { backgroundColor: colors.wineDeep }]}>
-                <Ionicons name="airplane-outline" size={14} color={colors.goldSoft} />
-              </View>
-              <View style={styles.travelHeaderCopy}>
-                <Text style={[styles.travelBadge, { color: colors.goldMuted }]}>{t.about.travel.badge}</Text>
-                <Text style={[styles.travelTitle, { color: isDark ? colors.creamText : colors.black }]}>
-                  {t.about.travel.title}
-                </Text>
-              </View>
-            </View>
-            <Text style={[styles.travelIntro, { color: colors.gray }]}>{t.about.travel.intro}</Text>
-            <View style={styles.travelPoints}>
-              {t.about.travel.points.map((point, index) => (
-                <Animated.View
-                  key={point}
-                  entering={softFadeInDown(560 + index * 50)}
-                  style={styles.travelPointRow}>
-                  <View style={[styles.travelDot, { backgroundColor: colors.goldMuted }]} />
-                  <Text style={[styles.travelPoint, { color: colors.gray }]}>{point}</Text>
-                </Animated.View>
-              ))}
-            </View>
-          </Animated.View>
-
           <Animated.Text
             entering={softFadeInDown(820)}
             style={[styles.closing, { color: colors.goldMuted }]}>
@@ -206,65 +179,6 @@ const styles = StyleSheet.create({
   pillarDesc: {
     fontSize: 12,
     lineHeight: 18,
-    fontStyle: 'italic',
-  },
-  travelSection: {
-    gap: 16,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(196, 160, 98, 0.14)',
-  },
-  travelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  travelIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  travelHeaderCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  travelBadge: {
-    fontSize: 9,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-  },
-  travelTitle: {
-    fontFamily: Fonts.serif,
-    fontSize: 17,
-    letterSpacing: 0.2,
-  },
-  travelIntro: {
-    fontFamily: Fonts.serif,
-    fontSize: 14,
-    lineHeight: 20,
-    fontStyle: 'italic',
-  },
-  travelPoints: {
-    gap: 12,
-  },
-  travelPointRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  travelDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 7,
-    opacity: 0.7,
-  },
-  travelPoint: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 20,
     fontStyle: 'italic',
   },
   closing: {

@@ -22,7 +22,7 @@ export const HOME_OCCASIONS_EN: OccasionCopy = {
   vacation: { title: 'Vacation', subtitle: 'Relaxed getaway' },
   wedding: { title: 'Wedding / Event', subtitle: 'Celebration dressing' },
   sport_walk: { title: 'Sport / Walk', subtitle: 'Move with ease' },
-  travel: { title: 'Travel', subtitle: 'Journey-ready layers' },
+  travel: { title: 'Everyday', subtitle: 'Effortless daily chic' },
   family_visit: { title: 'Family visit', subtitle: 'Warm and put-together' },
 };
 
@@ -37,7 +37,7 @@ export const HOME_OCCASIONS_TR: OccasionCopy = {
   vacation: { title: 'Tatil', subtitle: 'Rahat kaçamak' },
   wedding: { title: 'Düğün / Davet', subtitle: 'Kutlama stili' },
   sport_walk: { title: 'Spor / Yürüyüş', subtitle: 'Konforlu hareket' },
-  travel: { title: 'Seyahat', subtitle: 'Yolculuğa hazır' },
+  travel: { title: 'Günlük', subtitle: 'Zahmetsiz günlük şıklık' },
   family_visit: { title: 'Aile Ziyareti', subtitle: 'Sıcak ve düzenli' },
 };
 

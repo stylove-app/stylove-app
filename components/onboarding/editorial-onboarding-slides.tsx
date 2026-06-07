@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   OutfitComposeIllustration,
-  TravelPackIllustration,
   WardrobeIllustration,
 } from '@/components/onboarding/onboarding-illustrations';
 import {
@@ -18,11 +17,7 @@ import type { OnboardingSlideCopy } from '@/lib/onboarding-copy';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ILLUSTRATION_SIZE = Math.min(SCREEN_WIDTH - 72, 300);
 
-const SLIDE_ILLUSTRATIONS = [
-  WardrobeIllustration,
-  OutfitComposeIllustration,
-  TravelPackIllustration,
-] as const;
+const SLIDE_ILLUSTRATIONS = [WardrobeIllustration, OutfitComposeIllustration] as const;
 
 type EditorialOnboardingSlidesProps = {
   slides: readonly OnboardingSlideCopy[];

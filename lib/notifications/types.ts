@@ -1,13 +1,11 @@
 export type StylovePushKind =
   | 'daily_style_ready'
   | 'weekly_summary_ready'
-  | 'travel_outfit_ready'
   | 'wardrobe_reminder';
 
 export type StylovePushRoute =
   | 'home'
   | 'looks'
-  | 'travel'
   | 'wardrobe'
   | 'weekly-summary';
 
@@ -34,7 +32,6 @@ export type PushSendResult = {
 const PUSH_KINDS: StylovePushKind[] = [
   'daily_style_ready',
   'weekly_summary_ready',
-  'travel_outfit_ready',
   'wardrobe_reminder',
 ];
 

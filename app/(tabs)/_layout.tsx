@@ -41,7 +41,6 @@ function createTabBarIcon(name: keyof typeof Ionicons.glyphMap, outlineName: key
 const HOME_TAB_ICON = createTabBarIcon('home', 'home-outline');
 const WARDROBE_TAB_ICON = createTabBarIcon('shirt', 'shirt-outline');
 const LOOKS_TAB_ICON = createTabBarIcon('heart', 'heart-outline');
-const TRAVEL_TAB_ICON = createTabBarIcon('airplane', 'airplane-outline');
 const PROFILE_TAB_ICON = createTabBarIcon('person', 'person-outline');
 
 function buildTabScreenOptions(colors: StylovePalette) {
@@ -101,7 +100,6 @@ export default function TabLayout() {
       <Tabs.Screen name="index" options={{ title: t.tabs.home, tabBarIcon: HOME_TAB_ICON }} />
       <Tabs.Screen name="wardrobe" options={{ title: t.tabs.wardrobe, tabBarIcon: WARDROBE_TAB_ICON }} />
       <Tabs.Screen name="looks" options={{ title: t.tabs.looks, tabBarIcon: LOOKS_TAB_ICON }} />
-      <Tabs.Screen name="travel" options={{ title: t.tabs.travel, tabBarIcon: TRAVEL_TAB_ICON }} />
       <Tabs.Screen name="profile" options={{ title: t.tabs.profile, tabBarIcon: PROFILE_TAB_ICON }} />
     </Tabs>
   );

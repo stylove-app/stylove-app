@@ -73,9 +73,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           requestNavigation('looks');
           router.push('/(tabs)/looks');
           break;
-        case 'travel':
-          router.push('/(tabs)/travel');
-          break;
         case 'wardrobe':
           router.push('/(tabs)/wardrobe');
           break;
