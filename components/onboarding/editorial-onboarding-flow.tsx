@@ -14,7 +14,7 @@ type FlowPhase = 'slides' | 'auth';
 
 export function EditorialOnboardingFlow() {
   const { locale, setLocale } = useLocale();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithApple } = useAuth();
   const copy = ONBOARDING_COPY[locale] ?? ONBOARDING_COPY.tr;
 
   const [phase, setPhase] = useState<FlowPhase>('slides');
@@ -56,6 +56,7 @@ export function EditorialOnboardingFlow() {
           onSelectLocale={(next) => void setLocale(next)}
           onSignIn={signIn}
           onSignUp={signUp}
+          onSignInWithApple={signInWithApple}
           onSuccess={completeOnboarding}
         />
       )}

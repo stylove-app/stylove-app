@@ -580,6 +580,8 @@ const tr: TranslationKeys = {
         rateLimited: 'Çok fazla deneme. Lütfen bir süre sonra tekrar deneyin.',
         genericSignIn: 'Giriş yapılamadı. Bilgilerinizi kontrol edip tekrar deneyin.',
         genericSignUp: 'Hesap oluşturulamadı. Farklı bir e-posta ile tekrar deneyin.',
+        appleUnavailable: 'Apple ile giriş yalnızca iOS cihazlarda kullanılabilir.',
+        appleSignInFailed: 'Apple ile giriş başarısız oldu. Lütfen tekrar deneyin.',
       },
     },
   },

@@ -39,3 +39,21 @@ export function mapAuthError(
 
   return error.message || (flow === 'signUp' ? errors.genericSignUp : errors.genericSignIn);
 }
+
+export function mapAppleSignInError(error: AuthError | null, errors: AccountErrors): string {
+  if (!error) return errors.genericSignIn;
+
+  const message = (error.message ?? '').toLowerCase();
+
+  if (
+    message.includes('only available on ios') ||
+    message.includes('not available on this device')
+  ) {
+    return errors.appleUnavailable;
+  }
+  if (message.includes('identity token')) {
+    return errors.appleSignInFailed;
+  }
+
+  return mapAuthError(error, errors, 'signIn');
+}

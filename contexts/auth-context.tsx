@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { isRegisteredAccount } from '@/lib/auth-session';
 import { resetAllLocalCaches } from '@/lib/user-scoped-storage';
 import {
+  signInWithApple as authSignInWithApple,
   signInWithEmail,
   signOut as authSignOut,
   signUpWithEmail,
@@ -21,6 +22,7 @@ type AuthContextValue = {
   isAnonymous: boolean;
   isRegistered: boolean;
   signIn: (email: string, password: string) => Promise<SignInResult>;
+  signInWithApple: () => Promise<SignInResult>;
   signUp: (email: string, password: string) => Promise<SignUpResult>;
   signOut: () => Promise<AuthError | null>;
   clearLocalSession: () => Promise<void>;
@@ -114,6 +116,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, [applySession]);
 
+  const signInWithApple = useCallback(async () => {
+    const result = await authSignInWithApple();
+    if (result.session) {
+      await resetAllLocalCaches();
+      applySession(result.session);
+    }
+    return result;
+  }, [applySession]);
+
   const signUp = useCallback(async (email: string, password: string) => {
     const result = await signUpWithEmail(email, password);
     if (result.session) {
@@ -151,13 +162,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAnonymous: !!user && !isRegistered,
       isRegistered,
       signIn,
+      signInWithApple,
       signUp,
       signOut,
       clearLocalSession,
       retrySessionRestore,
       resetBrokenSessionForSignIn,
     }),
-    [session, user, userId, ready, initError, isRegistered, signIn, signUp, signOut, clearLocalSession, retrySessionRestore, resetBrokenSessionForSignIn],
+    [session, user, userId, ready, initError, isRegistered, signIn, signInWithApple, signUp, signOut, clearLocalSession, retrySessionRestore, resetBrokenSessionForSignIn],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -570,6 +570,8 @@ const en: TranslationKeys = {
         rateLimited: 'Too many attempts. Please try again later.',
         genericSignIn: 'Could not sign in. Check your details and try again.',
         genericSignUp: 'Could not create your account. Try a different email.',
+        appleUnavailable: 'Apple Sign In is only available on iOS devices.',
+        appleSignInFailed: 'Apple Sign In failed. Please try again.',
       },
     },
   },

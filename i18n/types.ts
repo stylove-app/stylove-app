@@ -502,6 +502,8 @@ export type TranslationKeys = {
         rateLimited: string;
         genericSignIn: string;
         genericSignUp: string;
+        appleUnavailable: string;
+        appleSignInFailed: string;
       };
     };
   };

@@ -13,7 +13,11 @@ export type SignUpResult = {
 export type SignInResult = {
   error: AuthError | null;
   session: Session | null;
+  cancelled?: boolean;
 };
+
+export type { AppleSignInResult } from '@/services/apple-auth';
+export { signInWithApple } from '@/services/apple-auth';
 
 export async function getSession(): Promise<Session | null> {
   const { data } = await supabase.auth.getSession();

@@ -25,7 +25,7 @@ import { softFadeIn, softFadeInDown } from '@/constants/luxury-motion';
 import { Fonts } from '@/constants/theme';
 import { useTranslation } from '@/contexts/locale-context';
 import type { Locale } from '@/i18n/types';
-import { mapAuthError } from '@/lib/auth-errors';
+import { mapAppleSignInError, mapAuthError } from '@/lib/auth-errors';
 import { ONBOARDING_COPY, ONBOARDING_LANGUAGE_ORDER, type OnboardingCopy } from '@/lib/onboarding-copy';
 import type { SignInResult, SignUpResult } from '@/services/auth';
 
@@ -37,6 +37,7 @@ type EditorialAuthScreenProps = {
   onSelectLocale: (locale: Locale) => void;
   onSignIn: (email: string, password: string) => Promise<SignInResult>;
   onSignUp: (email: string, password: string) => Promise<SignUpResult>;
+  onSignInWithApple: () => Promise<SignInResult>;
   onSuccess: (mode: AuthMode) => void;
 };
 
@@ -46,6 +47,7 @@ export function EditorialAuthScreen({
   onSelectLocale,
   onSignIn,
   onSignUp,
+  onSignInWithApple,
   onSuccess,
 }: EditorialAuthScreenProps) {
   const t = useTranslation();
@@ -55,7 +57,10 @@ export function EditorialAuthScreen({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [appleBusy, setAppleBusy] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+
+  const isAuthBusy = busy || appleBusy;
 
   const isLogin = authMode === 'login';
   const primaryCta = isLogin ? copy.loginCta : copy.registerCta;
@@ -63,6 +68,23 @@ export function EditorialAuthScreen({
 
   const handleSocialPlaceholder = () => {
     Alert.alert(copy.errorTitle, copy.socialComingSoon);
+  };
+
+  const handleAppleSignIn = async () => {
+    if (isAuthBusy) return;
+
+    setAppleBusy(true);
+    try {
+      const { error, session, cancelled } = await onSignInWithApple();
+      if (cancelled) return;
+      if (error) {
+        Alert.alert(copy.errorTitle, mapAppleSignInError(error, t.profile.account.errors));
+        return;
+      }
+      if (session) onSuccess('login');
+    } finally {
+      setAppleBusy(false);
+    }
   };
 
   const handleAuth = async () => {
@@ -134,12 +156,15 @@ export function EditorialAuthScreen({
           <AuthOutlineButton
             label={copy.continueWithApple}
             icon="logo-apple"
-            onPress={handleSocialPlaceholder}
+            onPress={() => void handleAppleSignIn()}
+            disabled={isAuthBusy}
+            loading={appleBusy}
           />
           <AuthOutlineButton
             label={copy.continueWithGoogle}
             icon="logo-google"
             onPress={handleSocialPlaceholder}
+            disabled={isAuthBusy}
           />
           <Pressable
             onPress={() => setShowEmailForm((current) => !current)}
@@ -160,7 +185,7 @@ export function EditorialAuthScreen({
                 autoCorrect={false}
                 autoComplete="email"
                 style={styles.input}
-                editable={!busy}
+                editable={!isAuthBusy}
               />
               <TextInput
                 value={password}
@@ -170,15 +195,15 @@ export function EditorialAuthScreen({
                 secureTextEntry
                 autoComplete="password"
                 style={styles.input}
-                editable={!busy}
+                editable={!isAuthBusy}
               />
               <Pressable
-                disabled={busy}
+                disabled={isAuthBusy}
                 onPress={() => void handleAuth()}
                 style={({ pressed }) => [
                   styles.primaryBtn,
-                  busy && styles.disabled,
-                  pressed && !busy && styles.btnPressed,
+                  isAuthBusy && styles.disabled,
+                  pressed && !isAuthBusy && styles.btnPressed,
                 ]}>
                 {busy ? (
                   <ActivityIndicator color={EditorialOnboardingColors.ivory} />
@@ -187,7 +212,7 @@ export function EditorialAuthScreen({
                 )}
               </Pressable>
               <Pressable
-                disabled={busy}
+                disabled={isAuthBusy}
                 onPress={() => setAuthMode((current) => (current === 'login' ? 'register' : 'login'))}
                 style={styles.switchWrap}>
                 <Text style={styles.switchText}>{switchCta}</Text>
@@ -241,17 +266,34 @@ function AuthOutlineButton({
   label,
   icon,
   onPress,
+  disabled = false,
+  loading = false,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
+  disabled?: boolean;
+  loading?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.outlineBtn, pressed && styles.btnPressed]}>
-      <Ionicons name={icon} size={20} color={EditorialOnboardingColors.burgundy} />
-      <Text style={styles.outlineBtnText}>{label}</Text>
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled, busy: loading }}
+      style={({ pressed }) => [
+        styles.outlineBtn,
+        disabled && styles.outlineBtnDisabled,
+        pressed && !disabled && styles.btnPressed,
+      ]}>
+      {loading ? (
+        <ActivityIndicator color={EditorialOnboardingColors.burgundy} />
+      ) : (
+        <>
+          <Ionicons name={icon} size={20} color={EditorialOnboardingColors.burgundy} />
+          <Text style={styles.outlineBtnText}>{label}</Text>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -303,6 +345,9 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 18,
     ...EditorialOnboardingShadow.soft,
+  },
+  outlineBtnDisabled: {
+    opacity: 0.55,
   },
   outlineBtnText: {
     fontSize: 15,

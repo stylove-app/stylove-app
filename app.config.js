@@ -34,12 +34,18 @@ module.exports = {
     ios: {
       ...appJson.expo.ios,
       bundleIdentifier: 'com.stylove.app',
+      usesAppleSignIn: true,
       infoPlist: {
         ...appJson.expo.ios?.infoPlist,
         ITSAppUsesNonExemptEncryption: false,
       },
     },
-    plugins: [...basePlugins, notificationPlugin, ...(sentryPlugin ? [sentryPlugin] : [])],
+    plugins: [
+      ...basePlugins,
+      'expo-apple-authentication',
+      notificationPlugin,
+      ...(sentryPlugin ? [sentryPlugin] : []),
+    ],
     extra: {
       ...appJson.expo.extra,
       eas: {
