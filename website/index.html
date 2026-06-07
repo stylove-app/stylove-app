@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Stylove — your wardrobe, styled for every moment. Coming soon to the App Store." />
+    <title>Stylove</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="logo" href="/">Stylove</a>
+        <nav class="nav" aria-label="Main">
+          <a href="/" aria-current="page">Home</a>
+          <a href="/privacy.html">Privacy</a>
+          <a href="/terms.html">Terms</a>
+          <a href="/support.html">Support</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1 class="hero__title">Stylove</h1>
+        <p class="hero__tagline">Your wardrobe, styled for every moment.</p>
+        <p class="badge">Coming soon to the App Store.</p>
+        <p class="contact-line">
+          Contact:
+          <a href="mailto:hello@stylove.app">hello@stylove.app</a>
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>&copy; <span id="year"></span> Stylove. All rights reserved.</p>
+    </footer>
+
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
