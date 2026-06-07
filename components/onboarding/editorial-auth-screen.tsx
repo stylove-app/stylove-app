@@ -31,6 +31,9 @@ import type { SignInResult, SignUpResult } from '@/services/auth';
 
 type AuthMode = 'login' | 'register';
 
+/** Re-enable when Google OAuth ships; button stays in codebase. */
+const GOOGLE_SIGN_IN_ENABLED = false;
+
 type EditorialAuthScreenProps = {
   locale: Locale;
   copy: OnboardingCopy;
@@ -160,12 +163,14 @@ export function EditorialAuthScreen({
             disabled={isAuthBusy}
             loading={appleBusy}
           />
-          <AuthOutlineButton
-            label={copy.continueWithGoogle}
-            icon="logo-google"
-            onPress={handleSocialPlaceholder}
-            disabled={isAuthBusy}
-          />
+          {GOOGLE_SIGN_IN_ENABLED ? (
+            <AuthOutlineButton
+              label={copy.continueWithGoogle}
+              icon="logo-google"
+              onPress={handleSocialPlaceholder}
+              disabled={isAuthBusy}
+            />
+          ) : null}
           <Pressable
             onPress={() => setShowEmailForm((current) => !current)}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.btnPressed]}>
