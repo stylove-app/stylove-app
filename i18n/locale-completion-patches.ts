@@ -178,6 +178,10 @@ const de: DeepPartial<TranslationKeys> = {
     intro: 'Stylove verwandelt Ihre Garderobe in ein privates Stilatelier.',
     closing: 'Leiser Luxus · exklusiv für Sie',
   },
+  profile: {
+    deleteAccountConfirmSubscriptionNote:
+      'Das Löschen Ihres Kontos kündigt ein aktives App Store-Abonnement nicht automatisch. Sie können Abonnements in den Apple-Kontoeinstellungen verwalten oder kündigen.',
+  },
 };
 
 const fr: DeepPartial<TranslationKeys> = {
@@ -277,6 +281,10 @@ const fr: DeepPartial<TranslationKeys> = {
     homeCta: 'Découvrir',
     intro: 'Stylove transforme votre garde-robe en atelier de style privé.',
     closing: 'Luxe discret · exclusivement vôtre',
+  },
+  profile: {
+    deleteAccountConfirmSubscriptionNote:
+      'La suppression de votre compte n’annule pas automatiquement un abonnement App Store actif. Vous pouvez gérer ou annuler vos abonnements dans les réglages de votre compte Apple.',
   },
 };
 
@@ -471,6 +479,8 @@ const es: DeepPartial<TranslationKeys> = {
     deleteAccount: 'Eliminar cuenta',
     deleteAccountConfirmTitle: '¿Eliminar su cuenta permanentemente?',
     deleteAccountConfirmBody: 'Esto eliminará permanentemente su cuenta, perfil, armario e imágenes subidas. No se puede deshacer.',
+    deleteAccountConfirmSubscriptionNote:
+      'Eliminar su cuenta no cancela automáticamente una suscripción activa del App Store. Puede gestionar o cancelar suscripciones en Ajustes de su cuenta Apple.',
     deleteAccountConfirmCta: 'Eliminar mi cuenta permanentemente',
     deleteAccountCancel: 'Cancelar',
     deleteAccountDeleting: 'Eliminando su cuenta…',
@@ -708,6 +718,8 @@ const it: DeepPartial<TranslationKeys> = {
     deleteAccount: 'Elimina account',
     deleteAccountConfirmTitle: 'Eliminare definitivamente l’account?',
     deleteAccountConfirmBody: 'Questo eliminerà definitivamente account, profilo, guardaroba e immagini caricate.',
+    deleteAccountConfirmSubscriptionNote:
+      'L\'eliminazione dell\'account non annulla automaticamente un abbonamento App Store attivo. Può gestire o annullare gli abbonamenti dalle Impostazioni del suo ID Apple.',
     deleteAccountConfirmCta: 'Elimina definitivamente il mio account',
     deleteAccountCancel: 'Annulla',
     deleteAccountDeleting: 'Eliminazione account…',
@@ -869,6 +881,8 @@ const ru: DeepPartial<TranslationKeys> = {
     deleteAccount: 'Удалить аккаунт',
     deleteAccountConfirmTitle: 'Удалить аккаунт навсегда?',
     deleteAccountConfirmBody: 'Это навсегда удалит аккаунт, профиль, гардероб и загруженные изображения.',
+    deleteAccountConfirmSubscriptionNote:
+      'Удаление аккаунта не отменяет автоматически активную подписку App Store. Управлять подписками или отменить их можно в настройках Apple ID.',
     deleteAccountConfirmCta: 'Удалить мой аккаунт навсегда',
     deleteAccountCancel: 'Отмена',
     deleteAccountDeleting: 'Аккаунт удаляется…',
@@ -956,6 +970,10 @@ const ar: DeepPartial<TranslationKeys> = {
     homeCta: 'اكتشفي',
     intro: 'يحوّل Stylove خزانتك إلى أتيليه أسلوب خاص.',
     closing: 'فخامة هادئة · حصرياً لك',
+  },
+  profile: {
+    deleteAccountConfirmSubscriptionNote:
+      'حذف حسابك لا يلغي تلقائياً اشتراك App Store النشط. يمكنك إدارة الاشتراكات أو إلغاؤها من إعدادات Apple ID.',
   },
 };
 

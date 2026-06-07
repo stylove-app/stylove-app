@@ -256,6 +256,9 @@ function ProfileScreen() {
           <Text style={[styles.deleteModalBody, { color: colors.gray }]}>
             {t.profile.deleteAccountConfirmBody}
           </Text>
+          <Text style={[styles.deleteModalBody, { color: colors.gray }]}>
+            {t.profile.deleteAccountConfirmSubscriptionNote}
+          </Text>
           <LuxuryButton
             label={deletingAccount ? t.profile.deleteAccountDeleting : t.profile.deleteAccountConfirmCta}
             onPress={() => void handleDeleteAccount()}

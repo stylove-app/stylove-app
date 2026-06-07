@@ -528,6 +528,8 @@ const tr: TranslationKeys = {
     deleteAccountConfirmTitle: 'Hesabınızı kalıcı olarak silmek istiyor musunuz?',
     deleteAccountConfirmBody:
       'Bu işlem hesabınızı, profilinizi, gardırop kayıtlarınızı ve size ait yüklenmiş gardırop görsellerini kalıcı olarak siler. Bu işlem geri alınamaz.',
+    deleteAccountConfirmSubscriptionNote:
+      'Hesabınızı silmek aktif App Store aboneliğinizi otomatik olarak iptal etmez. Aboneliğinizi Apple Hesap Ayarları üzerinden yönetebilir veya iptal edebilirsiniz.',
     deleteAccountConfirmCta: 'Hesabımı kalıcı olarak sil',
     deleteAccountCancel: 'Vazgeç',
     deleteAccountDeleting: 'Hesabınız siliniyor…',

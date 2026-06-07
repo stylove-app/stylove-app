@@ -453,6 +453,7 @@ export type TranslationKeys = {
     deleteAccountNote: string;
     deleteAccountConfirmTitle: string;
     deleteAccountConfirmBody: string;
+    deleteAccountConfirmSubscriptionNote: string;
     deleteAccountConfirmCta: string;
     deleteAccountCancel: string;
     deleteAccountDeleting: string;

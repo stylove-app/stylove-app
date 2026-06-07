@@ -521,6 +521,8 @@ const en: TranslationKeys = {
     deleteAccountNote: 'Permanently removes your account, wardrobe, and images.',
     deleteAccountConfirmTitle: 'Delete account permanently?',
     deleteAccountConfirmBody: 'Removes your account, profile, wardrobe, and images. Cannot be undone.',
+    deleteAccountConfirmSubscriptionNote:
+      'Deleting your account does not automatically cancel an active App Store subscription. You can manage or cancel subscriptions from your Apple Account Settings.',
     deleteAccountConfirmCta: 'Permanently delete my account',
     deleteAccountCancel: 'Cancel',
     deleteAccountDeleting: 'Deleting your account…',
