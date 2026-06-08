@@ -35,8 +35,6 @@ export {
   type StyleMemory,
 } from '@/lib/style-memory';
 export {
-  purchaseWeekly,
-  purchaseMonthly,
   restorePurchases,
   type PurchasePlan,
   type PurchaseResult,

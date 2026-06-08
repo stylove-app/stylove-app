@@ -1,15 +1,25 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEffect } from 'react';
 
 import { StyloveLogo } from '@/components/brand/stylove-logo';
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { useTranslation } from '@/contexts/locale-context';
+import { usePremium } from '@/contexts/premium-context';
 import { StyloveColors, StyloveShadow } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { analytics } from '@/lib/analytics';
+import type { PurchasePlan } from '@/services/payments';
 
 type PlanCardProps = {
   title: string;
@@ -18,18 +28,36 @@ type PlanCardProps = {
   cadence: string;
   cta: string;
   recommended?: string;
+  disabled?: boolean;
+  loading?: boolean;
+  onPress?: () => void;
 };
 
-function PlanCard({ title, subtitle, price, cadence, cta, recommended }: PlanCardProps) {
+function PlanCard({
+  title,
+  subtitle,
+  price,
+  cadence,
+  cta,
+  recommended,
+  disabled = false,
+  loading = false,
+  onPress,
+}: PlanCardProps) {
   const isRecommended = Boolean(recommended);
+  const canPress = Boolean(onPress) && !disabled && !loading;
+
   return (
-    <View
-      accessibilityRole="text"
-      accessibilityState={{ disabled: true }}
-      style={[
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !canPress }}
+      disabled={!canPress}
+      onPress={onPress}
+      style={({ pressed }) => [
         styles.planCard,
         isRecommended && styles.planCardRecommended,
         StyloveShadow.soft,
+        pressed && canPress && styles.planCardPressed,
       ]}>
       <View style={styles.planTopRow}>
         <Text style={styles.planTitle}>{title}</Text>
@@ -44,20 +72,90 @@ function PlanCard({ title, subtitle, price, cadence, cta, recommended }: PlanCar
         <Text style={styles.planPrice}>{price}</Text>
         <Text style={styles.planCadence}>{cadence}</Text>
       </View>
-      <View style={[styles.inactiveCta, isRecommended && styles.inactiveCtaRecommended]}>
-        <Text style={[styles.inactiveCtaText, isRecommended && styles.inactiveCtaTextRecommended]}>{cta}</Text>
+      <View
+        style={[
+          canPress ? styles.activeCta : styles.inactiveCta,
+          isRecommended && (canPress ? styles.activeCtaRecommended : styles.inactiveCtaRecommended),
+        ]}>
+        {loading ? (
+          <ActivityIndicator size="small" color={StyloveColors.goldSoft} />
+        ) : (
+          <Text
+            style={[
+              canPress ? styles.activeCtaText : styles.inactiveCtaText,
+              isRecommended && (canPress ? styles.activeCtaTextRecommended : styles.inactiveCtaTextRecommended),
+            ]}>
+            {cta}
+          </Text>
+        )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 export default function PremiumScreen() {
   const t = useTranslation();
   const insets = useSafeAreaInsets();
+  const {
+    isPremium,
+    packagesLoading,
+    offeringsAvailable,
+    weeklyPackage,
+    monthlyPackage,
+    purchasePlan,
+    restorePurchases,
+    refreshOfferings,
+  } = usePremium();
+
+  const [busyPlan, setBusyPlan] = useState<PurchasePlan | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   useEffect(() => {
     analytics.capture('paywall_opened', { source: 'premium_screen' });
-  }, []);
+    void refreshOfferings();
+  }, [refreshOfferings]);
+
+  const purchasesEnabled = offeringsAvailable && !isPremium;
+
+  const handlePurchase = async (plan: PurchasePlan) => {
+    if (busyPlan || isPremium) return;
+
+    setBusyPlan(plan);
+    try {
+      const result = await purchasePlan(plan);
+      if (result.ok) {
+        Alert.alert(t.premium.successTitle, t.premium.successMessage, [
+          { text: t.premium.continueCta, onPress: () => router.back() },
+        ]);
+        return;
+      }
+
+      if (result.cancelled) return;
+
+      Alert.alert(t.premium.title, result.message ?? t.premium.purchaseError);
+    } finally {
+      setBusyPlan(null);
+    }
+  };
+
+  const handleRestore = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    try {
+      const { restored } = await restorePurchases();
+      if (restored) {
+        Alert.alert(t.premium.restoreTitle, t.premium.restoreSuccess, [
+          { text: t.premium.continueCta, onPress: () => router.back() },
+        ]);
+      } else {
+        Alert.alert(t.premium.restoreTitle, t.premium.restoreEmpty);
+      }
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const weeklyPrice = weeklyPackage?.product.priceString ?? t.premium.weeklyPrice;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -86,27 +184,39 @@ export default function PremiumScreen() {
           <PlanCard
             title={t.premium.monthlyPlanTitle}
             subtitle={t.premium.monthlyPlanSubtitle}
-            price={t.premium.monthlyPrice}
+            price={monthlyPackage?.product.priceString ?? t.premium.monthlyPrice}
             cadence={t.premium.perMonth}
-            cta={t.premium.inactiveCta}
+            cta={isPremium ? t.premium.inactiveCta : t.premium.ctaMonthly}
             recommended={t.premium.recommended}
+            disabled={!purchasesEnabled || !monthlyPackage}
+            loading={busyPlan === 'monthly' || (packagesLoading && !monthlyPackage)}
+            onPress={purchasesEnabled && monthlyPackage ? () => void handlePurchase('monthly') : undefined}
           />
           <PlanCard
             title={t.premium.weeklyPlanTitle}
             subtitle={t.premium.weeklyPlanSubtitle}
-            price={t.premium.weeklyPrice}
+            price={weeklyPrice}
             cadence={t.premium.perWeek}
-            cta={t.premium.inactiveCta}
+            cta={isPremium ? t.premium.inactiveCta : t.premium.ctaWeekly}
+            disabled={!purchasesEnabled || !weeklyPackage}
+            loading={busyPlan === 'weekly' || (packagesLoading && !weeklyPackage)}
+            onPress={purchasesEnabled && weeklyPackage ? () => void handlePurchase('weekly') : undefined}
           />
         </View>
 
-        <View style={styles.comingSoonBanner} accessibilityRole="text">
-          <Ionicons name="sparkles-outline" size={18} color={StyloveColors.goldSoft} />
-          <View style={styles.comingSoonCopy}>
-            <Text style={styles.comingSoonTitle}>{t.premium.comingSoonTitle}</Text>
-            <Text style={styles.comingSoonMessage}>{t.premium.comingSoonMessage}</Text>
+        {!purchasesEnabled && !isPremium ? (
+          <View style={styles.comingSoonBanner} accessibilityRole="text">
+            <Ionicons name="sparkles-outline" size={18} color={StyloveColors.goldSoft} />
+            <View style={styles.comingSoonCopy}>
+              <Text style={styles.comingSoonTitle}>
+                {packagesLoading ? t.premium.loadingPlansTitle : t.premium.comingSoonTitle}
+              </Text>
+              <Text style={styles.comingSoonMessage}>
+                {packagesLoading ? t.premium.loadingPlansMessage : t.premium.comingSoonMessage}
+              </Text>
+            </View>
           </View>
-        </View>
+        ) : null}
 
         <View style={styles.planGrid}>
           <View style={[styles.accessCard, styles.freeCard]}>
@@ -143,9 +253,32 @@ export default function PremiumScreen() {
           ))}
         </View>
 
-        <LuxuryButton label={t.premium.inactiveCta} variant="gold" disabled />
+        {isPremium ? (
+          <LuxuryButton label={t.premium.continueCta} variant="gold" onPress={() => router.back()} />
+        ) : purchasesEnabled ? (
+          <LuxuryButton
+            label={t.premium.ctaMonthly}
+            variant="gold"
+            disabled={!monthlyPackage || busyPlan !== null}
+            onPress={() => void handlePurchase('monthly')}
+          />
+        ) : (
+          <LuxuryButton label={t.premium.inactiveCta} variant="gold" disabled />
+        )}
 
-        <Text style={styles.note}>{t.premium.inactiveNote}</Text>
+        <Pressable
+          onPress={() => void handleRestore()}
+          disabled={restoring || packagesLoading}
+          style={styles.restoreLink}
+          accessibilityRole="button">
+          {restoring ? (
+            <ActivityIndicator size="small" color={StyloveColors.goldSoft} />
+          ) : (
+            <Text style={styles.restoreText}>{t.premium.restore}</Text>
+          )}
+        </Pressable>
+
+        <Text style={styles.note}>{purchasesEnabled ? t.premium.note : t.premium.inactiveNote}</Text>
       </ScrollView>
     </View>
   );
@@ -296,6 +429,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(196,160,98,0.12)',
     transform: [{ scale: 1.02 }],
   },
+  planCardPressed: {
+    opacity: 0.92,
+  },
   planTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -368,6 +504,29 @@ const styles = StyleSheet.create({
   inactiveCtaTextRecommended: {
     color: StyloveColors.goldSoft,
   },
+  activeCta: {
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(196,160,98,0.55)',
+    backgroundColor: 'rgba(196,160,98,0.22)',
+    alignItems: 'center',
+  },
+  activeCtaRecommended: {
+    borderColor: 'rgba(196,160,98,0.65)',
+    backgroundColor: 'rgba(196,160,98,0.28)',
+  },
+  activeCtaText: {
+    color: StyloveColors.ivory,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  activeCtaTextRecommended: {
+    color: StyloveColors.goldSoft,
+  },
   comparison: {
     marginBottom: 24,
     borderRadius: 20,
@@ -410,6 +569,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: 'rgba(248,244,237,0.55)',
     fontSize: 12,
+  },
+  restoreLink: {
+    marginTop: 16,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  restoreText: {
+    color: StyloveColors.goldSoft,
+    fontSize: 12,
+    letterSpacing: 0.4,
+    textDecorationLine: 'underline',
   },
   note: {
     marginTop: 16,

@@ -1,7 +1,8 @@
 /**
- * Payment service — mock purchases for MVP.
- * Connect RevenueCat or StoreKit / Play Billing here later.
+ * Payment service — RevenueCat-backed on iOS when configured.
  */
+
+import { restoreRevenueCatPurchases } from '@/services/revenuecat';
 
 export type PurchasePlan = 'weekly' | 'monthly';
 
@@ -11,28 +12,10 @@ export type PurchaseResult = {
   transactionId: string;
 };
 
-const MOCK_DELAY_MS = 900;
-
-async function simulatePurchase(plan: PurchasePlan): Promise<PurchaseResult> {
-  // TODO: RevenueCat — Purchases.purchasePackage(package)
-  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
-  return {
-    success: true,
-    plan,
-    transactionId: `mock-${plan}-${Date.now()}`,
-  };
-}
-
-export async function purchaseWeekly(): Promise<PurchaseResult> {
-  return simulatePurchase('weekly');
-}
-
-export async function purchaseMonthly(): Promise<PurchaseResult> {
-  return simulatePurchase('monthly');
-}
-
 export async function restorePurchases(): Promise<{ restored: boolean; activePlan: PurchasePlan | null }> {
-  // TODO: RevenueCat — Purchases.restorePurchases()
-  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
-  return { restored: false, activePlan: null };
+  const { restored } = await restoreRevenueCatPurchases();
+  return {
+    restored,
+    activePlan: restored ? 'monthly' : null,
+  };
 }

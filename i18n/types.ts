@@ -566,6 +566,9 @@ export type TranslationKeys = {
     comparison: readonly { label: string; free: string; premium: string }[];
     comingSoonTitle: string;
     comingSoonMessage: string;
+    loadingPlansTitle: string;
+    loadingPlansMessage: string;
+    purchaseError: string;
     ctaWeekly: string;
     ctaMonthly: string;
     restore: string;
