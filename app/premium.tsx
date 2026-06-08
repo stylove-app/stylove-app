@@ -247,8 +247,37 @@ export default function PremiumScreen() {
 
   const weeklyPrice = weeklyPackage?.product.priceString ?? t.premium.weeklyPrice;
 
+  const handleDebugPurchase = async () => {
+    paywallLog('debug purchase button tapped');
+    Alert.alert('Tap works');
+    Alert.alert('Monthly tap received');
+    try {
+      const result = await purchasePlan('monthly');
+      paywallLog('debug purchasePlan finished', {
+        ok: result.ok,
+        cancelled: !result.ok ? result.cancelled : false,
+        message: !result.ok ? result.message : undefined,
+      });
+      if (!result.ok && !result.cancelled) {
+        Alert.alert('Debug purchase failed', result.message ?? 'Unknown error');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      paywallLog('debug purchasePlan threw', { message });
+      Alert.alert('Debug purchase threw', message);
+    }
+  };
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Debug purchase monthly"
+        onPress={() => void handleDebugPurchase()}
+        style={[styles.debugPurchaseButton, { top: insets.top + 8 }]}>
+        <Text style={styles.debugPurchaseButtonText}>DEBUG: Buy Monthly</Text>
+      </Pressable>
+
       <Pressable
         style={[styles.close, { top: insets.top + 12 }]}
         onPress={() => router.back()}
@@ -385,6 +414,25 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: StyloveColors.wineDeep,
+  },
+  debugPurchaseButton: {
+    position: 'absolute',
+    left: 16,
+    right: 72,
+    zIndex: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#FF3B30',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+  },
+  debugPurchaseButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   close: {
     position: 'absolute',
