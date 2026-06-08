@@ -18,11 +18,11 @@ const LEGAL_ITEMS: { id: LegalId; icon: keyof typeof Ionicons.glyphMap }[] = [
 ];
 
 const LEGAL_URLS: Record<LegalId, string> = {
-  privacy: 'https://stylove.app/privacy',
-  terms: 'https://stylove.app/terms',
-  kvkk: 'https://stylove.app/privacy',
-  membership: 'https://stylove.app/terms',
-  purchases: 'https://stylove.app/terms',
+  privacy: 'https://stylove.app/privacy.html',
+  terms: 'https://stylove.app/terms.html',
+  kvkk: 'https://stylove.app/privacy.html',
+  membership: 'https://stylove.app/terms.html',
+  purchases: 'https://stylove.app/terms.html',
 };
 
 export function LegalTrustSection() {

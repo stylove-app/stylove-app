@@ -264,8 +264,8 @@ const ar = {
     subtitle: 'فن ارتداء الملابس، بلا حدود.',
     weekly: 'أسبوعي',
     monthly: 'شهري',
-    weeklyPrice: '399 TL',
-    monthlyPrice: '649 TL',
+    weeklyPrice: '399,99 TL',
+    monthlyPrice: '699,99 TL',
     perWeek: '/ أسبوع',
     perMonth: '/ شهر',
     benefits: [

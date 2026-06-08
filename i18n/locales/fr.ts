@@ -265,8 +265,8 @@ const fr = {
     subtitle: 'L\'art de s\'habiller, sans limites.',
     weekly: 'Hebdomadaire',
     monthly: 'Mensuel',
-    weeklyPrice: '399 TL',
-    monthlyPrice: '649 TL',
+    weeklyPrice: '399,99 TL',
+    monthlyPrice: '699,99 TL',
     perWeek: '/ semaine',
     perMonth: '/ mois',
     benefits: [

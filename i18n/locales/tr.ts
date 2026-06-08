@@ -685,8 +685,8 @@ const tr: TranslationKeys = {
     subtitle: 'Sınırsız giyinme sanatı — size göre.',
     weekly: 'Haftalık',
     monthly: 'Aylık',
-    weeklyPrice: '399 TL',
-    monthlyPrice: '649 TL',
+    weeklyPrice: '399,99 TL',
+    monthlyPrice: '699,99 TL',
     perWeek: '/ hafta',
     perMonth: '/ ay',
     benefits: [

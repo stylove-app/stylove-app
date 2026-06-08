@@ -263,8 +263,8 @@ const de = {
     subtitle: 'Die Kunst des Anziehens, ohne Grenzen.',
     weekly: 'Wöchentlich',
     monthly: 'Monatlich',
-    weeklyPrice: '399 TL',
-    monthlyPrice: '649 TL',
+    weeklyPrice: '399,99 TL',
+    monthlyPrice: '699,99 TL',
     perWeek: '/ Woche',
     perMonth: '/ Monat',
     benefits: [

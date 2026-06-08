@@ -675,8 +675,8 @@ const en: TranslationKeys = {
     subtitle: 'Dressing, without limits.',
     weekly: 'Weekly',
     monthly: 'Monthly',
-    weeklyPrice: '399 TL',
-    monthlyPrice: '649 TL',
+    weeklyPrice: '399,99 TL',
+    monthlyPrice: '699,99 TL',
     perWeek: '/ week',
     perMonth: '/ month',
     benefits: [
