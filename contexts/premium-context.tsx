@@ -134,11 +134,31 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const purchasePlan = useCallback(
     async (plan: PurchasePlan): Promise<PurchaseFlowResult> => {
       const pkg = plan === 'weekly' ? weeklyPackage : monthlyPackage;
+      console.log('[premium] purchasePlan called', {
+        plan,
+        packageFound: Boolean(pkg),
+        packageId: pkg?.identifier,
+        productId: pkg?.product.identifier,
+      });
+
       if (!pkg) {
         return { ok: false, cancelled: false, message: 'Subscription package unavailable.' };
       }
 
+      console.log('[premium] purchasePlan invoking RevenueCat', {
+        plan,
+        packageId: pkg.identifier,
+        productId: pkg.product.identifier,
+      });
+
       const result = await purchasePackage(pkg);
+      console.log('[premium] purchasePlan result', {
+        plan,
+        ok: result.ok,
+        cancelled: !result.ok && result.cancelled,
+        message: !result.ok ? result.message : undefined,
+      });
+
       if (result.ok) {
         applyCustomerInfo(result.customerInfo, setRcPremium, setActivePlan);
       }

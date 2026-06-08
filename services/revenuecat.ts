@@ -21,8 +21,12 @@ export type RevenueCatPaywallPackages = {
 
 let configured = false;
 
-function devLog(message: string) {
-  if (__DEV__) console.log(`[revenuecat] ${message}`);
+function devLog(message: string, details?: Record<string, unknown>) {
+  if (details) {
+    console.log(`[revenuecat] ${message}`, details);
+    return;
+  }
+  console.log(`[revenuecat] ${message}`);
 }
 
 export function isPremiumFromCustomerInfo(info: CustomerInfo | null | undefined): boolean {
@@ -131,18 +135,37 @@ export type PurchaseFlowResult =
   | { ok: false; cancelled: boolean; message?: string };
 
 export async function purchasePackage(pkg: PurchasesPackage): Promise<PurchaseFlowResult> {
+  devLog('purchasePackage start', {
+    configured,
+    packageId: pkg.identifier,
+    productId: pkg.product.identifier,
+  });
+
   if (!configured) {
+    devLog('purchasePackage blocked: not configured');
     return { ok: false, cancelled: false, message: 'Purchases are not configured.' };
   }
 
   try {
+    devLog('purchasePackage calling Purchases.purchasePackage');
     const { customerInfo } = await Purchases.purchasePackage(pkg);
+    devLog('purchasePackage success', {
+      packageId: pkg.identifier,
+      activeEntitlements: Object.keys(customerInfo.entitlements.active),
+    });
     return { ok: true, customerInfo };
   } catch (error: unknown) {
     const rcError = error as { code?: string; message?: string; userCancelled?: boolean };
     const cancelled =
       rcError.userCancelled === true ||
       rcError.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR;
+
+    devLog('purchasePackage failed', {
+      packageId: pkg.identifier,
+      cancelled,
+      code: rcError.code,
+      message: rcError.message ?? String(error),
+    });
 
     return {
       ok: false,

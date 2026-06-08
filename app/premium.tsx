@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,45 +21,70 @@ import { Fonts } from '@/constants/theme';
 import { analytics } from '@/lib/analytics';
 import type { PurchasePlan } from '@/services/payments';
 
+function paywallLog(message: string, details?: Record<string, unknown>) {
+  if (details) {
+    console.log(`[premium] ${message}`, details);
+    return;
+  }
+  console.log(`[premium] ${message}`);
+}
+
 type PlanCardProps = {
+  plan: PurchasePlan;
   title: string;
   subtitle: string;
   price: string;
   cadence: string;
   cta: string;
   recommended?: string;
-  disabled?: boolean;
+  packageReady: boolean;
+  purchasesEnabled: boolean;
   loading?: boolean;
-  onPress?: () => void;
+  onPurchase: (plan: PurchasePlan) => void;
 };
 
 function PlanCard({
+  plan,
   title,
   subtitle,
   price,
   cadence,
   cta,
   recommended,
-  disabled = false,
+  packageReady,
+  purchasesEnabled,
   loading = false,
-  onPress,
+  onPurchase,
 }: PlanCardProps) {
   const isRecommended = Boolean(recommended);
-  const canPress = Boolean(onPress) && !disabled && !loading;
+  const canPurchase = purchasesEnabled && packageReady && !loading;
+
+  const handleCtaPress = () => {
+    paywallLog('CTA tap', {
+      plan,
+      packageReady,
+      purchasesEnabled,
+      loading,
+      canPurchase,
+    });
+    if (!canPurchase) {
+      Alert.alert(
+        title,
+        packageReady ? 'Purchase is unavailable right now.' : 'Subscription package is not loaded yet.',
+      );
+      return;
+    }
+    onPurchase(plan);
+  };
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled: !canPress }}
-      disabled={!canPress}
-      onPress={onPress}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.planCard,
         isRecommended && styles.planCardRecommended,
         StyloveShadow.soft,
-        pressed && canPress && styles.planCardPressed,
       ]}>
-      <View style={styles.planTopRow}>
+      <View style={styles.planTopRow} pointerEvents="none">
         <Text style={styles.planTitle}>{title}</Text>
         {recommended ? (
           <View style={styles.recommendedPill}>
@@ -67,29 +92,39 @@ function PlanCard({
           </View>
         ) : null}
       </View>
-      <Text style={styles.planSubtitle}>{subtitle}</Text>
-      <View style={styles.priceRow}>
+      <Text style={styles.planSubtitle} pointerEvents="none">
+        {subtitle}
+      </Text>
+      <View style={styles.priceRow} pointerEvents="none">
         <Text style={styles.planPrice}>{price}</Text>
         <Text style={styles.planCadence}>{cadence}</Text>
       </View>
-      <View
-        style={[
-          canPress ? styles.activeCta : styles.inactiveCta,
-          isRecommended && (canPress ? styles.activeCtaRecommended : styles.inactiveCtaRecommended),
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canPurchase }}
+        disabled={!canPurchase}
+        onPress={handleCtaPress}
+        hitSlop={8}
+        style={({ pressed }) => [
+          canPurchase ? styles.activeCta : styles.inactiveCta,
+          isRecommended && (canPurchase ? styles.activeCtaRecommended : styles.inactiveCtaRecommended),
+          pressed && canPurchase && styles.planCtaPressed,
         ]}>
         {loading ? (
           <ActivityIndicator size="small" color={StyloveColors.goldSoft} />
         ) : (
           <Text
+            pointerEvents="none"
             style={[
-              canPress ? styles.activeCtaText : styles.inactiveCtaText,
-              isRecommended && (canPress ? styles.activeCtaTextRecommended : styles.inactiveCtaTextRecommended),
+              canPurchase ? styles.activeCtaText : styles.inactiveCtaText,
+              isRecommended &&
+                (canPurchase ? styles.activeCtaTextRecommended : styles.inactiveCtaTextRecommended),
             ]}>
             {cta}
           </Text>
         )}
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 
@@ -117,26 +152,81 @@ export default function PremiumScreen() {
 
   const purchasesEnabled = offeringsAvailable && !isPremium;
 
-  const handlePurchase = async (plan: PurchasePlan) => {
-    if (busyPlan || isPremium) return;
+  const handlePurchase = useCallback(
+    async (plan: PurchasePlan) => {
+      paywallLog('handlePurchase start', {
+        plan,
+        busyPlan,
+        isPremium,
+        purchasesEnabled,
+        hasWeekly: Boolean(weeklyPackage),
+        hasMonthly: Boolean(monthlyPackage),
+      });
 
-    setBusyPlan(plan);
-    try {
-      const result = await purchasePlan(plan);
-      if (result.ok) {
-        Alert.alert(t.premium.successTitle, t.premium.successMessage, [
-          { text: t.premium.continueCta, onPress: () => router.back() },
-        ]);
+      if (busyPlan) {
+        paywallLog('handlePurchase blocked: busy', { busyPlan });
         return;
       }
 
-      if (result.cancelled) return;
+      if (isPremium) {
+        Alert.alert(t.premium.title, t.premium.successMessage);
+        return;
+      }
 
-      Alert.alert(t.premium.title, result.message ?? t.premium.purchaseError);
-    } finally {
-      setBusyPlan(null);
-    }
-  };
+      const pkg = plan === 'weekly' ? weeklyPackage : monthlyPackage;
+      if (!pkg) {
+        paywallLog('handlePurchase blocked: missing package', { plan });
+        Alert.alert(t.premium.title, t.premium.purchaseError);
+        return;
+      }
+
+      paywallLog('purchase start', {
+        plan,
+        packageId: pkg.identifier,
+        productId: pkg.product.identifier,
+        price: pkg.product.priceString,
+      });
+
+      setBusyPlan(plan);
+      try {
+        const result = await purchasePlan(plan);
+        if (result.ok) {
+          paywallLog('purchase success', { plan });
+          Alert.alert(t.premium.successTitle, t.premium.successMessage, [
+            { text: t.premium.continueCta, onPress: () => router.back() },
+          ]);
+          return;
+        }
+
+        if (result.cancelled) {
+          paywallLog('purchase cancelled', { plan });
+          return;
+        }
+
+        paywallLog('purchase failure', { plan, message: result.message });
+        Alert.alert(t.premium.title, result.message ?? t.premium.purchaseError);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        paywallLog('purchase threw', { plan, message });
+        Alert.alert(t.premium.title, message || t.premium.purchaseError);
+      } finally {
+        setBusyPlan(null);
+      }
+    },
+    [
+      busyPlan,
+      isPremium,
+      monthlyPackage,
+      purchasePlan,
+      purchasesEnabled,
+      t.premium.continueCta,
+      t.premium.purchaseError,
+      t.premium.successMessage,
+      t.premium.successTitle,
+      t.premium.title,
+      weeklyPackage,
+    ],
+  );
 
   const handleRestore = async () => {
     if (restoring) return;
@@ -182,25 +272,29 @@ export default function PremiumScreen() {
           <Text style={styles.plansIntro}>{t.premium.plansIntro}</Text>
           <Text style={styles.sameFeaturesNote}>{t.premium.sameFeaturesNote}</Text>
           <PlanCard
+            plan="monthly"
             title={t.premium.monthlyPlanTitle}
             subtitle={t.premium.monthlyPlanSubtitle}
             price={monthlyPackage?.product.priceString ?? t.premium.monthlyPrice}
             cadence={t.premium.perMonth}
             cta={isPremium ? t.premium.inactiveCta : t.premium.ctaMonthly}
             recommended={t.premium.recommended}
-            disabled={!purchasesEnabled || !monthlyPackage}
-            loading={busyPlan === 'monthly' || (packagesLoading && !monthlyPackage)}
-            onPress={purchasesEnabled && monthlyPackage ? () => void handlePurchase('monthly') : undefined}
+            packageReady={Boolean(monthlyPackage)}
+            purchasesEnabled={purchasesEnabled}
+            loading={busyPlan === 'monthly'}
+            onPurchase={handlePurchase}
           />
           <PlanCard
+            plan="weekly"
             title={t.premium.weeklyPlanTitle}
             subtitle={t.premium.weeklyPlanSubtitle}
             price={weeklyPrice}
             cadence={t.premium.perWeek}
             cta={isPremium ? t.premium.inactiveCta : t.premium.ctaWeekly}
-            disabled={!purchasesEnabled || !weeklyPackage}
-            loading={busyPlan === 'weekly' || (packagesLoading && !weeklyPackage)}
-            onPress={purchasesEnabled && weeklyPackage ? () => void handlePurchase('weekly') : undefined}
+            packageReady={Boolean(weeklyPackage)}
+            purchasesEnabled={purchasesEnabled}
+            loading={busyPlan === 'weekly'}
+            onPurchase={handlePurchase}
           />
         </View>
 
@@ -260,7 +354,10 @@ export default function PremiumScreen() {
             label={t.premium.ctaMonthly}
             variant="gold"
             disabled={!monthlyPackage || busyPlan !== null}
-            onPress={() => void handlePurchase('monthly')}
+            onPress={() => {
+              paywallLog('bottom CTA tap', { plan: 'monthly', hasMonthly: Boolean(monthlyPackage) });
+              void handlePurchase('monthly');
+            }}
           />
         ) : (
           <LuxuryButton label={t.premium.inactiveCta} variant="gold" disabled />
@@ -427,10 +524,9 @@ const styles = StyleSheet.create({
   planCardRecommended: {
     borderColor: 'rgba(196,160,98,0.45)',
     backgroundColor: 'rgba(196,160,98,0.12)',
-    transform: [{ scale: 1.02 }],
   },
-  planCardPressed: {
-    opacity: 0.92,
+  planCtaPressed: {
+    opacity: 0.88,
   },
   planTopRow: {
     flexDirection: 'row',
