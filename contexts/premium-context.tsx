@@ -60,6 +60,11 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const [rcPremium, setRcPremium] = useState(false);
   const [activePlan, setActivePlan] = useState<PurchasePlan | null>(null);
   const linkedUserRef = useRef<string | null>(null);
+  const weeklyPackageRef = useRef<PurchasesPackage | null>(null);
+  const monthlyPackageRef = useRef<PurchasesPackage | null>(null);
+
+  weeklyPackageRef.current = weeklyPackage;
+  monthlyPackageRef.current = monthlyPackage;
 
   const qaBypass = isQaTestMode() && !isRevenueCatConfigured();
   const isPremium = rcPremium || qaBypass;
@@ -131,9 +136,49 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     void syncUser();
   }, [authReady, ready, userId, loadOfferings, refreshCustomerState]);
 
+  const resolvePackageForPlan = useCallback(async (plan: PurchasePlan): Promise<PurchasesPackage | null> => {
+    const readPackages = () => ({
+      weekly: weeklyPackageRef.current,
+      monthly: monthlyPackageRef.current,
+    });
+
+    let { weekly, monthly } = readPackages();
+    let pkg = plan === 'weekly' ? weekly : monthly;
+
+    console.log('[premium] resolvePackageForPlan', {
+      plan,
+      fromRef: Boolean(pkg),
+      weeklyRef: Boolean(weekly),
+      monthlyRef: Boolean(monthly),
+    });
+
+    if (pkg) return pkg;
+
+    console.log('[premium] package missing in refs, re-fetching offerings', { plan });
+    const offerings = await fetchOfferings();
+    const packages = extractPaywallPackages(offerings);
+    setWeeklyPackage(packages.weekly);
+    setMonthlyPackage(packages.monthly);
+    weeklyPackageRef.current = packages.weekly;
+    monthlyPackageRef.current = packages.monthly;
+
+    weekly = packages.weekly;
+    monthly = packages.monthly;
+    pkg = plan === 'weekly' ? weekly : monthly;
+
+    console.log('[premium] resolvePackageForPlan after refresh', {
+      plan,
+      found: Boolean(pkg),
+      packageId: pkg?.identifier,
+      productId: pkg?.product.identifier,
+    });
+
+    return pkg;
+  }, []);
+
   const purchasePlan = useCallback(
     async (plan: PurchasePlan): Promise<PurchaseFlowResult> => {
-      const pkg = plan === 'weekly' ? weeklyPackage : monthlyPackage;
+      const pkg = await resolvePackageForPlan(plan);
       console.log('[premium] purchasePlan called', {
         plan,
         packageFound: Boolean(pkg),
@@ -164,7 +209,7 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
       }
       return result;
     },
-    [weeklyPackage, monthlyPackage],
+    [resolvePackageForPlan],
   );
 
   const restorePurchases = useCallback(async () => {
