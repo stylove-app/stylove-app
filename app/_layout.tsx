@@ -20,6 +20,7 @@ import { EditorialOnboardingColors } from '@/constants/editorial-onboarding-them
 import { StyloveColors } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 import { isSentryEnabled, sentryNavigationIntegration, withSentryRoot } from '@/lib/sentry';
+import { configureRevenueCat } from '@/services/revenuecat';
 
 function RootStack() {
   const { isDark } = useTheme();
@@ -82,6 +83,10 @@ function AppProviders({ children }: { children: React.ReactNode }) {
 
 function RootLayout() {
   const navigationRef = useNavigationContainerRef();
+
+  useEffect(() => {
+    void configureRevenueCat();
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== 'web' && isSentryEnabled) {
