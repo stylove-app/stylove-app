@@ -21,10 +21,12 @@ import {
   getCustomerInfo,
   isPremiumFromCustomerInfo,
   logInRevenueCat,
+  logOfferingsDiagnostics,
   logOutRevenueCat,
   purchasePackage,
   restoreRevenueCatPurchases,
   type PurchaseFlowResult,
+  type RevenueCatPaywallPackages,
 } from '@/services/revenuecat';
 
 type PremiumContextValue = {
@@ -51,6 +53,25 @@ function applyCustomerInfo(
   setActivePlan(activePlanFromCustomerInfo(info));
 }
 
+function applyPackagesSafely(
+  extracted: RevenueCatPaywallPackages,
+  setWeeklyPackage: React.Dispatch<React.SetStateAction<PurchasesPackage | null>>,
+  setMonthlyPackage: React.Dispatch<React.SetStateAction<PurchasesPackage | null>>,
+  weeklyPackageRef: React.MutableRefObject<PurchasesPackage | null>,
+  monthlyPackageRef: React.MutableRefObject<PurchasesPackage | null>,
+) {
+  setWeeklyPackage((prev) => {
+    const next = extracted.weekly ?? prev;
+    weeklyPackageRef.current = next;
+    return next;
+  });
+  setMonthlyPackage((prev) => {
+    const next = extracted.monthly ?? prev;
+    monthlyPackageRef.current = next;
+    return next;
+  });
+}
+
 export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const { userId, ready: authReady } = useAuth();
   const [ready, setReady] = useState(false);
@@ -75,9 +96,22 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     setPackagesLoading(true);
     try {
       const offerings = await fetchOfferings();
+      if (!offerings) {
+        console.log('[premium] loadOfferings: fetch returned null, keeping existing packages', {
+          weeklyRef: Boolean(weeklyPackageRef.current),
+          monthlyRef: Boolean(monthlyPackageRef.current),
+        });
+        return;
+      }
+
       const packages = extractPaywallPackages(offerings);
-      setWeeklyPackage(packages.weekly);
-      setMonthlyPackage(packages.monthly);
+      applyPackagesSafely(
+        packages,
+        setWeeklyPackage,
+        setMonthlyPackage,
+        weeklyPackageRef,
+        monthlyPackageRef,
+      );
     } finally {
       setPackagesLoading(false);
     }
@@ -156,14 +190,26 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
 
     console.log('[premium] package missing in refs, re-fetching offerings', { plan });
     const offerings = await fetchOfferings();
-    const packages = extractPaywallPackages(offerings);
-    setWeeklyPackage(packages.weekly);
-    setMonthlyPackage(packages.monthly);
-    weeklyPackageRef.current = packages.weekly;
-    monthlyPackageRef.current = packages.monthly;
+    if (!offerings) {
+      console.log('[premium] resolvePackageForPlan: re-fetch returned null, keeping refs', {
+        plan,
+        weeklyRef: Boolean(weeklyPackageRef.current),
+        monthlyRef: Boolean(monthlyPackageRef.current),
+      });
+      return plan === 'weekly' ? weeklyPackageRef.current : monthlyPackageRef.current;
+    }
 
-    weekly = packages.weekly;
-    monthly = packages.monthly;
+    const packages = extractPaywallPackages(offerings);
+    applyPackagesSafely(
+      packages,
+      setWeeklyPackage,
+      setMonthlyPackage,
+      weeklyPackageRef,
+      monthlyPackageRef,
+    );
+
+    weekly = packages.weekly ?? weeklyPackageRef.current;
+    monthly = packages.monthly ?? monthlyPackageRef.current;
     pkg = plan === 'weekly' ? weekly : monthly;
 
     console.log('[premium] resolvePackageForPlan after refresh', {
@@ -172,6 +218,15 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
       packageId: pkg?.identifier,
       productId: pkg?.product.identifier,
     });
+
+    if (!pkg) {
+      logOfferingsDiagnostics(offerings, 'resolvePackageForPlan:still-missing');
+      console.log('[premium] resolvePackageForPlan unavailable', {
+        plan,
+        weeklyRef: Boolean(weeklyPackageRef.current),
+        monthlyRef: Boolean(monthlyPackageRef.current),
+      });
+    }
 
     return pkg;
   }, []);

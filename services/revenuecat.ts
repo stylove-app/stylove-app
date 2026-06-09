@@ -8,6 +8,7 @@ import Purchases, {
 
 import {
   REVENUECAT_ENTITLEMENT_ID,
+  REVENUECAT_PACKAGE_IDS,
   REVENUECAT_PRODUCT_IDS,
   getRevenueCatIosApiKey,
   isRevenueCatConfigured,
@@ -29,12 +30,89 @@ function devLog(message: string, details?: Record<string, unknown>) {
   console.log(`[revenuecat] ${message}`);
 }
 
+function packageSnapshot(pkg: PurchasesPackage) {
+  return {
+    packageId: pkg.identifier,
+    productId: pkg.product?.identifier ?? null,
+    priceString: pkg.product?.priceString ?? null,
+  };
+}
+
+function collectPackages(offerings: PurchasesOfferings): PurchasesPackage[] {
+  const seen = new Set<string>();
+  const pool: PurchasesPackage[] = [];
+
+  const add = (pkg: PurchasesPackage | null | undefined) => {
+    if (!pkg || seen.has(pkg.identifier)) return;
+    seen.add(pkg.identifier);
+    pool.push(pkg);
+  };
+
+  const current = offerings.current;
+  for (const pkg of current?.availablePackages ?? []) add(pkg);
+  add(current?.weekly ?? null);
+  add(current?.monthly ?? null);
+
+  for (const offering of Object.values(offerings.all)) {
+    for (const pkg of offering.availablePackages) add(pkg);
+    add(offering.weekly);
+    add(offering.monthly);
+  }
+
+  return pool;
+}
+
+export function logOfferingsDiagnostics(
+  offerings: PurchasesOfferings | null,
+  context = 'offerings',
+): void {
+  if (!offerings) {
+    devLog(`${context}: no offerings`, { offerings: null });
+    return;
+  }
+
+  const pool = collectPackages(offerings);
+  devLog(`${context}: offerings snapshot`, {
+    currentOfferingId: offerings.current?.identifier ?? null,
+    allOfferingIds: Object.keys(offerings.all),
+    packageIdentifiers: pool.map((pkg) => pkg.identifier),
+    productIdentifiers: pool.map((pkg) => pkg.product?.identifier ?? null),
+    priceStrings: pool.map((pkg) => pkg.product?.priceString ?? null),
+    currentWeeklyShortcut: offerings.current?.weekly?.identifier ?? null,
+    currentMonthlyShortcut: offerings.current?.monthly?.identifier ?? null,
+    packages: pool.map(packageSnapshot),
+  });
+}
+
+function resolvePlanPackage(
+  offerings: PurchasesOfferings | null,
+  plan: PurchasePlan,
+): PurchasesPackage | null {
+  if (!offerings) return null;
+
+  const productId = REVENUECAT_PRODUCT_IDS[plan];
+  const packageId = REVENUECAT_PACKAGE_IDS[plan];
+  const pool = collectPackages(offerings);
+
+  for (const pkg of pool) {
+    if (pkg.product?.identifier === productId) return pkg;
+  }
+
+  for (const pkg of pool) {
+    if (pkg.identifier === packageId) return pkg;
+  }
+
+  const shortcut = plan === 'weekly' ? offerings.current?.weekly : offerings.current?.monthly;
+  if (shortcut) return shortcut;
+
+  return null;
+}
+
 export function isPremiumFromCustomerInfo(info: CustomerInfo | null | undefined): boolean {
   if (!info) return false;
   const active = info.entitlements.active[REVENUECAT_ENTITLEMENT_ID];
   if (active?.isActive) return true;
 
-  // Fallback: match any active entitlement (handles identifier renames in RC dashboard).
   return Object.values(info.entitlements.active).some((entitlement) => entitlement.isActive);
 }
 
@@ -50,29 +128,22 @@ export function activePlanFromCustomerInfo(info: CustomerInfo | null | undefined
   return 'monthly';
 }
 
-function findPackageByProductId(
-  offerings: PurchasesOfferings | null,
-  productId: string,
-): PurchasesPackage | null {
-  if (!offerings) return null;
-
-  const pools: PurchasesPackage[] = [
-    ...(offerings.current?.availablePackages ?? []),
-    ...Object.values(offerings.all).flatMap((offering) => offering.availablePackages),
-  ];
-
-  for (const pkg of pools) {
-    if (pkg.product.identifier === productId) return pkg;
-  }
-
-  return null;
-}
-
 export function extractPaywallPackages(offerings: PurchasesOfferings | null): RevenueCatPaywallPackages {
-  return {
-    weekly: findPackageByProductId(offerings, REVENUECAT_PRODUCT_IDS.weekly),
-    monthly: findPackageByProductId(offerings, REVENUECAT_PRODUCT_IDS.monthly),
-  };
+  logOfferingsDiagnostics(offerings, 'extractPaywallPackages');
+
+  const weekly = resolvePlanPackage(offerings, 'weekly');
+  const monthly = resolvePlanPackage(offerings, 'monthly');
+
+  devLog('extractPaywallPackages: resolved', {
+    weeklyFound: Boolean(weekly),
+    monthlyFound: Boolean(monthly),
+    weeklyPackageId: weekly?.identifier ?? null,
+    weeklyProductId: weekly?.product?.identifier ?? null,
+    monthlyPackageId: monthly?.identifier ?? null,
+    monthlyProductId: monthly?.product?.identifier ?? null,
+  });
+
+  return { weekly, monthly };
 }
 
 export async function configureRevenueCat(): Promise<boolean> {
@@ -121,11 +192,17 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
 }
 
 export async function fetchOfferings(): Promise<PurchasesOfferings | null> {
-  if (!configured) return null;
+  if (!configured) {
+    devLog('fetchOfferings skipped: not configured');
+    return null;
+  }
+
   try {
-    return await Purchases.getOfferings();
+    const offerings = await Purchases.getOfferings();
+    logOfferingsDiagnostics(offerings, 'fetchOfferings');
+    return offerings;
   } catch (error) {
-    devLog(`getOfferings failed: ${String(error)}`);
+    devLog('getOfferings failed', { error: String(error) });
     return null;
   }
 }

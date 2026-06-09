@@ -6,6 +6,12 @@ export const REVENUECAT_PRODUCT_IDS: Record<PurchasePlan, string> = {
   monthly: 'com.stylove.app.premium.monthly',
 };
 
+/** RevenueCat offering package identifiers (dashboard default/custom package ids). */
+export const REVENUECAT_PACKAGE_IDS: Record<PurchasePlan, string> = {
+  weekly: '$rc_weekly',
+  monthly: '$rc_monthly',
+};
+
 /**
  * RevenueCat entitlement identifier (dashboard → Entitlements → Identifier).
  * Display name in RC is "stylove Premium"; identifier must match exactly.
