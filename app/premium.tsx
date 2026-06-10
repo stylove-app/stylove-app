@@ -13,12 +13,19 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StyloveLogo } from '@/components/brand/stylove-logo';
+import { RevenueCatDiagnosticPanel } from '@/components/premium/revenuecat-diagnostic-panel';
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { useTranslation } from '@/contexts/locale-context';
 import { usePremium } from '@/contexts/premium-context';
 import { StyloveColors } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 import { analytics } from '@/lib/analytics';
+import {
+  getRevenueCatDiagnosticSnapshot,
+  markRevenueCatRetry,
+  refreshRevenueCatDiagnostics,
+  type RevenueCatDiagnosticSnapshot,
+} from '@/lib/revenuecat-diagnostics';
 
 export default function PremiumScreen() {
   const t = useTranslation();
@@ -34,6 +41,39 @@ export default function PremiumScreen() {
 
   const [busy, setBusy] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [titleTapCount, setTitleTapCount] = useState(0);
+  const [diagnostics, setDiagnostics] = useState<RevenueCatDiagnosticSnapshot>(
+    getRevenueCatDiagnosticSnapshot,
+  );
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
+
+  const runDiagnostics = useCallback(async () => {
+    setDiagnosticsLoading(true);
+    try {
+      const snapshot = await refreshRevenueCatDiagnostics();
+      setDiagnostics(snapshot);
+    } finally {
+      setDiagnosticsLoading(false);
+    }
+  }, []);
+
+  const handleTitleTap = useCallback(() => {
+    setTitleTapCount((count) => {
+      const next = count + 1;
+      if (next >= 5) {
+        setDebugOpen((open) => {
+          const willOpen = !open;
+          if (willOpen) {
+            void runDiagnostics();
+          }
+          return willOpen;
+        });
+        return 0;
+      }
+      return next;
+    });
+  }, [runDiagnostics]);
 
   useEffect(() => {
     analytics.capture('paywall_opened', { source: 'premium_screen' });
@@ -125,6 +165,9 @@ export default function PremiumScreen() {
       return;
     }
 
+    markRevenueCatRetry();
+    setDiagnostics((prev) => ({ ...prev, lastRetryAt: new Date().toISOString() }));
+
     console.log('[paywall] cta:retry — calling refreshOfferings');
     void refreshOfferings().then((result) => {
       console.log('[paywall] cta:retry complete', result);
@@ -182,9 +225,19 @@ export default function PremiumScreen() {
             <View style={styles.hero}>
               <StyloveLogo size="md" variant="light" />
               <Text style={styles.eyebrow}>{t.premium.paywallEyebrow}</Text>
-              <Text style={styles.title}>{t.premium.title}</Text>
+              <Pressable onPress={handleTitleTap} accessibilityRole="button">
+                <Text style={styles.title}>{t.premium.title}</Text>
+              </Pressable>
               <Text style={styles.subtitle}>{t.premium.subtitle}</Text>
             </View>
+
+            {debugOpen ? (
+              <RevenueCatDiagnosticPanel
+                snapshot={diagnostics}
+                loading={diagnosticsLoading}
+                onRefresh={() => void runDiagnostics()}
+              />
+            ) : null}
 
             <View style={styles.planCard}>
               <Text style={styles.planTitle}>{t.premium.monthlyPlanTitle}</Text>

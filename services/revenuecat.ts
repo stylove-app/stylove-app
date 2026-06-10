@@ -278,3 +278,80 @@ export async function restoreRevenueCatPurchases(): Promise<{
 export function revenueCatReady(): boolean {
   return configured && isRevenueCatConfigured();
 }
+
+export function isRevenueCatSdkConfigured(): boolean {
+  return configured;
+}
+
+export type RevenueCatOfferingSnapshot = {
+  currentOfferingId: string | null;
+  allOfferingIds: string[];
+  defaultOfferingExists: boolean;
+  packageCount: number;
+  productIds: string[];
+  packageIdentifiers: string[];
+  monthlyFound: boolean;
+};
+
+export function snapshotOfferingDetails(
+  offerings: PurchasesOfferings | null,
+): RevenueCatOfferingSnapshot {
+  if (!offerings) {
+    return {
+      currentOfferingId: null,
+      allOfferingIds: [],
+      defaultOfferingExists: false,
+      packageCount: 0,
+      productIds: [],
+      packageIdentifiers: [],
+      monthlyFound: false,
+    };
+  }
+
+  const offering = getDefaultOffering(offerings);
+  const pool = offering ? collectMonthlyPackages(offering) : [];
+  const monthly = resolveMonthlyPackage(offerings);
+
+  return {
+    currentOfferingId: offerings.current?.identifier ?? null,
+    allOfferingIds: Object.keys(offerings.all),
+    defaultOfferingExists: Boolean(offerings.all[REVENUECAT_OFFERING_ID]),
+    packageCount: pool.length,
+    productIds: pool.map((pkg) => pkg.product?.identifier ?? '').filter(Boolean),
+    packageIdentifiers: pool.map((pkg) => pkg.identifier),
+    monthlyFound: Boolean(monthly),
+  };
+}
+
+export async function probeRevenueCatOfferings(): Promise<{
+  offerings: PurchasesOfferings | null;
+  fetchResult: 'null' | 'ok' | 'error';
+  errorMessage: string | null;
+  skipReason: 'not_configured' | null;
+}> {
+  if (!configured) {
+    return {
+      offerings: null,
+      fetchResult: 'null',
+      errorMessage: 'SDK not configured',
+      skipReason: 'not_configured',
+    };
+  }
+
+  try {
+    const offerings = await Purchases.getOfferings();
+    return {
+      offerings,
+      fetchResult: 'ok',
+      errorMessage: null,
+      skipReason: null,
+    };
+  } catch (error) {
+    return {
+      offerings: null,
+      fetchResult: 'error',
+      errorMessage: error instanceof Error ? error.message : String(error),
+      skipReason: null,
+    };
+  }
+}
