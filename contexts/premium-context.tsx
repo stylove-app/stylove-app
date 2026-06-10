@@ -90,7 +90,7 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const qaBypass = isQaTestMode() && !isRevenueCatConfigured();
   const isPremium = rcPremium || qaBypass;
   const resolvedActivePlan = qaBypass ? ('monthly' as PurchasePlan) : activePlan;
-  const offeringsAvailable = Boolean(weeklyPackage || monthlyPackage);
+  const offeringsAvailable = Boolean(monthlyPackage);
 
   const loadOfferings = useCallback(async () => {
     setPackagesLoading(true);
