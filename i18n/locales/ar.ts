@@ -262,11 +262,7 @@ const ar = {
   premium: {
     title: 'Stylove Premium',
     subtitle: 'فن ارتداء الملابس، بلا حدود.',
-    weekly: 'أسبوعي',
-    monthly: 'شهري',
-    weeklyPrice: '399,99 TL',
     monthlyPrice: '699,99 TL',
-    perWeek: '/ أسبوع',
     perMonth: '/ شهر',
     benefits: [
       'اقتراحات looks بلا حدود',
@@ -276,7 +272,6 @@ const ar = {
       'أكملي الإطلالة',
       'ذاكرة أسلوب خاصة',
     ],
-    ctaWeekly: 'ابدئي أسبوعياً',
     ctaMonthly: 'ابدئي شهرياً',
     restore: 'استعادة المشتريات',
     successTitle: 'مرحباً بك في Premium',

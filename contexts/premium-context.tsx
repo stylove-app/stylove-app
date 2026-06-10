@@ -12,11 +12,9 @@ import React, {
 import { useAuth } from '@/contexts/auth-context';
 import { isQaTestMode } from '@/lib/qa-test-mode';
 import { isRevenueCatConfigured } from '@/lib/revenuecat-config';
-import type { PurchasePlan } from '@/services/payments';
 import {
-  activePlanFromCustomerInfo,
   configureRevenueCat,
-  extractPaywallPackages,
+  extractMonthlyPackage,
   fetchOfferings,
   getCustomerInfo,
   isPremiumFromCustomerInfo,
@@ -26,18 +24,15 @@ import {
   purchasePackage,
   restoreRevenueCatPurchases,
   type PurchaseFlowResult,
-  type RevenueCatPaywallPackages,
 } from '@/services/revenuecat';
 
 type PremiumContextValue = {
   isPremium: boolean;
   ready: boolean;
-  activePlan: PurchasePlan | null;
   packagesLoading: boolean;
   offeringsAvailable: boolean;
-  weeklyPackage: PurchasesPackage | null;
   monthlyPackage: PurchasesPackage | null;
-  purchasePlan: (plan: PurchasePlan) => Promise<PurchaseFlowResult>;
+  purchaseMonthly: () => Promise<PurchaseFlowResult>;
   restorePurchases: () => Promise<{ restored: boolean }>;
   refreshOfferings: () => Promise<void>;
 };
@@ -47,28 +42,19 @@ const PremiumContext = createContext<PremiumContextValue | null>(null);
 function applyCustomerInfo(
   info: CustomerInfo | null,
   setPremium: (value: boolean) => void,
-  setActivePlan: (value: PurchasePlan | null) => void,
 ) {
   setPremium(isPremiumFromCustomerInfo(info));
-  setActivePlan(activePlanFromCustomerInfo(info));
 }
 
-function applyPackagesSafely(
-  extracted: RevenueCatPaywallPackages,
-  setWeeklyPackage: React.Dispatch<React.SetStateAction<PurchasesPackage | null>>,
+function applyMonthlyPackageSafely(
+  next: PurchasesPackage | null,
   setMonthlyPackage: React.Dispatch<React.SetStateAction<PurchasesPackage | null>>,
-  weeklyPackageRef: React.MutableRefObject<PurchasesPackage | null>,
   monthlyPackageRef: React.MutableRefObject<PurchasesPackage | null>,
 ) {
-  setWeeklyPackage((prev) => {
-    const next = extracted.weekly ?? prev;
-    weeklyPackageRef.current = next;
-    return next;
-  });
   setMonthlyPackage((prev) => {
-    const next = extracted.monthly ?? prev;
-    monthlyPackageRef.current = next;
-    return next;
+    const resolved = next ?? prev;
+    monthlyPackageRef.current = resolved;
+    return resolved;
   });
 }
 
@@ -76,20 +62,15 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const { userId, ready: authReady } = useAuth();
   const [ready, setReady] = useState(false);
   const [packagesLoading, setPackagesLoading] = useState(false);
-  const [weeklyPackage, setWeeklyPackage] = useState<PurchasesPackage | null>(null);
   const [monthlyPackage, setMonthlyPackage] = useState<PurchasesPackage | null>(null);
   const [rcPremium, setRcPremium] = useState(false);
-  const [activePlan, setActivePlan] = useState<PurchasePlan | null>(null);
   const linkedUserRef = useRef<string | null>(null);
-  const weeklyPackageRef = useRef<PurchasesPackage | null>(null);
   const monthlyPackageRef = useRef<PurchasesPackage | null>(null);
 
-  weeklyPackageRef.current = weeklyPackage;
   monthlyPackageRef.current = monthlyPackage;
 
   const qaBypass = isQaTestMode() && !isRevenueCatConfigured();
   const isPremium = rcPremium || qaBypass;
-  const resolvedActivePlan = qaBypass ? ('monthly' as PurchasePlan) : activePlan;
   const offeringsAvailable = Boolean(monthlyPackage);
 
   const loadOfferings = useCallback(async () => {
@@ -97,21 +78,14 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     try {
       const offerings = await fetchOfferings();
       if (!offerings) {
-        console.log('[premium] loadOfferings: fetch returned null, keeping existing packages', {
-          weeklyRef: Boolean(weeklyPackageRef.current),
+        console.log('[premium] loadOfferings: fetch returned null, keeping existing package', {
           monthlyRef: Boolean(monthlyPackageRef.current),
         });
         return;
       }
 
-      const packages = extractPaywallPackages(offerings);
-      applyPackagesSafely(
-        packages,
-        setWeeklyPackage,
-        setMonthlyPackage,
-        weeklyPackageRef,
-        monthlyPackageRef,
-      );
+      const monthly = extractMonthlyPackage(offerings);
+      applyMonthlyPackageSafely(monthly, setMonthlyPackage, monthlyPackageRef);
     } finally {
       setPackagesLoading(false);
     }
@@ -119,7 +93,7 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
 
   const refreshCustomerState = useCallback(async () => {
     const info = await getCustomerInfo();
-    applyCustomerInfo(info, setRcPremium, setActivePlan);
+    applyCustomerInfo(info, setRcPremium);
     return info;
   }, []);
 
@@ -155,7 +129,7 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
         if (linkedUserRef.current === userId) return;
         linkedUserRef.current = userId;
         const info = await logInRevenueCat(userId);
-        applyCustomerInfo(info, setRcPremium, setActivePlan);
+        applyCustomerInfo(info, setRcPremium);
         await loadOfferings();
         return;
       }
@@ -170,60 +144,38 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     void syncUser();
   }, [authReady, ready, userId, loadOfferings, refreshCustomerState]);
 
-  const resolvePackageForPlan = useCallback(async (plan: PurchasePlan): Promise<PurchasesPackage | null> => {
-    const readPackages = () => ({
-      weekly: weeklyPackageRef.current,
-      monthly: monthlyPackageRef.current,
-    });
+  const resolveMonthlyPackage = useCallback(async (): Promise<PurchasesPackage | null> => {
+    let pkg = monthlyPackageRef.current;
 
-    let { weekly, monthly } = readPackages();
-    let pkg = plan === 'weekly' ? weekly : monthly;
-
-    console.log('[premium] resolvePackageForPlan', {
-      plan,
+    console.log('[premium] resolveMonthlyPackage', {
       fromRef: Boolean(pkg),
-      weeklyRef: Boolean(weekly),
-      monthlyRef: Boolean(monthly),
+      monthlyRef: Boolean(monthlyPackageRef.current),
     });
 
     if (pkg) return pkg;
 
-    console.log('[premium] package missing in refs, re-fetching offerings', { plan });
+    console.log('[premium] monthly package missing in ref, re-fetching offerings');
     const offerings = await fetchOfferings();
     if (!offerings) {
-      console.log('[premium] resolvePackageForPlan: re-fetch returned null, keeping refs', {
-        plan,
-        weeklyRef: Boolean(weeklyPackageRef.current),
+      console.log('[premium] resolveMonthlyPackage: re-fetch returned null', {
         monthlyRef: Boolean(monthlyPackageRef.current),
       });
-      return plan === 'weekly' ? weeklyPackageRef.current : monthlyPackageRef.current;
+      return monthlyPackageRef.current;
     }
 
-    const packages = extractPaywallPackages(offerings);
-    applyPackagesSafely(
-      packages,
-      setWeeklyPackage,
-      setMonthlyPackage,
-      weeklyPackageRef,
-      monthlyPackageRef,
-    );
+    const monthly = extractMonthlyPackage(offerings);
+    applyMonthlyPackageSafely(monthly, setMonthlyPackage, monthlyPackageRef);
+    pkg = monthly ?? monthlyPackageRef.current;
 
-    weekly = packages.weekly ?? weeklyPackageRef.current;
-    monthly = packages.monthly ?? monthlyPackageRef.current;
-    pkg = plan === 'weekly' ? weekly : monthly;
-
-    console.log('[premium] resolvePackageForPlan after refresh', {
-      plan,
+    console.log('[premium] resolveMonthlyPackage after refresh', {
       found: Boolean(pkg),
       packageId: pkg?.identifier,
       productId: pkg?.product.identifier,
     });
 
     if (!pkg) {
-      logOfferingsDiagnostics(offerings, 'resolvePackageForPlan:still-missing');
-      console.log('[premium] resolvePackageForPlan unavailable', {
-        plan,
-        weeklyRef: Boolean(weeklyPackageRef.current),
+      logOfferingsDiagnostics(offerings, 'resolveMonthlyPackage:still-missing');
+      console.log('[premium] resolveMonthlyPackage unavailable', {
         monthlyRef: Boolean(monthlyPackageRef.current),
       });
     }
@@ -231,45 +183,39 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     return pkg;
   }, []);
 
-  const purchasePlan = useCallback(
-    async (plan: PurchasePlan): Promise<PurchaseFlowResult> => {
-      const pkg = await resolvePackageForPlan(plan);
-      console.log('[premium] purchasePlan called', {
-        plan,
-        packageFound: Boolean(pkg),
-        packageId: pkg?.identifier,
-        productId: pkg?.product.identifier,
-      });
+  const purchaseMonthly = useCallback(async (): Promise<PurchaseFlowResult> => {
+    const pkg = await resolveMonthlyPackage();
+    console.log('[premium] purchaseMonthly called', {
+      packageFound: Boolean(pkg),
+      packageId: pkg?.identifier,
+      productId: pkg?.product.identifier,
+    });
 
-      if (!pkg) {
-        return { ok: false, cancelled: false, message: 'Subscription package unavailable.' };
-      }
+    if (!pkg) {
+      return { ok: false, cancelled: false, message: 'Subscription package unavailable.' };
+    }
 
-      console.log('[premium] purchasePlan invoking RevenueCat', {
-        plan,
-        packageId: pkg.identifier,
-        productId: pkg.product.identifier,
-      });
+    console.log('[premium] purchaseMonthly invoking RevenueCat', {
+      packageId: pkg.identifier,
+      productId: pkg.product.identifier,
+    });
 
-      const result = await purchasePackage(pkg);
-      console.log('[premium] purchasePlan result', {
-        plan,
-        ok: result.ok,
-        cancelled: !result.ok && result.cancelled,
-        message: !result.ok ? result.message : undefined,
-      });
+    const result = await purchasePackage(pkg);
+    console.log('[premium] purchaseMonthly result', {
+      ok: result.ok,
+      cancelled: !result.ok && result.cancelled,
+      message: !result.ok ? result.message : undefined,
+    });
 
-      if (result.ok) {
-        applyCustomerInfo(result.customerInfo, setRcPremium, setActivePlan);
-      }
-      return result;
-    },
-    [resolvePackageForPlan],
-  );
+    if (result.ok) {
+      applyCustomerInfo(result.customerInfo, setRcPremium);
+    }
+    return result;
+  }, [resolveMonthlyPackage]);
 
   const restorePurchases = useCallback(async () => {
     const { restored, customerInfo } = await restoreRevenueCatPurchases();
-    applyCustomerInfo(customerInfo, setRcPremium, setActivePlan);
+    applyCustomerInfo(customerInfo, setRcPremium);
     return { restored };
   }, []);
 
@@ -277,24 +223,20 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     () => ({
       isPremium,
       ready,
-      activePlan: resolvedActivePlan,
       packagesLoading,
       offeringsAvailable,
-      weeklyPackage,
       monthlyPackage,
-      purchasePlan,
+      purchaseMonthly,
       restorePurchases,
       refreshOfferings: loadOfferings,
     }),
     [
       isPremium,
       ready,
-      resolvedActivePlan,
       packagesLoading,
       offeringsAvailable,
-      weeklyPackage,
       monthlyPackage,
-      purchasePlan,
+      purchaseMonthly,
       restorePurchases,
       loadOfferings,
     ],

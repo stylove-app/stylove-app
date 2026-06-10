@@ -261,11 +261,7 @@ const de = {
   premium: {
     title: 'Stylove Premium',
     subtitle: 'Die Kunst des Anziehens, ohne Grenzen.',
-    weekly: 'Wöchentlich',
-    monthly: 'Monatlich',
-    weeklyPrice: '399,99 TL',
     monthlyPrice: '699,99 TL',
-    perWeek: '/ Woche',
     perMonth: '/ Monat',
     benefits: [
       'Unbegrenzte Outfit-Vorschläge',
@@ -275,7 +271,6 @@ const de = {
       'Look vervollständigen',
       'Private Stil-Erinnerung',
     ],
-    ctaWeekly: 'Wöchentlich starten',
     ctaMonthly: 'Monatlich starten',
     restore: 'Käufe wiederherstellen',
     successTitle: 'Willkommen bei Premium',

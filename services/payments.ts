@@ -4,18 +4,7 @@
 
 import { restoreRevenueCatPurchases } from '@/services/revenuecat';
 
-export type PurchasePlan = 'weekly' | 'monthly';
-
-export type PurchaseResult = {
-  success: boolean;
-  plan: PurchasePlan;
-  transactionId: string;
-};
-
-export async function restorePurchases(): Promise<{ restored: boolean; activePlan: PurchasePlan | null }> {
+export async function restorePurchases(): Promise<{ restored: boolean }> {
   const { restored } = await restoreRevenueCatPurchases();
-  return {
-    restored,
-    activePlan: restored ? 'monthly' : null,
-  };
+  return { restored };
 }

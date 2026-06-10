@@ -33,7 +33,7 @@ module.exports = {
     ...appJson.expo,
     ios: {
       ...appJson.expo.ios,
-      bundleIdentifier: 'com.stylove.app',
+      bundleIdentifier: 'com.stylove.mobile',
       usesAppleSignIn: true,
       infoPlist: {
         ...appJson.expo.ios?.infoPlist,

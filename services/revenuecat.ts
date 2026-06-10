@@ -2,23 +2,19 @@ import { Platform } from 'react-native';
 import Purchases, {
   PURCHASES_ERROR_CODE,
   type CustomerInfo,
+  type PurchasesOffering,
   type PurchasesOfferings,
   type PurchasesPackage,
 } from 'react-native-purchases';
 
 import {
   REVENUECAT_ENTITLEMENT_ID,
-  REVENUECAT_PACKAGE_IDS,
-  REVENUECAT_PRODUCT_IDS,
+  REVENUECAT_OFFERING_ID,
+  REVENUECAT_PACKAGE_ID,
+  REVENUECAT_PRODUCT_ID,
   getRevenueCatIosApiKey,
   isRevenueCatConfigured,
 } from '@/lib/revenuecat-config';
-import type { PurchasePlan } from '@/services/payments';
-
-export type RevenueCatPaywallPackages = {
-  weekly: PurchasesPackage | null;
-  monthly: PurchasesPackage | null;
-};
 
 let configured = false;
 
@@ -38,7 +34,18 @@ function packageSnapshot(pkg: PurchasesPackage) {
   };
 }
 
-function collectPackages(offerings: PurchasesOfferings): PurchasesPackage[] {
+function getDefaultOffering(offerings: PurchasesOfferings): PurchasesOffering | null {
+  const explicit = offerings.all[REVENUECAT_OFFERING_ID];
+  if (explicit) return explicit;
+
+  if (offerings.current?.identifier === REVENUECAT_OFFERING_ID) {
+    return offerings.current;
+  }
+
+  return offerings.current ?? null;
+}
+
+function collectMonthlyPackages(offering: PurchasesOffering): PurchasesPackage[] {
   const seen = new Set<string>();
   const pool: PurchasesPackage[] = [];
 
@@ -48,16 +55,8 @@ function collectPackages(offerings: PurchasesOfferings): PurchasesPackage[] {
     pool.push(pkg);
   };
 
-  const current = offerings.current;
-  for (const pkg of current?.availablePackages ?? []) add(pkg);
-  add(current?.weekly ?? null);
-  add(current?.monthly ?? null);
-
-  for (const offering of Object.values(offerings.all)) {
-    for (const pkg of offering.availablePackages) add(pkg);
-    add(offering.weekly);
-    add(offering.monthly);
-  }
+  for (const pkg of offering.availablePackages) add(pkg);
+  add(offering.monthly ?? null);
 
   return pool;
 }
@@ -71,79 +70,60 @@ export function logOfferingsDiagnostics(
     return;
   }
 
-  const pool = collectPackages(offerings);
+  const offering = getDefaultOffering(offerings);
+  const pool = offering ? collectMonthlyPackages(offering) : [];
+
   devLog(`${context}: offerings snapshot`, {
+    expectedOfferingId: REVENUECAT_OFFERING_ID,
     currentOfferingId: offerings.current?.identifier ?? null,
+    defaultOfferingId: offering?.identifier ?? null,
     allOfferingIds: Object.keys(offerings.all),
     packageIdentifiers: pool.map((pkg) => pkg.identifier),
     productIdentifiers: pool.map((pkg) => pkg.product?.identifier ?? null),
     priceStrings: pool.map((pkg) => pkg.product?.priceString ?? null),
-    currentWeeklyShortcut: offerings.current?.weekly?.identifier ?? null,
-    currentMonthlyShortcut: offerings.current?.monthly?.identifier ?? null,
+    monthlyShortcut: offering?.monthly?.identifier ?? null,
     packages: pool.map(packageSnapshot),
   });
 }
 
-function resolvePlanPackage(
-  offerings: PurchasesOfferings | null,
-  plan: PurchasePlan,
-): PurchasesPackage | null {
+export function resolveMonthlyPackage(offerings: PurchasesOfferings | null): PurchasesPackage | null {
   if (!offerings) return null;
 
-  const productId = REVENUECAT_PRODUCT_IDS[plan];
-  const packageId = REVENUECAT_PACKAGE_IDS[plan];
-  const pool = collectPackages(offerings);
+  const offering = getDefaultOffering(offerings);
+  if (!offering) return null;
+
+  const pool = collectMonthlyPackages(offering);
 
   for (const pkg of pool) {
-    if (pkg.product?.identifier === productId) return pkg;
+    if (pkg.product?.identifier === REVENUECAT_PRODUCT_ID) return pkg;
   }
 
   for (const pkg of pool) {
-    if (pkg.identifier === packageId) return pkg;
+    if (pkg.identifier === REVENUECAT_PACKAGE_ID) return pkg;
   }
 
-  const shortcut = plan === 'weekly' ? offerings.current?.weekly : offerings.current?.monthly;
-  if (shortcut) return shortcut;
+  if (offering.monthly) return offering.monthly;
 
   return null;
 }
 
 export function isPremiumFromCustomerInfo(info: CustomerInfo | null | undefined): boolean {
   if (!info) return false;
-  const active = info.entitlements.active[REVENUECAT_ENTITLEMENT_ID];
-  if (active?.isActive) return true;
-
-  return Object.values(info.entitlements.active).some((entitlement) => entitlement.isActive);
+  return Boolean(info.entitlements.active[REVENUECAT_ENTITLEMENT_ID]?.isActive);
 }
 
-export function activePlanFromCustomerInfo(info: CustomerInfo | null | undefined): PurchasePlan | null {
-  if (!isPremiumFromCustomerInfo(info) || !info) return null;
+export function extractMonthlyPackage(offerings: PurchasesOfferings | null): PurchasesPackage | null {
+  logOfferingsDiagnostics(offerings, 'extractMonthlyPackage');
 
-  const entitlement = info.entitlements.active[REVENUECAT_ENTITLEMENT_ID];
-  const productId = entitlement?.productIdentifier;
+  const monthly = resolveMonthlyPackage(offerings);
 
-  if (productId === REVENUECAT_PRODUCT_IDS.weekly) return 'weekly';
-  if (productId === REVENUECAT_PRODUCT_IDS.monthly) return 'monthly';
-
-  return 'monthly';
-}
-
-export function extractPaywallPackages(offerings: PurchasesOfferings | null): RevenueCatPaywallPackages {
-  logOfferingsDiagnostics(offerings, 'extractPaywallPackages');
-
-  const weekly = resolvePlanPackage(offerings, 'weekly');
-  const monthly = resolvePlanPackage(offerings, 'monthly');
-
-  devLog('extractPaywallPackages: resolved', {
-    weeklyFound: Boolean(weekly),
+  devLog('extractMonthlyPackage: resolved', {
     monthlyFound: Boolean(monthly),
-    weeklyPackageId: weekly?.identifier ?? null,
-    weeklyProductId: weekly?.product?.identifier ?? null,
     monthlyPackageId: monthly?.identifier ?? null,
     monthlyProductId: monthly?.product?.identifier ?? null,
   });
 
-  return { weekly, monthly };
+  return monthly;
 }
 
 export async function configureRevenueCat(): Promise<boolean> {

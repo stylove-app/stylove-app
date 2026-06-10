@@ -543,11 +543,7 @@ export type TranslationKeys = {
   premium: {
     title: string;
     subtitle: string;
-    weekly: string;
-    monthly: string;
-    weeklyPrice: string;
     monthlyPrice: string;
-    perWeek: string;
     perMonth: string;
     benefits: string[];
     freeFeatures: string[];
@@ -556,10 +552,6 @@ export type TranslationKeys = {
     premiumTitle: string;
     recommended: string;
     paywallEyebrow: string;
-    plansIntro: string;
-    sameFeaturesNote: string;
-    weeklyPlanTitle: string;
-    weeklyPlanSubtitle: string;
     monthlyPlanTitle: string;
     monthlyPlanSubtitle: string;
     inactiveCta: string;
@@ -569,7 +561,6 @@ export type TranslationKeys = {
     loadingPlansTitle: string;
     loadingPlansMessage: string;
     purchaseError: string;
-    ctaWeekly: string;
     ctaMonthly: string;
     restore: string;
     successTitle: string;

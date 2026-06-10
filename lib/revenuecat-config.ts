@@ -1,22 +1,14 @@
-import type { PurchasePlan } from '@/services/payments';
+/** RevenueCat / App Store subscription product identifier. */
+export const REVENUECAT_PRODUCT_ID = 'stylove_premium_monthly';
 
-/** App Store subscription product identifiers (must match App Store Connect + RevenueCat). */
-export const REVENUECAT_PRODUCT_IDS: Record<PurchasePlan, string> = {
-  weekly: 'com.stylove.app.premium.weekly',
-  monthly: 'com.stylove.app.premium.monthly',
-};
+/** RevenueCat package identifier (default offering → monthly). */
+export const REVENUECAT_PACKAGE_ID = '$rc_monthly';
 
-/** RevenueCat offering package identifiers (dashboard default/custom package ids). */
-export const REVENUECAT_PACKAGE_IDS: Record<PurchasePlan, string> = {
-  weekly: '$rc_weekly',
-  monthly: '$rc_monthly',
-};
+/** RevenueCat offering identifier (dashboard default offering). */
+export const REVENUECAT_OFFERING_ID = 'default';
 
-/**
- * RevenueCat entitlement identifier (dashboard → Entitlements → Identifier).
- * Display name in RC is "stylove Premium"; identifier must match exactly.
- */
-export const REVENUECAT_ENTITLEMENT_ID = 'stylove Premium';
+/** RevenueCat entitlement identifier — premium access gate. */
+export const REVENUECAT_ENTITLEMENT_ID = 'Premium';
 
 export function getRevenueCatIosApiKey(): string | null {
   const key = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY;

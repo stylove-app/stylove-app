@@ -27,7 +27,7 @@ export default function PremiumScreen() {
     isPremium,
     monthlyPackage,
     packagesLoading,
-    purchasePlan,
+    purchaseMonthly,
     restorePurchases,
     refreshOfferings,
   } = usePremium();
@@ -56,7 +56,7 @@ export default function PremiumScreen() {
 
     setBusy(true);
     try {
-      const result = await purchasePlan('monthly');
+      const result = await purchaseMonthly();
       if (result.ok) {
         Alert.alert(t.premium.successTitle, t.premium.successMessage, [
           { text: t.premium.continueCta, onPress: () => router.back() },
@@ -72,7 +72,7 @@ export default function PremiumScreen() {
   }, [
     busy,
     monthlyPackage,
-    purchasePlan,
+    purchaseMonthly,
     t.premium.continueCta,
     t.premium.purchaseError,
     t.premium.successMessage,

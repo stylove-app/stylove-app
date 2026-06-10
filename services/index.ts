@@ -34,11 +34,7 @@ export {
   getSignatureFromMemory,
   type StyleMemory,
 } from '@/lib/style-memory';
-export {
-  restorePurchases,
-  type PurchasePlan,
-  type PurchaseResult,
-} from '@/services/payments';
+export { restorePurchases } from '@/services/payments';
 
 /** Future: connect fragrance affiliate / catalog API. */
 export async function fetchFragranceCatalog(_locale: string): Promise<null> {
