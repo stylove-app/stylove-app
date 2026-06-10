@@ -172,13 +172,36 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
 }
 
 export async function fetchOfferings(): Promise<PurchasesOfferings | null> {
+  devLog('fetchOfferings:start', {
+    configured,
+    platform: Platform.OS,
+    hasApiKey: isRevenueCatConfigured(),
+    expectedProductId: REVENUECAT_PRODUCT_ID,
+    expectedPackageId: REVENUECAT_PACKAGE_ID,
+    expectedOfferingId: REVENUECAT_OFFERING_ID,
+  });
+
   if (!configured) {
-    devLog('fetchOfferings skipped: not configured');
+    devLog('fetchOfferings skipped: SDK not configured', {
+      hint: 'configureRevenueCat() may not have run yet or EXPO_PUBLIC_REVENUECAT_IOS_KEY missing at build time',
+    });
     return null;
   }
 
   try {
     const offerings = await Purchases.getOfferings();
+    const offering = offerings ? getDefaultOffering(offerings) : null;
+    const pool = offering ? collectMonthlyPackages(offering) : [];
+
+    devLog('fetchOfferings:raw response', {
+      hasOfferings: Boolean(offerings),
+      currentOfferingId: offerings?.current?.identifier ?? null,
+      allOfferingIds: offerings ? Object.keys(offerings.all) : [],
+      defaultOfferingResolved: offering?.identifier ?? null,
+      availablePackageCount: pool.length,
+      offeringHasMonthlyShortcut: Boolean(offering?.monthly),
+    });
+
     logOfferingsDiagnostics(offerings, 'fetchOfferings');
     return offerings;
   } catch (error) {

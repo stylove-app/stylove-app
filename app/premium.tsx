@@ -37,7 +37,13 @@ export default function PremiumScreen() {
 
   useEffect(() => {
     analytics.capture('paywall_opened', { source: 'premium_screen' });
-    void refreshOfferings();
+    console.log('[paywall] mount: refreshing offerings', {
+      monthlyPackage: Boolean(monthlyPackage),
+      packagesLoading,
+    });
+    void refreshOfferings().then((result) => {
+      console.log('[paywall] mount: refresh complete', result);
+    });
   }, [refreshOfferings]);
 
   const displayPrice = monthlyPackage?.product.priceString ?? t.premium.monthlyPrice;
@@ -52,11 +58,28 @@ export default function PremiumScreen() {
   const ctaDisabled = packageReady ? busy : packagesLoading;
 
   const handlePurchase = useCallback(async () => {
-    if (!monthlyPackage || busy) return;
+    console.log('[paywall] purchase:start', {
+      monthlyPackage: Boolean(monthlyPackage),
+      packageId: monthlyPackage?.identifier ?? null,
+      productId: monthlyPackage?.product?.identifier ?? null,
+      busy,
+    });
+
+    if (!monthlyPackage || busy) {
+      console.log('[paywall] purchase:blocked', {
+        reason: !monthlyPackage ? 'no_monthly_package' : 'busy',
+      });
+      return;
+    }
 
     setBusy(true);
     try {
       const result = await purchaseMonthly();
+      console.log('[paywall] purchase:result', {
+        ok: result.ok,
+        cancelled: !result.ok && result.cancelled,
+        message: !result.ok ? result.message : undefined,
+      });
       if (result.ok) {
         Alert.alert(t.premium.successTitle, t.premium.successMessage, [
           { text: t.premium.continueCta, onPress: () => router.back() },
@@ -81,13 +104,39 @@ export default function PremiumScreen() {
   ]);
 
   const handleCtaPress = () => {
+    console.log('[paywall] cta:pressed', {
+      packageReady,
+      packagesLoading,
+      busy,
+      ctaDisabled: ctaDisabled || busy,
+      ctaLabel,
+      monthlyPackage: Boolean(monthlyPackage),
+      displayPrice,
+      priceFromStore: Boolean(monthlyPackage?.product.priceString),
+    });
+
     if (packageReady) {
       void handlePurchase();
       return;
     }
-    if (!packagesLoading) {
-      void refreshOfferings();
+
+    if (packagesLoading) {
+      console.log('[paywall] cta:ignored — packagesLoading');
+      return;
     }
+
+    console.log('[paywall] cta:retry — calling refreshOfferings');
+    void refreshOfferings().then((result) => {
+      console.log('[paywall] cta:retry complete', result);
+      if (!result.monthlyFound) {
+        Alert.alert(
+          t.premium.title,
+          result.offeringsFetched
+            ? 'Abonelik paketi bulunamadı. RevenueCat offering veya package eşleşmesini kontrol edin.'
+            : 'Abonelikler yüklenemedi. RevenueCat yapılandırmasını ve ağ bağlantısını kontrol edin.',
+        );
+      }
+    });
   };
 
   const handleRestore = async () => {

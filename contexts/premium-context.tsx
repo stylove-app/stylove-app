@@ -34,7 +34,14 @@ type PremiumContextValue = {
   monthlyPackage: PurchasesPackage | null;
   purchaseMonthly: () => Promise<PurchaseFlowResult>;
   restorePurchases: () => Promise<{ restored: boolean }>;
-  refreshOfferings: () => Promise<void>;
+  refreshOfferings: () => Promise<OfferingsLoadResult>;
+};
+
+export type OfferingsLoadResult = {
+  offeringsFetched: boolean;
+  monthlyFound: boolean;
+  monthlyPackageId: string | null;
+  monthlyProductId: string | null;
 };
 
 const PremiumContext = createContext<PremiumContextValue | null>(null);
@@ -73,21 +80,51 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const isPremium = rcPremium || qaBypass;
   const offeringsAvailable = Boolean(monthlyPackage);
 
-  const loadOfferings = useCallback(async () => {
+  const loadOfferings = useCallback(async (): Promise<OfferingsLoadResult> => {
+    const emptyResult: OfferingsLoadResult = {
+      offeringsFetched: false,
+      monthlyFound: false,
+      monthlyPackageId: monthlyPackageRef.current?.identifier ?? null,
+      monthlyProductId: monthlyPackageRef.current?.product?.identifier ?? null,
+    };
+
+    console.log('[premium] loadOfferings:start', {
+      rcConfigured: isRevenueCatConfigured(),
+      monthlyRefBefore: Boolean(monthlyPackageRef.current),
+    });
+
     setPackagesLoading(true);
     try {
       const offerings = await fetchOfferings();
       if (!offerings) {
-        console.log('[premium] loadOfferings: fetch returned null, keeping existing package', {
+        console.log('[premium] loadOfferings: fetch returned null', {
           monthlyRef: Boolean(monthlyPackageRef.current),
+          hint: 'RevenueCat not configured or getOfferings failed — see [revenuecat] logs',
         });
-        return;
+        return emptyResult;
       }
 
       const monthly = extractMonthlyPackage(offerings);
       applyMonthlyPackageSafely(monthly, setMonthlyPackage, monthlyPackageRef);
+
+      const result: OfferingsLoadResult = {
+        offeringsFetched: true,
+        monthlyFound: Boolean(monthly ?? monthlyPackageRef.current),
+        monthlyPackageId: (monthly ?? monthlyPackageRef.current)?.identifier ?? null,
+        monthlyProductId: (monthly ?? monthlyPackageRef.current)?.product?.identifier ?? null,
+      };
+
+      console.log('[premium] loadOfferings:done', result);
+      return result;
+    } catch (error) {
+      console.log('[premium] loadOfferings:error', {
+        error: String(error),
+        monthlyRef: Boolean(monthlyPackageRef.current),
+      });
+      return emptyResult;
     } finally {
       setPackagesLoading(false);
+      console.log('[premium] loadOfferings:finally', { packagesLoading: false });
     }
   }, []);
 
