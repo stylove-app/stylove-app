@@ -19,19 +19,12 @@ import {
 let configured = false;
 
 function devLog(message: string, details?: Record<string, unknown>) {
+  if (!__DEV__) return;
   if (details) {
     console.log(`[revenuecat] ${message}`, details);
     return;
   }
   console.log(`[revenuecat] ${message}`);
-}
-
-function packageSnapshot(pkg: PurchasesPackage) {
-  return {
-    packageId: pkg.identifier,
-    productId: pkg.product?.identifier ?? null,
-    priceString: pkg.product?.priceString ?? null,
-  };
 }
 
 function getDefaultOffering(offerings: PurchasesOfferings): PurchasesOffering | null {
@@ -61,31 +54,6 @@ function collectMonthlyPackages(offering: PurchasesOffering): PurchasesPackage[]
   return pool;
 }
 
-export function logOfferingsDiagnostics(
-  offerings: PurchasesOfferings | null,
-  context = 'offerings',
-): void {
-  if (!offerings) {
-    devLog(`${context}: no offerings`, { offerings: null });
-    return;
-  }
-
-  const offering = getDefaultOffering(offerings);
-  const pool = offering ? collectMonthlyPackages(offering) : [];
-
-  devLog(`${context}: offerings snapshot`, {
-    expectedOfferingId: REVENUECAT_OFFERING_ID,
-    currentOfferingId: offerings.current?.identifier ?? null,
-    defaultOfferingId: offering?.identifier ?? null,
-    allOfferingIds: Object.keys(offerings.all),
-    packageIdentifiers: pool.map((pkg) => pkg.identifier),
-    productIdentifiers: pool.map((pkg) => pkg.product?.identifier ?? null),
-    priceStrings: pool.map((pkg) => pkg.product?.priceString ?? null),
-    monthlyShortcut: offering?.monthly?.identifier ?? null,
-    packages: pool.map(packageSnapshot),
-  });
-}
-
 export function resolveMonthlyPackage(offerings: PurchasesOfferings | null): PurchasesPackage | null {
   if (!offerings) return null;
 
@@ -113,17 +81,7 @@ export function isPremiumFromCustomerInfo(info: CustomerInfo | null | undefined)
 }
 
 export function extractMonthlyPackage(offerings: PurchasesOfferings | null): PurchasesPackage | null {
-  logOfferingsDiagnostics(offerings, 'extractMonthlyPackage');
-
-  const monthly = resolveMonthlyPackage(offerings);
-
-  devLog('extractMonthlyPackage: resolved', {
-    monthlyFound: Boolean(monthly),
-    monthlyPackageId: monthly?.identifier ?? null,
-    monthlyProductId: monthly?.product?.identifier ?? null,
-  });
-
-  return monthly;
+  return resolveMonthlyPackage(offerings);
 }
 
 export async function configureRevenueCat(): Promise<boolean> {
@@ -172,38 +130,13 @@ export async function getCustomerInfo(): Promise<CustomerInfo | null> {
 }
 
 export async function fetchOfferings(): Promise<PurchasesOfferings | null> {
-  devLog('fetchOfferings:start', {
-    configured,
-    platform: Platform.OS,
-    hasApiKey: isRevenueCatConfigured(),
-    expectedProductId: REVENUECAT_PRODUCT_ID,
-    expectedPackageId: REVENUECAT_PACKAGE_ID,
-    expectedOfferingId: REVENUECAT_OFFERING_ID,
-  });
-
   if (!configured) {
-    devLog('fetchOfferings skipped: SDK not configured', {
-      hint: 'configureRevenueCat() may not have run yet or EXPO_PUBLIC_REVENUECAT_IOS_KEY missing at build time',
-    });
+    devLog('fetchOfferings skipped: SDK not configured');
     return null;
   }
 
   try {
-    const offerings = await Purchases.getOfferings();
-    const offering = offerings ? getDefaultOffering(offerings) : null;
-    const pool = offering ? collectMonthlyPackages(offering) : [];
-
-    devLog('fetchOfferings:raw response', {
-      hasOfferings: Boolean(offerings),
-      currentOfferingId: offerings?.current?.identifier ?? null,
-      allOfferingIds: offerings ? Object.keys(offerings.all) : [],
-      defaultOfferingResolved: offering?.identifier ?? null,
-      availablePackageCount: pool.length,
-      offeringHasMonthlyShortcut: Boolean(offering?.monthly),
-    });
-
-    logOfferingsDiagnostics(offerings, 'fetchOfferings');
-    return offerings;
+    return await Purchases.getOfferings();
   } catch (error) {
     devLog('getOfferings failed', { error: String(error) });
     return null;
@@ -215,24 +148,12 @@ export type PurchaseFlowResult =
   | { ok: false; cancelled: boolean; message?: string };
 
 export async function purchasePackage(pkg: PurchasesPackage): Promise<PurchaseFlowResult> {
-  devLog('purchasePackage start', {
-    configured,
-    packageId: pkg.identifier,
-    productId: pkg.product.identifier,
-  });
-
   if (!configured) {
-    devLog('purchasePackage blocked: not configured');
     return { ok: false, cancelled: false, message: 'Purchases are not configured.' };
   }
 
   try {
-    devLog('purchasePackage calling Purchases.purchasePackage');
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    devLog('purchasePackage success', {
-      packageId: pkg.identifier,
-      activeEntitlements: Object.keys(customerInfo.entitlements.active),
-    });
     return { ok: true, customerInfo };
   } catch (error: unknown) {
     const rcError = error as { code?: string; message?: string; userCancelled?: boolean };
@@ -277,81 +198,4 @@ export async function restoreRevenueCatPurchases(): Promise<{
 
 export function revenueCatReady(): boolean {
   return configured && isRevenueCatConfigured();
-}
-
-export function isRevenueCatSdkConfigured(): boolean {
-  return configured;
-}
-
-export type RevenueCatOfferingSnapshot = {
-  currentOfferingId: string | null;
-  allOfferingIds: string[];
-  defaultOfferingExists: boolean;
-  packageCount: number;
-  productIds: string[];
-  packageIdentifiers: string[];
-  monthlyFound: boolean;
-};
-
-export function snapshotOfferingDetails(
-  offerings: PurchasesOfferings | null,
-): RevenueCatOfferingSnapshot {
-  if (!offerings) {
-    return {
-      currentOfferingId: null,
-      allOfferingIds: [],
-      defaultOfferingExists: false,
-      packageCount: 0,
-      productIds: [],
-      packageIdentifiers: [],
-      monthlyFound: false,
-    };
-  }
-
-  const offering = getDefaultOffering(offerings);
-  const pool = offering ? collectMonthlyPackages(offering) : [];
-  const monthly = resolveMonthlyPackage(offerings);
-
-  return {
-    currentOfferingId: offerings.current?.identifier ?? null,
-    allOfferingIds: Object.keys(offerings.all),
-    defaultOfferingExists: Boolean(offerings.all[REVENUECAT_OFFERING_ID]),
-    packageCount: pool.length,
-    productIds: pool.map((pkg) => pkg.product?.identifier ?? '').filter(Boolean),
-    packageIdentifiers: pool.map((pkg) => pkg.identifier),
-    monthlyFound: Boolean(monthly),
-  };
-}
-
-export async function probeRevenueCatOfferings(): Promise<{
-  offerings: PurchasesOfferings | null;
-  fetchResult: 'null' | 'ok' | 'error';
-  errorMessage: string | null;
-  skipReason: 'not_configured' | null;
-}> {
-  if (!configured) {
-    return {
-      offerings: null,
-      fetchResult: 'null',
-      errorMessage: 'SDK not configured',
-      skipReason: 'not_configured',
-    };
-  }
-
-  try {
-    const offerings = await Purchases.getOfferings();
-    return {
-      offerings,
-      fetchResult: 'ok',
-      errorMessage: null,
-      skipReason: null,
-    };
-  } catch (error) {
-    return {
-      offerings: null,
-      fetchResult: 'error',
-      errorMessage: error instanceof Error ? error.message : String(error),
-      skipReason: null,
-    };
-  }
 }

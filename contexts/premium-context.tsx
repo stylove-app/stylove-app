@@ -19,7 +19,6 @@ import {
   getCustomerInfo,
   isPremiumFromCustomerInfo,
   logInRevenueCat,
-  logOfferingsDiagnostics,
   logOutRevenueCat,
   purchasePackage,
   restoreRevenueCatPurchases,
@@ -88,43 +87,26 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
       monthlyProductId: monthlyPackageRef.current?.product?.identifier ?? null,
     };
 
-    console.log('[premium] loadOfferings:start', {
-      rcConfigured: isRevenueCatConfigured(),
-      monthlyRefBefore: Boolean(monthlyPackageRef.current),
-    });
-
     setPackagesLoading(true);
     try {
       const offerings = await fetchOfferings();
       if (!offerings) {
-        console.log('[premium] loadOfferings: fetch returned null', {
-          monthlyRef: Boolean(monthlyPackageRef.current),
-          hint: 'RevenueCat not configured or getOfferings failed — see [revenuecat] logs',
-        });
         return emptyResult;
       }
 
       const monthly = extractMonthlyPackage(offerings);
       applyMonthlyPackageSafely(monthly, setMonthlyPackage, monthlyPackageRef);
 
-      const result: OfferingsLoadResult = {
+      return {
         offeringsFetched: true,
         monthlyFound: Boolean(monthly ?? monthlyPackageRef.current),
         monthlyPackageId: (monthly ?? monthlyPackageRef.current)?.identifier ?? null,
         monthlyProductId: (monthly ?? monthlyPackageRef.current)?.product?.identifier ?? null,
       };
-
-      console.log('[premium] loadOfferings:done', result);
-      return result;
-    } catch (error) {
-      console.log('[premium] loadOfferings:error', {
-        error: String(error),
-        monthlyRef: Boolean(monthlyPackageRef.current),
-      });
+    } catch {
       return emptyResult;
     } finally {
       setPackagesLoading(false);
-      console.log('[premium] loadOfferings:finally', { packagesLoading: false });
     }
   }, []);
 
@@ -183,20 +165,10 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
 
   const resolveMonthlyPackage = useCallback(async (): Promise<PurchasesPackage | null> => {
     let pkg = monthlyPackageRef.current;
-
-    console.log('[premium] resolveMonthlyPackage', {
-      fromRef: Boolean(pkg),
-      monthlyRef: Boolean(monthlyPackageRef.current),
-    });
-
     if (pkg) return pkg;
 
-    console.log('[premium] monthly package missing in ref, re-fetching offerings');
     const offerings = await fetchOfferings();
     if (!offerings) {
-      console.log('[premium] resolveMonthlyPackage: re-fetch returned null', {
-        monthlyRef: Boolean(monthlyPackageRef.current),
-      });
       return monthlyPackageRef.current;
     }
 
@@ -204,45 +176,17 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
     applyMonthlyPackageSafely(monthly, setMonthlyPackage, monthlyPackageRef);
     pkg = monthly ?? monthlyPackageRef.current;
 
-    console.log('[premium] resolveMonthlyPackage after refresh', {
-      found: Boolean(pkg),
-      packageId: pkg?.identifier,
-      productId: pkg?.product.identifier,
-    });
-
-    if (!pkg) {
-      logOfferingsDiagnostics(offerings, 'resolveMonthlyPackage:still-missing');
-      console.log('[premium] resolveMonthlyPackage unavailable', {
-        monthlyRef: Boolean(monthlyPackageRef.current),
-      });
-    }
-
     return pkg;
   }, []);
 
   const purchaseMonthly = useCallback(async (): Promise<PurchaseFlowResult> => {
     const pkg = await resolveMonthlyPackage();
-    console.log('[premium] purchaseMonthly called', {
-      packageFound: Boolean(pkg),
-      packageId: pkg?.identifier,
-      productId: pkg?.product.identifier,
-    });
 
     if (!pkg) {
       return { ok: false, cancelled: false, message: 'Subscription package unavailable.' };
     }
 
-    console.log('[premium] purchaseMonthly invoking RevenueCat', {
-      packageId: pkg.identifier,
-      productId: pkg.product.identifier,
-    });
-
     const result = await purchasePackage(pkg);
-    console.log('[premium] purchaseMonthly result', {
-      ok: result.ok,
-      cancelled: !result.ok && result.cancelled,
-      message: !result.ok ? result.message : undefined,
-    });
 
     if (result.ok) {
       applyCustomerInfo(result.customerInfo, setRcPremium);

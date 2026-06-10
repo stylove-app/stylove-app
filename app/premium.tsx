@@ -13,19 +13,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StyloveLogo } from '@/components/brand/stylove-logo';
-import { RevenueCatDiagnosticPanel } from '@/components/premium/revenuecat-diagnostic-panel';
 import { LuxuryButton } from '@/components/ui/luxury-button';
 import { useTranslation } from '@/contexts/locale-context';
 import { usePremium } from '@/contexts/premium-context';
 import { StyloveColors } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 import { analytics } from '@/lib/analytics';
-import {
-  getRevenueCatDiagnosticSnapshot,
-  markRevenueCatRetry,
-  refreshRevenueCatDiagnostics,
-  type RevenueCatDiagnosticSnapshot,
-} from '@/lib/revenuecat-diagnostics';
 
 export default function PremiumScreen() {
   const t = useTranslation();
@@ -41,85 +34,31 @@ export default function PremiumScreen() {
 
   const [busy, setBusy] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const [debugOpen, setDebugOpen] = useState(false);
-  const [titleTapCount, setTitleTapCount] = useState(0);
-  const [diagnostics, setDiagnostics] = useState<RevenueCatDiagnosticSnapshot>(
-    getRevenueCatDiagnosticSnapshot,
-  );
-  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
-
-  const runDiagnostics = useCallback(async () => {
-    setDiagnosticsLoading(true);
-    try {
-      const snapshot = await refreshRevenueCatDiagnostics();
-      setDiagnostics(snapshot);
-    } finally {
-      setDiagnosticsLoading(false);
-    }
-  }, []);
-
-  const handleTitleTap = useCallback(() => {
-    setTitleTapCount((count) => {
-      const next = count + 1;
-      if (next >= 5) {
-        setDebugOpen((open) => {
-          const willOpen = !open;
-          if (willOpen) {
-            void runDiagnostics();
-          }
-          return willOpen;
-        });
-        return 0;
-      }
-      return next;
-    });
-  }, [runDiagnostics]);
 
   useEffect(() => {
     analytics.capture('paywall_opened', { source: 'premium_screen' });
-    console.log('[paywall] mount: refreshing offerings', {
-      monthlyPackage: Boolean(monthlyPackage),
-      packagesLoading,
-    });
-    void refreshOfferings().then((result) => {
-      console.log('[paywall] mount: refresh complete', result);
-    });
+    void refreshOfferings();
   }, [refreshOfferings]);
 
   const displayPrice = monthlyPackage?.product.priceString ?? t.premium.monthlyPrice;
   const packageReady = Boolean(monthlyPackage);
 
-  const ctaLabel = packageReady
-    ? t.premium.ctaMonthly
-    : packagesLoading
-      ? 'Paket hazırlanıyor'
-      : 'Yeniden dene';
+  const ctaLabel = busy
+    ? t.premium.loadingPlansTitle
+    : packageReady
+      ? t.premium.ctaMonthly
+      : packagesLoading
+        ? t.premium.loadingPlansTitle
+        : t.wardrobe.retryLoad;
 
   const ctaDisabled = packageReady ? busy : packagesLoading;
 
   const handlePurchase = useCallback(async () => {
-    console.log('[paywall] purchase:start', {
-      monthlyPackage: Boolean(monthlyPackage),
-      packageId: monthlyPackage?.identifier ?? null,
-      productId: monthlyPackage?.product?.identifier ?? null,
-      busy,
-    });
-
-    if (!monthlyPackage || busy) {
-      console.log('[paywall] purchase:blocked', {
-        reason: !monthlyPackage ? 'no_monthly_package' : 'busy',
-      });
-      return;
-    }
+    if (!monthlyPackage || busy) return;
 
     setBusy(true);
     try {
       const result = await purchaseMonthly();
-      console.log('[paywall] purchase:result', {
-        ok: result.ok,
-        cancelled: !result.ok && result.cancelled,
-        message: !result.ok ? result.message : undefined,
-      });
       if (result.ok) {
         Alert.alert(t.premium.successTitle, t.premium.successMessage, [
           { text: t.premium.continueCta, onPress: () => router.back() },
@@ -144,40 +83,16 @@ export default function PremiumScreen() {
   ]);
 
   const handleCtaPress = () => {
-    console.log('[paywall] cta:pressed', {
-      packageReady,
-      packagesLoading,
-      busy,
-      ctaDisabled: ctaDisabled || busy,
-      ctaLabel,
-      monthlyPackage: Boolean(monthlyPackage),
-      displayPrice,
-      priceFromStore: Boolean(monthlyPackage?.product.priceString),
-    });
-
     if (packageReady) {
       void handlePurchase();
       return;
     }
 
-    if (packagesLoading) {
-      console.log('[paywall] cta:ignored — packagesLoading');
-      return;
-    }
+    if (packagesLoading) return;
 
-    markRevenueCatRetry();
-    setDiagnostics((prev) => ({ ...prev, lastRetryAt: new Date().toISOString() }));
-
-    console.log('[paywall] cta:retry — calling refreshOfferings');
     void refreshOfferings().then((result) => {
-      console.log('[paywall] cta:retry complete', result);
       if (!result.monthlyFound) {
-        Alert.alert(
-          t.premium.title,
-          result.offeringsFetched
-            ? 'Abonelik paketi bulunamadı. RevenueCat offering veya package eşleşmesini kontrol edin.'
-            : 'Abonelikler yüklenemedi. RevenueCat yapılandırmasını ve ağ bağlantısını kontrol edin.',
-        );
+        Alert.alert(t.premium.title, t.premium.purchaseError);
       }
     });
   };
@@ -225,19 +140,9 @@ export default function PremiumScreen() {
             <View style={styles.hero}>
               <StyloveLogo size="md" variant="light" />
               <Text style={styles.eyebrow}>{t.premium.paywallEyebrow}</Text>
-              <Pressable onPress={handleTitleTap} accessibilityRole="button">
-                <Text style={styles.title}>{t.premium.title}</Text>
-              </Pressable>
+              <Text style={styles.title}>{t.premium.title}</Text>
               <Text style={styles.subtitle}>{t.premium.subtitle}</Text>
             </View>
-
-            {debugOpen ? (
-              <RevenueCatDiagnosticPanel
-                snapshot={diagnostics}
-                loading={diagnosticsLoading}
-                onRefresh={() => void runDiagnostics()}
-              />
-            ) : null}
 
             <View style={styles.planCard}>
               <Text style={styles.planTitle}>{t.premium.monthlyPlanTitle}</Text>
@@ -255,7 +160,7 @@ export default function PremiumScreen() {
             </View>
 
             <LuxuryButton
-              label={busy ? 'İşleniyor…' : ctaLabel}
+              label={ctaLabel}
               variant="gold"
               disabled={ctaDisabled || busy}
               onPress={handleCtaPress}
