@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -19,6 +20,11 @@ import { usePremium } from '@/contexts/premium-context';
 import { StyloveColors } from '@/constants/stylove-theme';
 import { Fonts } from '@/constants/theme';
 import { analytics } from '@/lib/analytics';
+
+const PREMIUM_LEGAL_URLS = {
+  terms: 'https://stylove.app/terms.html',
+  privacy: 'https://stylove.app/privacy.html',
+} as const;
 
 export default function PremiumScreen() {
   const t = useTranslation();
@@ -179,6 +185,22 @@ export default function PremiumScreen() {
             </Pressable>
 
             <Text style={styles.note}>{t.premium.note}</Text>
+
+            <View style={styles.legalLinks}>
+              <Pressable
+                onPress={() => void Linking.openURL(PREMIUM_LEGAL_URLS.terms)}
+                accessibilityRole="link"
+                accessibilityLabel={t.legal.terms.title}>
+                <Text style={styles.legalLinkText}>{t.legal.terms.title}</Text>
+              </Pressable>
+              <Text style={styles.legalSeparator}>·</Text>
+              <Pressable
+                onPress={() => void Linking.openURL(PREMIUM_LEGAL_URLS.privacy)}
+                accessibilityRole="link"
+                accessibilityLabel={t.legal.privacy.title}>
+                <Text style={styles.legalLinkText}>{t.legal.privacy.title}</Text>
+              </Pressable>
+            </View>
           </>
         )}
       </ScrollView>
@@ -292,6 +314,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     fontStyle: 'italic',
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingTop: 4,
+  },
+  legalLinkText: {
+    color: StyloveColors.goldSoft,
+    fontSize: 11,
+    letterSpacing: 0.3,
+    textDecorationLine: 'underline',
+  },
+  legalSeparator: {
+    color: 'rgba(248,244,237,0.4)',
+    fontSize: 11,
   },
   premiumActive: {
     alignItems: 'center',

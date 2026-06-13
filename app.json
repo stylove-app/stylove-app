@@ -55,7 +55,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Stylove accesses your photos to build your private wardrobe."
+          "photosPermission": "Stylove accesses your photos to build your private wardrobe.",
+          "cameraPermission": "Stylove uses the camera to photograph clothing items so they can be added to your private wardrobe and used for outfit recommendations."
         }
       ],
       "@sentry/react-native"
